@@ -1,16 +1,10 @@
 import { motion } from "framer-motion";
 import { User, Settings, Bell, Shield, LogOut, ChevronRight, Zap, Target, Calendar } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
-
-const mockProfile = {
-  name: "THE HOTSTEPPER",
-  email: "hotstepper@protocol.io",
-  memberSince: "Nov 2024",
-  rank: 4,
-  totalSteps: 285400,
-  streak: 12,
-  targetHits: 28,
-};
+import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const menuItems = [
   { icon: Bell, label: "Notifications", action: "notifications" },
@@ -20,6 +14,74 @@ const menuItems = [
 ];
 
 const Profile = () => {
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: streak } = useQuery({
+    queryKey: ["streak", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("streaks")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ["stats", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return { totalSteps: 0, targetHits: 0 };
+      
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      
+      const { data, error } = await supabase
+        .from("daily_steps")
+        .select("steps, target_hit")
+        .eq("user_id", user.id)
+        .gte("date", startOfMonth.toISOString().split("T")[0]);
+      
+      if (error) throw error;
+      
+      const totalSteps = data?.reduce((sum, d) => sum + (d.steps || 0), 0) || 0;
+      const targetHits = data?.filter(d => d.target_hit).length || 0;
+      
+      return { totalSteps, targetHits };
+    },
+    enabled: !!user?.id,
+  });
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/auth");
+  };
+
+  const displayName = profile?.display_name || "HOTSTEPPER";
+  const avatarInitials = profile?.avatar_initials || displayName.slice(0, 2).toUpperCase();
+
   return (
     <div className="min-h-screen pb-24">
       {/* Header */}
@@ -35,17 +97,17 @@ const Profile = () => {
           animate={{ scale: 1 }}
           transition={{ delay: 0.2 }}
         >
-          <User className="h-12 w-12 text-primary" />
+          <span className="text-2xl font-bold text-primary">{avatarInitials}</span>
         </motion.div>
         
         <h1 className="text-xl font-bold uppercase tracking-wider text-foreground">
-          {mockProfile.name}
+          {displayName}
         </h1>
         <p className="text-xs font-medium text-muted-foreground mt-1">
-          {mockProfile.email}
+          {user?.email}
         </p>
         <p className="text-[10px] uppercase tracking-widest text-primary mt-2">
-          Member since {mockProfile.memberSince}
+          Member since {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Today'}
         </p>
       </motion.header>
 
@@ -58,17 +120,17 @@ const Profile = () => {
       >
         <div className="tactical-card flex flex-col items-center py-4">
           <Zap className="h-5 w-5 text-accent mb-1" />
-          <span className="text-2xl font-bold text-accent">{mockProfile.streak}</span>
+          <span className="text-2xl font-bold text-accent">{streak?.current_streak || 0}</span>
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Day Streak</span>
         </div>
         <div className="tactical-card flex flex-col items-center py-4">
           <Target className="h-5 w-5 text-primary mb-1" />
-          <span className="text-2xl font-bold text-foreground">{mockProfile.targetHits}</span>
+          <span className="text-2xl font-bold text-foreground">{stats?.targetHits || 0}</span>
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Targets Hit</span>
         </div>
         <div className="tactical-card flex flex-col items-center py-4">
           <Calendar className="h-5 w-5 text-primary mb-1" />
-          <span className="text-2xl font-bold text-foreground">#{mockProfile.rank}</span>
+          <span className="text-2xl font-bold text-foreground">#{1}</span>
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Global Rank</span>
         </div>
       </motion.div>
@@ -85,7 +147,7 @@ const Profile = () => {
             Total Steps This Month
           </span>
           <div className="text-4xl font-bold text-primary mt-2">
-            {mockProfile.totalSteps.toLocaleString()}
+            {(stats?.totalSteps || 0).toLocaleString()}
           </div>
         </div>
       </motion.div>
@@ -116,7 +178,10 @@ const Profile = () => {
         animate={{ opacity: 1 }}
         transition={{ delay: 0.9 }}
       >
-        <button className="w-full flex items-center justify-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 py-3 text-destructive hover:bg-destructive/20 transition-colors">
+        <button 
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 py-3 text-destructive hover:bg-destructive/20 transition-colors"
+        >
           <LogOut className="h-5 w-5" />
           <span className="text-sm font-semibold uppercase tracking-wider">Log Out</span>
         </button>
