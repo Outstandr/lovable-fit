@@ -14,16 +14,225 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      access_codes: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_used: boolean
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_used?: boolean
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_used?: boolean
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: []
+      }
+      active_sessions: {
+        Row: {
+          created_at: string
+          distance_km: number | null
+          duration_seconds: number | null
+          ended_at: string | null
+          id: string
+          pace_per_km: string | null
+          route_snapshot_url: string | null
+          started_at: string
+          steps: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          distance_km?: number | null
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          pace_per_km?: string | null
+          route_snapshot_url?: string | null
+          started_at?: string
+          steps?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          distance_km?: number | null
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          pace_per_km?: string | null
+          route_snapshot_url?: string | null
+          started_at?: string
+          steps?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      daily_steps: {
+        Row: {
+          calories: number | null
+          created_at: string
+          date: string
+          distance_km: number | null
+          id: string
+          steps: number
+          target_hit: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calories?: number | null
+          created_at?: string
+          date?: string
+          distance_km?: number | null
+          id?: string
+          steps?: number
+          target_hit?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calories?: number | null
+          created_at?: string
+          date?: string
+          distance_km?: number | null
+          id?: string
+          steps?: number
+          target_hit?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_initials: string | null
+          created_at: string
+          display_name: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_initials?: string | null
+          created_at?: string
+          display_name: string
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_initials?: string | null
+          created_at?: string
+          display_name?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      protocol_tasks: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          no_alcohol: boolean
+          read_chapter: boolean
+          steps_completed: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          no_alcohol?: boolean
+          read_chapter?: boolean
+          steps_completed?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          no_alcohol?: boolean
+          read_chapter?: boolean
+          steps_completed?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      streaks: {
+        Row: {
+          current_streak: number
+          id: string
+          last_target_hit_date: string | null
+          longest_streak: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          current_streak?: number
+          id?: string
+          last_target_hit_date?: string | null
+          longest_streak?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          current_streak?: number
+          id?: string
+          last_target_hit_date?: string | null
+          longest_streak?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +359,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
