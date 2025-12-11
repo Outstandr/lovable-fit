@@ -2,3 +2,6 @@ project_id = "kptrzskoktsveztkbhhc"
 
 [functions.generate-access-code]
 verify_jwt = false
+
+[functions.register-access-code]
+verify_jwt = false
