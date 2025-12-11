@@ -18,24 +18,36 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          customer_email: string | null
+          customer_name: string | null
           id: string
           is_used: boolean
+          product_name: string | null
+          purchase_id: string | null
           used_at: string | null
           used_by: string | null
         }
         Insert: {
           code: string
           created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
           id?: string
           is_used?: boolean
+          product_name?: string | null
+          purchase_id?: string | null
           used_at?: string | null
           used_by?: string | null
         }
         Update: {
           code?: string
           created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
           id?: string
           is_used?: boolean
+          product_name?: string | null
+          purchase_id?: string | null
           used_at?: string | null
           used_by?: string | null
         }
