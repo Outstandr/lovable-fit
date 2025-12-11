@@ -1,30 +1,102 @@
 import { motion } from "framer-motion";
-import { MapPin, Flame, Zap, Play } from "lucide-react";
+import { MapPin, Flame, Zap, Play, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ProgressRing } from "@/components/ProgressRing";
 import { StatCard } from "@/components/StatCard";
 import { LeaderboardPreview } from "@/components/LeaderboardPreview";
 import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
+import { HealthPermissionPrompt } from "@/components/HealthPermissionPrompt";
+import { useHealthData } from "@/hooks/useHealthData";
+import { useStreak } from "@/hooks/useStreak";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
-// Mock data - will be replaced with real health data
-const mockData = {
-  steps: 6450,
-  target: 10000,
-  distance: 5.2,
-  calories: 258,
-  streak: 12,
-};
+const TARGET_STEPS = 10000;
 
-const mockLeaderboard = [
-  { rank: 1, name: "J. STEELE", steps: 15400 },
-  { rank: 2, name: "M. FROST", steps: 14200 },
-  { rank: 3, name: "THE HOTSTEPPER", steps: 13800, isCurrentUser: true },
-  { rank: 4, name: "K. DARK", steps: 12500 },
-];
+interface LeaderboardEntry {
+  rank: number;
+  name: string;
+  steps: number;
+  isCurrentUser?: boolean;
+}
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { healthData, requestPermissions, refetch } = useHealthData();
+  const { streak, updateStreakOnTargetHit } = useStreak();
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [permissionRequested, setPermissionRequested] = useState(false);
+
+  // Fetch leaderboard data
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // First get daily steps
+      const { data: stepsData, error: stepsError } = await supabase
+        .from('daily_steps')
+        .select('steps, user_id')
+        .eq('date', today)
+        .order('steps', { ascending: false })
+        .limit(10);
+
+      if (stepsError || !stepsData) {
+        console.error('[Dashboard] Leaderboard error:', stepsError);
+        return;
+      }
+
+      // Then get profiles for those users
+      const userIds = stepsData.map(item => item.user_id);
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, display_name')
+        .in('id', userIds);
+
+      const profileMap = new Map(profilesData?.map(p => [p.id, p.display_name]) || []);
+
+      const entries: LeaderboardEntry[] = stepsData.map((item, index) => ({
+        rank: index + 1,
+        name: profileMap.get(item.user_id) || 'Unknown',
+        steps: item.steps,
+        isCurrentUser: item.user_id === user?.id
+      }));
+
+      setLeaderboard(entries);
+    };
+
+    if (user) {
+      fetchLeaderboard();
+    }
+  }, [user, healthData.steps]);
+
+  // Update streak when target is hit
+  useEffect(() => {
+    if (healthData.steps >= TARGET_STEPS) {
+      updateStreakOnTargetHit();
+    }
+  }, [healthData.steps, updateStreakOnTargetHit]);
+
+  const handleRequestPermissions = async (): Promise<boolean> => {
+    setPermissionRequested(true);
+    const granted = await requestPermissions();
+    if (granted) {
+      refetch();
+    }
+    return granted;
+  };
+
+  const dashboardData = {
+    steps: healthData.steps,
+    target: TARGET_STEPS,
+    distance: healthData.distance,
+    calories: healthData.calories,
+    streak: streak.currentStreak
+  };
+
+  const showPermissionPrompt = !healthData.hasPermission && !permissionRequested && healthData.platform !== 'web';
 
   return (
     <div className="min-h-screen pb-24">
@@ -39,13 +111,34 @@ const Dashboard = () => {
           Hotstepper
         </h1>
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Protocol Active • Day {mockData.streak}
+          Protocol Active • Day {dashboardData.streak}
         </p>
       </motion.header>
 
+      {/* Permission Prompt or Web Notice */}
+      {(showPermissionPrompt || healthData.platform === 'web') && (
+        <div className="px-4 pb-4">
+          <HealthPermissionPrompt
+            platform={healthData.platform}
+            hasPermission={healthData.hasPermission}
+            onRequestPermission={handleRequestPermissions}
+            isLoading={healthData.isLoading}
+          />
+        </div>
+      )}
+
+      {/* Loading State */}
+      {healthData.isLoading && healthData.platform !== 'web' && (
+        <div className="flex justify-center py-8">
+          <div className="text-sm text-muted-foreground animate-pulse">
+            Loading health data...
+          </div>
+        </div>
+      )}
+
       {/* Main Progress Ring */}
       <div className="flex justify-center px-4 py-6">
-        <ProgressRing current={mockData.steps} target={mockData.target} />
+        <ProgressRing current={dashboardData.steps} target={dashboardData.target} />
       </div>
 
       {/* Stats Grid */}
@@ -53,19 +146,19 @@ const Dashboard = () => {
         <StatCard 
           icon={MapPin} 
           label="Distance" 
-          value={`${mockData.distance} KM`}
+          value={`${dashboardData.distance.toFixed(1)} KM`}
           delay={0.2}
         />
         <StatCard 
           icon={Flame} 
           label="Calories" 
-          value={`${mockData.calories}`}
+          value={`${dashboardData.calories}`}
           delay={0.3}
         />
         <StatCard 
           icon={Zap} 
           label="Streak" 
-          value={`Day ${mockData.streak}`}
+          value={`Day ${dashboardData.streak}`}
           highlight
           delay={0.4}
         />
@@ -73,10 +166,24 @@ const Dashboard = () => {
 
       {/* Leaderboard Preview */}
       <div className="px-4 py-6">
-        <LeaderboardPreview 
-          entries={mockLeaderboard}
-          onViewAll={() => navigate('/leaderboard')}
-        />
+        {leaderboard.length > 0 ? (
+          <LeaderboardPreview 
+            entries={leaderboard}
+            onViewAll={() => navigate('/leaderboard')}
+          />
+        ) : (
+          <motion.div 
+            className="tactical-card text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+          >
+            <AlertCircle className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
+            <p className="text-xs text-muted-foreground">
+              No leaderboard data yet. Start walking to join the competition!
+            </p>
+          </motion.div>
+        )}
       </div>
 
       {/* Action Button */}

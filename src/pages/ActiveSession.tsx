@@ -1,21 +1,32 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, MapPin, Clock, Gauge, Square } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useHealthData } from "@/hooks/useHealthData";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const ActiveSession = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { healthData, refetch } = useHealthData();
   const [duration, setDuration] = useState(0);
   const [isRunning, setIsRunning] = useState(true);
-  
-  // Mock session data
-  const sessionData = {
-    distance: 1.23,
-    pace: "5:45",
-    steps: 1560,
-  };
+  const [startSteps, setStartSteps] = useState<number | null>(null);
+  const [sessionStartTime] = useState<Date>(new Date());
+  const lastStepsRef = useRef(0);
 
+  // Capture start steps when session begins
+  useEffect(() => {
+    if (startSteps === null && !healthData.isLoading) {
+      setStartSteps(healthData.steps);
+      lastStepsRef.current = healthData.steps;
+    }
+  }, [healthData.steps, healthData.isLoading, startSteps]);
+
+  // Timer for duration
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isRunning) {
@@ -25,6 +36,17 @@ const ActiveSession = () => {
     }
     return () => clearInterval(interval);
   }, [isRunning]);
+
+  // Refresh health data more frequently during active session
+  useEffect(() => {
+    if (!isRunning) return;
+    
+    const interval = setInterval(() => {
+      refetch();
+    }, 5000); // Update every 5 seconds
+    
+    return () => clearInterval(interval);
+  }, [isRunning, refetch]);
 
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
@@ -36,9 +58,58 @@ const ActiveSession = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleStop = () => {
+  // Calculate session stats
+  const sessionSteps = startSteps !== null ? Math.max(0, healthData.steps - startSteps) : 0;
+  const sessionDistance = (sessionSteps * 0.762) / 1000; // Convert steps to km
+  
+  // Calculate pace (min:sec per km)
+  const calculatePace = () => {
+    if (sessionDistance <= 0 || duration <= 0) return "--:--";
+    const paceSeconds = duration / sessionDistance;
+    const paceMinutes = Math.floor(paceSeconds / 60);
+    const paceRemainderSeconds = Math.floor(paceSeconds % 60);
+    return `${paceMinutes}:${paceRemainderSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const sessionData = {
+    distance: sessionDistance.toFixed(2),
+    pace: calculatePace(),
+    steps: sessionSteps,
+  };
+
+  const handleStop = async () => {
     setIsRunning(false);
-    // TODO: Save session and navigate to summary
+    
+    if (!user) {
+      toast.error("Not logged in");
+      navigate('/');
+      return;
+    }
+
+    try {
+      // Save session to database
+      const { error } = await supabase
+        .from('active_sessions')
+        .insert({
+          user_id: user.id,
+          started_at: sessionStartTime.toISOString(),
+          ended_at: new Date().toISOString(),
+          duration_seconds: duration,
+          steps: sessionSteps,
+          distance_km: sessionDistance,
+          pace_per_km: sessionData.pace !== "--:--" ? sessionData.pace : null
+        });
+
+      if (error) {
+        console.error('[ActiveSession] Save error:', error);
+        toast.error("Failed to save session");
+      } else {
+        toast.success(`Session saved! ${sessionSteps} steps`);
+      }
+    } catch (error) {
+      console.error('[ActiveSession] Error:', error);
+    }
+
     navigate('/');
   };
 
@@ -61,7 +132,7 @@ const ActiveSession = () => {
             Active Mode
           </h1>
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Session in progress
+            {isRunning ? "Session in progress" : "Session ended"}
           </p>
         </div>
       </motion.header>
@@ -129,7 +200,7 @@ const ActiveSession = () => {
         {/* Map label */}
         <div className="absolute top-4 left-4 rounded-lg bg-background/80 backdrop-blur-sm px-3 py-1.5 border border-border/50">
           <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-            GPS Tracking Active
+            {healthData.platform === 'web' ? 'Preview Mode' : 'GPS Tracking Active'}
           </span>
         </div>
       </motion.div>
