@@ -77,35 +77,53 @@ class HealthService {
 
   private async startTracking(): Promise<void> {
     if (this.isTracking) {
-      console.log('[HealthService] Already tracking');
+      console.log('[HealthService] startTracking: Already tracking, skipping re-init');
       return;
     }
 
+    console.log('[HealthService] === STEP COUNTER INITIALIZATION ===');
+    console.log('[HealthService] Platform:', this.platform);
+
     try {
+      console.log('[HealthService] Loading CapacitorPedometer plugin...');
       const { CapacitorPedometer } = await import('@capgo/capacitor-pedometer');
+      console.log('[HealthService] CapacitorPedometer plugin loaded');
       
-      // Check if pedometer is available
+      // Check if pedometer / step counter is available
       const availability = await CapacitorPedometer.isAvailable();
-      console.log('[HealthService] Pedometer availability:', availability);
+      console.log('[HealthService] Pedometer availability object:', availability);
+      console.log('[HealthService] Step counter available:', availability?.stepCounting);
       
-      if (!availability.stepCounting) {
-        console.log('[HealthService] Step counting not available on this device');
+      if (!availability?.stepCounting) {
+        console.warn('[HealthService] Step counting not available on this device - falling back to 0 steps');
         return;
       }
 
       // Add listener for real-time updates
+      console.log('[HealthService] Registering measurement listener...');
       this.measurementListener = await CapacitorPedometer.addListener('measurement', (data) => {
-        console.log('[HealthService] Step update:', data);
-        this.currentSteps = data.numberOfSteps || 0;
-        this.currentDistance = (data.distance || 0) / 1000; // Convert to km
+        try {
+          console.log('[HealthService] onSensorChanged / measurement event:', data);
+          const steps = data?.numberOfSteps ?? 0;
+          const distanceMeters = data?.distance ?? 0;
+          
+          this.currentSteps = steps;
+          this.currentDistance = distanceMeters / 1000; // Convert to km
+          
+          console.log('[HealthService] Updated internal state -> steps:', this.currentSteps, 'distanceKm:', this.currentDistance);
+        } catch (listenerError) {
+          console.error('[HealthService] Error inside measurement listener:', listenerError);
+        }
       });
+      console.log('[HealthService] Measurement listener registered:', !!this.measurementListener);
 
       // Start measurement updates
+      console.log('[HealthService] Starting measurement updates...');
       await CapacitorPedometer.startMeasurementUpdates();
       this.isTracking = true;
-      console.log('[HealthService] Started real-time step tracking');
+      console.log('[HealthService] Started real-time step tracking (isTracking = true)');
     } catch (error) {
-      console.error('[HealthService] Error starting tracking:', error);
+      console.error('[HealthService] Error starting tracking (startTracking):', error);
     }
   }
 
