@@ -51,18 +51,23 @@ class HealthService {
 
       // Directly request permission - this should trigger the system dialog when needed
       console.log('[HealthService] Requesting physical activity permission...');
-      const requestResult = await CapacitorPedometer.requestPermissions();
-      console.log('[HealthService] Permission request result:', requestResult);
+      const requestResult: any = await CapacitorPedometer.requestPermissions();
+      console.log('[HealthService] Permission request raw result:', requestResult);
 
-      if (requestResult?.activityRecognition === 'granted') {
-        this.permissionsGranted = true;
-        await this.startTracking();
-        return true;
-      } else {
-        console.log('[HealthService] Permission not granted by user');
+      const status = requestResult?.activityRecognition ?? requestResult?.status;
+      console.log('[HealthService] Normalized permission status:', status);
+
+      if (status === 'denied') {
+        console.log('[HealthService] Permission explicitly denied by user');
         this.permissionsGranted = false;
         return false;
       }
+
+      // In all other cases (granted, prompt, undefined) optimistically assume we can start
+      console.log('[HealthService] Assuming permission granted, starting tracking...');
+      this.permissionsGranted = true;
+      await this.startTracking();
+      return true;
     } catch (error) {
       console.error('[HealthService] Error requesting permissions:', error);
       this.permissionsGranted = false;
