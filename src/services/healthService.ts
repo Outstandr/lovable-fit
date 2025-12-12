@@ -78,6 +78,20 @@ class HealthService {
     }
   }
 
+  async checkAndroidPermissions(): Promise<boolean> {
+    try {
+      const { HealthConnect } = await import('@pianissimoproject/capacitor-health-connect');
+      const result = await HealthConnect.checkHealthPermissions({
+        read: ['Steps'],
+        write: []
+      });
+      return result.hasAllPermissions;
+    } catch (error) {
+      console.error('[HealthService] Android permission check error:', error);
+      return false;
+    }
+  }
+
   async getSteps(startDate: Date, endDate: Date): Promise<number> {
     if (!this.isNative()) {
       return 0;
@@ -122,6 +136,13 @@ class HealthService {
 
   private async getAndroidSteps(startDate: Date, endDate: Date): Promise<number> {
     try {
+      // Check permissions first to avoid SecurityException crash
+      const hasPermission = await this.checkAndroidPermissions();
+      if (!hasPermission) {
+        console.log('[HealthService] No Health Connect permission - skipping step read');
+        return 0;
+      }
+
       const { HealthConnect } = await import('@pianissimoproject/capacitor-health-connect');
       const result = await HealthConnect.readRecords({
         type: 'Steps',
