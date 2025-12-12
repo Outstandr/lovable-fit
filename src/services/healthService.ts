@@ -15,6 +15,7 @@ const CALORIES_PER_STEP = 0.04;
 
 class HealthService {
   private platform: Platform;
+  private androidPermissionsGranted: boolean = false;
 
   constructor() {
     const nativePlatform = Capacitor.getPlatform();
@@ -71,25 +72,23 @@ class HealthService {
         read: ['Steps', 'ActiveCaloriesBurned'],
         write: []
       });
+      this.androidPermissionsGranted = result.hasAllPermissions;
       return result.hasAllPermissions;
     } catch (error) {
       console.error('[HealthService] Android permission error:', error);
+      this.androidPermissionsGranted = false;
       return false;
     }
   }
 
   async checkAndroidPermissions(): Promise<boolean> {
-    try {
-      const { HealthConnect } = await import('@pianissimoproject/capacitor-health-connect');
-      const result = await HealthConnect.checkHealthPermissions({
-        read: ['Steps'],
-        write: []
-      });
-      return result.hasAllPermissions;
-    } catch (error) {
-      console.error('[HealthService] Android permission check error:', error);
-      return false;
-    }
+    // Return cached permission state - don't call native API to check
+    // This prevents crashes from native exceptions
+    return this.androidPermissionsGranted;
+  }
+  
+  hasAndroidPermissions(): boolean {
+    return this.androidPermissionsGranted;
   }
 
   async getSteps(startDate: Date, endDate: Date): Promise<number> {
@@ -135,13 +134,13 @@ class HealthService {
   }
 
   private async getAndroidSteps(startDate: Date, endDate: Date): Promise<number> {
+    // Only attempt to read if permissions were explicitly granted via requestPermissions
+    if (!this.androidPermissionsGranted) {
+      console.log('[HealthService] No Health Connect permission - skipping step read');
+      return 0;
+    }
+    
     try {
-      // Check permissions first to avoid SecurityException crash
-      const hasPermission = await this.checkAndroidPermissions();
-      if (!hasPermission) {
-        console.log('[HealthService] No Health Connect permission - skipping step read');
-        return 0;
-      }
 
       const { HealthConnect } = await import('@pianissimoproject/capacitor-health-connect');
       const result = await HealthConnect.readRecords({
