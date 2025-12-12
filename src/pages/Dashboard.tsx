@@ -25,10 +25,9 @@ interface LeaderboardEntry {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { healthData, requestPermissions, refetch } = useHealthData();
+  const { healthData, refetch } = useHealthData();
   const { streak, updateStreakOnTargetHit } = useStreak();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [permissionRequested, setPermissionRequested] = useState(false);
 
   // Fetch leaderboard data
   useEffect(() => {
@@ -79,15 +78,6 @@ const Dashboard = () => {
     }
   }, [healthData.steps, updateStreakOnTargetHit]);
 
-  const handleRequestPermissions = async (): Promise<boolean> => {
-    setPermissionRequested(true);
-    const granted = await requestPermissions();
-    if (granted) {
-      refetch();
-    }
-    return granted;
-  };
-
   const dashboardData = {
     steps: healthData.steps,
     target: TARGET_STEPS,
@@ -96,7 +86,8 @@ const Dashboard = () => {
     streak: streak.currentStreak
   };
 
-  const showPermissionPrompt = !healthData.hasPermission && !permissionRequested && healthData.platform !== 'web';
+  // Only show web notice (native auto-requests permission)
+  const showWebNotice = healthData.platform === 'web';
 
   return (
     <div className="min-h-screen pb-24">
@@ -115,24 +106,15 @@ const Dashboard = () => {
         </p>
       </motion.header>
 
-      {/* Permission Prompt or Web Notice */}
-      {(showPermissionPrompt || healthData.platform === 'web') && (
+      {/* Web Notice - only shown on web platform */}
+      {showWebNotice && (
         <div className="px-4 pb-4">
           <HealthPermissionPrompt
-            platform={healthData.platform}
-            hasPermission={healthData.hasPermission}
-            onRequestPermission={handleRequestPermissions}
-            isLoading={healthData.isLoading}
+            platform="web"
+            hasPermission={false}
+            onRequestPermission={async () => false}
+            isLoading={false}
           />
-        </div>
-      )}
-
-      {/* Loading State */}
-      {healthData.isLoading && healthData.platform !== 'web' && (
-        <div className="flex justify-center py-8">
-          <div className="text-sm text-muted-foreground animate-pulse">
-            Loading health data...
-          </div>
         </div>
       )}
 
