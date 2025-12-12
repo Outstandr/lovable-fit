@@ -2,6 +2,7 @@
 @import url('@fontsource/rajdhani/500.css');
 @import url('@fontsource/rajdhani/600.css');
 @import url('@fontsource/rajdhani/700.css');
+@import 'leaflet/dist/leaflet.css';
 
 @tailwind base;
 @tailwind components;

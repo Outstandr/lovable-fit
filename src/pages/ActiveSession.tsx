@@ -4,19 +4,37 @@ import { ArrowLeft, MapPin, Clock, Gauge, Square } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useHealthData } from "@/hooks/useHealthData";
+import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import LiveMap from "@/components/LiveMap";
+import MapPlaceholder from "@/components/MapPlaceholder";
 
 const ActiveSession = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { healthData, refetch } = useHealthData();
+  const { 
+    currentPosition, 
+    routePoints, 
+    gpsDistance, 
+    isTracking: isGpsTracking, 
+    startTracking, 
+    stopTracking 
+  } = useLocationTracking();
+  
   const [duration, setDuration] = useState(0);
   const [isRunning, setIsRunning] = useState(true);
   const [startSteps, setStartSteps] = useState<number | null>(null);
   const [sessionStartTime] = useState<Date>(new Date());
   const lastStepsRef = useRef(0);
+
+  // Start GPS tracking when session begins
+  useEffect(() => {
+    startTracking();
+    return () => stopTracking();
+  }, [startTracking, stopTracking]);
 
   // Capture start steps when session begins
   useEffect(() => {
@@ -58,9 +76,10 @@ const ActiveSession = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Calculate session stats
+  // Calculate session stats - prefer GPS distance if available
   const sessionSteps = startSteps !== null ? Math.max(0, healthData.steps - startSteps) : 0;
-  const sessionDistance = (sessionSteps * 0.762) / 1000; // Convert steps to km
+  const stepBasedDistance = (sessionSteps * 0.762) / 1000; // Convert steps to km
+  const sessionDistance = gpsDistance > 0 ? gpsDistance : stepBasedDistance; // Prefer GPS
   
   // Calculate pace (min:sec per km)
   const calculatePace = () => {
@@ -79,7 +98,7 @@ const ActiveSession = () => {
 
   const handleStop = async () => {
     setIsRunning(false);
-    
+    stopTracking();
     if (!user) {
       toast.error("Not logged in");
       navigate('/');
@@ -137,72 +156,22 @@ const ActiveSession = () => {
         </div>
       </motion.header>
 
-      {/* Map Area (Placeholder) */}
+      {/* Map Area */}
       <motion.div 
-        className="flex-1 mx-4 rounded-xl overflow-hidden bg-secondary/50 relative"
+        className="flex-1 mx-4 rounded-xl overflow-hidden bg-secondary/50 relative min-h-[300px]"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.2 }}
       >
-        {/* Dark map placeholder with grid */}
-        <div className="absolute inset-0 bg-gradient-to-br from-secondary via-background to-secondary">
-          <div 
-            className="absolute inset-0 opacity-20"
-            style={{
-              backgroundImage: `
-                linear-gradient(to right, hsl(220, 40%, 25%) 1px, transparent 1px),
-                linear-gradient(to bottom, hsl(220, 40%, 25%) 1px, transparent 1px)
-              `,
-              backgroundSize: '40px 40px',
-            }}
+        {currentPosition ? (
+          <LiveMap 
+            currentPosition={currentPosition}
+            routePoints={routePoints}
+            isTracking={isGpsTracking}
           />
-        </div>
-
-        {/* Route line placeholder */}
-        <svg className="absolute inset-0 w-full h-full">
-          <defs>
-            <linearGradient id="routeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="hsl(186, 100%, 50%)" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="hsl(186, 100%, 50%)" />
-            </linearGradient>
-            <filter id="routeGlow">
-              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-              <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-          </defs>
-          <motion.path
-            d="M 60 350 Q 100 300 150 280 T 250 220 T 300 180 T 320 150"
-            fill="none"
-            stroke="url(#routeGradient)"
-            strokeWidth="4"
-            strokeLinecap="round"
-            filter="url(#routeGlow)"
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: 1 }}
-            transition={{ duration: 3, ease: "easeOut" }}
-          />
-          {/* Current position dot */}
-          <motion.circle
-            cx="320"
-            cy="150"
-            r="8"
-            fill="hsl(186, 100%, 50%)"
-            filter="url(#routeGlow)"
-            initial={{ scale: 0 }}
-            animate={{ scale: [1, 1.2, 1] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-          />
-        </svg>
-
-        {/* Map label */}
-        <div className="absolute top-4 left-4 rounded-lg bg-background/80 backdrop-blur-sm px-3 py-1.5 border border-border/50">
-          <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-            {healthData.platform === 'web' ? 'Preview Mode' : 'GPS Tracking Active'}
-          </span>
-        </div>
+        ) : (
+          <MapPlaceholder />
+        )}
       </motion.div>
 
       {/* Stats Panel */}
