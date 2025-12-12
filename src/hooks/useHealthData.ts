@@ -132,9 +132,10 @@ export function useHealthData(): UseHealthDataReturn {
       // For Android: Check if we have permissions BEFORE attempting any native calls
       if (currentPlatform === 'android') {
         const hasPermission = healthService.checkAndroidPermissions();
+        console.log('[useHealthData] Android - checkAndroidPermissions():', hasPermission);
         
         if (!hasPermission) {
-          console.log('[useHealthData] Android - no permission, returning zeros');
+          console.log('[useHealthData] Android - no permission, returning zeros and skipping getHealthData');
           setHealthData({
             steps: 0,
             distance: 0,
@@ -145,14 +146,20 @@ export function useHealthData(): UseHealthDataReturn {
             error: null
           });
           return;
+        } else {
+          console.log('[useHealthData] Android - permission flag is true, proceeding to fetch health data');
         }
       }
       
-      // Only fetch health data if we have permissions
+      // Only fetch health data if we have permissions (or on non-Android native platforms)
       const startOfDay = getStartOfToday();
       const endOfDay = getEndOfToday();
       
-      console.log('[useHealthData] Fetching health data...');
+      console.log('[useHealthData] Fetching health data from HealthService', {
+        platform: currentPlatform,
+        startOfDay: startOfDay.toISOString(),
+        endOfDay: endOfDay.toISOString(),
+      });
       const data = await healthService.getHealthData(startOfDay, endOfDay);
       
       setHealthData({
