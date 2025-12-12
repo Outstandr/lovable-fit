@@ -30,6 +30,7 @@ function getEndOfToday(): Date {
 export function useHealthData(): UseHealthDataReturn {
   const { user } = useAuth();
   const platform = healthService.getPlatform();
+  const [permissionChecked, setPermissionChecked] = useState(false);
   
   const [healthData, setHealthData] = useState<HealthData & {
     isLoading: boolean;
@@ -52,6 +53,7 @@ export function useHealthData(): UseHealthDataReturn {
       const granted = await healthService.requestPermissions();
       console.log('[useHealthData] Permission result:', granted);
       setHealthData(prev => ({ ...prev, hasPermission: granted }));
+      setPermissionChecked(true);
       return granted;
     } catch (error) {
       console.error('[useHealthData] Permission error:', error);
@@ -60,9 +62,18 @@ export function useHealthData(): UseHealthDataReturn {
         hasPermission: false,
         error: 'Failed to request health permissions'
       }));
+      setPermissionChecked(true);
       return false;
     }
   }, []);
+
+  // Auto-request permission on app open for native platforms
+  useEffect(() => {
+    if (platform !== 'web' && !permissionChecked) {
+      console.log('[useHealthData] Auto-requesting permission on app open...');
+      requestPermissions();
+    }
+  }, [platform, permissionChecked, requestPermissions]);
 
   const fetchHealthData = useCallback(async () => {
     setHealthData(prev => ({ ...prev, isLoading: true, error: null }));
