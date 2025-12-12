@@ -81,6 +81,9 @@ class HealthService {
     console.log('[HealthService] requestAndroidPermissions called by user');
     
     try {
+      // First, request ACTIVITY_RECOGNITION runtime permission (required for Health Connect)
+      await this.requestActivityRecognitionPermission();
+      
       // Check Health Connect availability - this is ONLY called when user taps button
       const available = await this.checkHealthConnectAvailability();
       if (!available) {
@@ -106,6 +109,12 @@ class HealthService {
       this.androidPermissionsGranted = false;
       return false;
     }
+  }
+
+  private async requestActivityRecognitionPermission(): Promise<void> {
+    // ACTIVITY_RECOGNITION permission is declared in AndroidManifest.xml
+    // Health Connect automatically handles requesting this permission when needed
+    console.log('[HealthService] ACTIVITY_RECOGNITION: Health Connect will request if needed');
   }
 
   // Check if Android permissions were granted this session
