@@ -67,15 +67,22 @@ class HealthService {
 
   private async requestAndroidPermissions(): Promise<boolean> {
     try {
-      const { HealthConnect } = await import('@pianissimoproject/capacitor-health-connect');
-      const result = await HealthConnect.requestHealthPermissions({
-        read: ['Steps', 'ActiveCaloriesBurned'],
-        write: []
-      });
-      this.androidPermissionsGranted = result.hasAllPermissions;
-      return result.hasAllPermissions;
-    } catch (error) {
-      console.error('[HealthService] Android permission error:', error);
+      try {
+        const { HealthConnect } = await import('@pianissimoproject/capacitor-health-connect');
+        const result = await HealthConnect.requestHealthPermissions({
+          read: ['Steps', 'ActiveCaloriesBurned'],
+          write: []
+        });
+        this.androidPermissionsGranted = result.hasAllPermissions;
+        console.log('[HealthService] Android permissions result:', result.hasAllPermissions);
+        return result.hasAllPermissions;
+      } catch (innerError) {
+        console.error('[HealthService] Inner Android permission error:', innerError);
+        this.androidPermissionsGranted = false;
+        return false;
+      }
+    } catch (outerError) {
+      console.error('[HealthService] Outer Android permission error:', outerError);
       this.androidPermissionsGranted = false;
       return false;
     }
@@ -134,36 +141,45 @@ class HealthService {
   }
 
   private async getAndroidSteps(startDate: Date, endDate: Date): Promise<number> {
-    // Only attempt to read if permissions were explicitly granted via requestPermissions
+    // CRITICAL: Only attempt to read if permissions were explicitly granted via requestPermissions
+    // in this session. This prevents SecurityException crashes on Android.
     if (!this.androidPermissionsGranted) {
-      console.log('[HealthService] No Health Connect permission - skipping step read');
+      console.log('[HealthService] No Health Connect permission granted this session - returning 0');
       return 0;
     }
     
+    // Double-wrapped try-catch to prevent ANY exception from propagating
     try {
-
-      const { HealthConnect } = await import('@pianissimoproject/capacitor-health-connect');
-      const result = await HealthConnect.readRecords({
-        type: 'Steps',
-        timeRangeFilter: {
-          type: 'between',
-          startTime: startDate,
-          endTime: endDate
-        }
-      });
-      
-      // Sum up all step counts
-      let totalSteps = 0;
-      if (result && result.records) {
-        for (const record of result.records) {
-          if (record.type === 'Steps') {
-            totalSteps += record.count || 0;
+      try {
+        const { HealthConnect } = await import('@pianissimoproject/capacitor-health-connect');
+        const result = await HealthConnect.readRecords({
+          type: 'Steps',
+          timeRangeFilter: {
+            type: 'between',
+            startTime: startDate,
+            endTime: endDate
+          }
+        });
+        
+        // Sum up all step counts
+        let totalSteps = 0;
+        if (result && result.records) {
+          for (const record of result.records) {
+            if (record.type === 'Steps') {
+              totalSteps += record.count || 0;
+            }
           }
         }
+        return totalSteps;
+      } catch (innerError) {
+        console.error('[HealthService] Inner Android steps error:', innerError);
+        // Reset permission flag since it seems invalid
+        this.androidPermissionsGranted = false;
+        return 0;
       }
-      return totalSteps;
-    } catch (error) {
-      console.error('[HealthService] Android steps error:', error);
+    } catch (outerError) {
+      console.error('[HealthService] Outer Android steps error:', outerError);
+      this.androidPermissionsGranted = false;
       return 0;
     }
   }
