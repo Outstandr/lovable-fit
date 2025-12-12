@@ -129,65 +129,27 @@ export function useHealthData(): UseHealthDataReturn {
         return;
       }
 
-      // For Android: Check permissions and sensor availability via the pedometer plugin
+      // For Android: Rely on HealthService internal permission flag
       if (currentPlatform === 'android') {
-        try {
-          const { CapacitorPedometer } = await import('@capgo/capacitor-pedometer');
+        const hasPermission = healthService.checkAndroidPermissions();
+        console.log('[useHealthData] Android - internal permission flag:', hasPermission);
 
-          console.log('[useHealthData] Android - checking pedometer permissions via plugin...');
-          const permission = await CapacitorPedometer.checkPermissions();
-          const status = (permission as any)?.activityRecognition ?? (permission as any)?.status;
-          const hasPermission = status === 'granted' || status === 'limited';
-
-          console.log('[useHealthData] Android - plugin permission status:', status);
-
-          // Keep HealthService internal flag in sync with real system permission
-          healthService.setAndroidPermissionsGranted(hasPermission);
-
-          if (!hasPermission) {
-            console.log('[useHealthData] Android - no permission according to plugin, returning zeros');
-            setHealthData({
-              steps: 0,
-              distance: 0,
-              calories: 0,
-              isLoading: false,
-              hasPermission: false,
-              platform: 'android',
-              error: null
-            });
-            return;
-          }
-
-          console.log('[useHealthData] Android - permission granted, checking pedometer availability...');
-          const availability = await CapacitorPedometer.isAvailable();
-          console.log('[useHealthData] Android - pedometer availability:', availability);
-
-          if (!availability?.stepCounting) {
-            console.warn('[useHealthData] Android - step counting not available on this device');
-            setHealthData({
-              steps: 0,
-              distance: 0,
-              calories: 0,
-              isLoading: false,
-              hasPermission: true,
-              platform: 'android',
-              error: 'Step counting is not available on this device. You can still use Active Session mode with GPS tracking.'
-            });
-            return;
-          }
-
-          // If we get here, permission is granted and sensor is available — continue to fetch data below
-        } catch (permissionOrAvailabilityError) {
-          console.error('[useHealthData] Android - error checking pedometer permission/availability:', permissionOrAvailabilityError);
-          setHealthData(prev => ({
-            ...prev,
+        if (!hasPermission) {
+          console.log('[useHealthData] Android - no permission flagged, returning zeros');
+          setHealthData({
+            steps: 0,
+            distance: 0,
+            calories: 0,
             isLoading: false,
             hasPermission: false,
             platform: 'android',
-            error: 'Unable to access the step counter on this device.'
-          }));
+            error: null,
+          });
           return;
         }
+
+        // If we get here, HealthService thinks permission is granted and tracking is active.
+        // We let HealthService handle all pedometer plugin calls to avoid native crashes here.
       }
       
       // Only fetch health data if we have permissions (or on non-Android native platforms)
