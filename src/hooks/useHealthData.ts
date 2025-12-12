@@ -147,7 +147,35 @@ export function useHealthData(): UseHealthDataReturn {
           });
           return;
         } else {
-          console.log('[useHealthData] Android - permission flag is true, proceeding to fetch health data');
+          console.log('[useHealthData] Android - permission flag is true, checking pedometer availability');
+
+          try {
+            const { CapacitorPedometer } = await import('@capgo/capacitor-pedometer');
+            const availability = await CapacitorPedometer.isAvailable();
+            console.log('[useHealthData] Android - pedometer availability:', availability);
+
+            if (!availability?.stepCounting) {
+              console.warn('[useHealthData] Android - step counting not available on this device');
+              setHealthData({
+                steps: 0,
+                distance: 0,
+                calories: 0,
+                isLoading: false,
+                hasPermission: hasPermission,
+                platform: 'android',
+                error: 'Step counting is not available on this device. You can still use Active Session mode with GPS tracking.'
+              });
+              return;
+            }
+          } catch (availabilityError) {
+            console.error('[useHealthData] Android - error checking pedometer availability:', availabilityError);
+            setHealthData(prev => ({
+              ...prev,
+              isLoading: false,
+              error: 'Unable to access the step counter on this device.'
+            }));
+            return;
+          }
         }
       }
       

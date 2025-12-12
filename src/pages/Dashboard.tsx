@@ -12,6 +12,7 @@ import { useStreak } from "@/hooks/useStreak";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { healthService } from "@/services/healthService";
 
 const TARGET_STEPS = 10000;
 
@@ -25,7 +26,7 @@ interface LeaderboardEntry {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { healthData, refetch } = useHealthData();
+  const { healthData, refetch, requestPermissions } = useHealthData();
   const { streak, updateStreakOnTargetHit } = useStreak();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
@@ -115,6 +116,48 @@ const Dashboard = () => {
             onRequestPermission={async () => false}
             isLoading={false}
           />
+        </div>
+      )}
+
+      {/* Native step controls & status */}
+      {healthData.platform !== 'web' && (
+        <div className="px-4 pb-2">
+          <div className="tactical-card flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Current Steps</p>
+              <p className="text-2xl font-bold text-foreground">{healthData.steps}</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground mt-1">
+                Permission: {healthData.hasPermission ? 'Granted' : 'Not granted'}
+              </p>
+              {healthData.error && (
+                <p className="text-[10px] text-destructive mt-1 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {healthData.error}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button
+                variant="tactical"
+                size="sm"
+                onClick={async () => {
+                  const granted = await requestPermissions();
+                  if (granted) {
+                    await refetch();
+                  }
+                }}
+              >
+                Start
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => healthService.stopTracking()}
+              >
+                Stop
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
