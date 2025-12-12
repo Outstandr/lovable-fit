@@ -64,28 +64,15 @@ class HealthService {
 
     try {
       if (this.platform === 'ios') {
-        return await this.requestiOSPermissions();
+        // iOS HealthKit not supported in this build (Android-only)
+        console.log('[HealthService] iOS HealthKit not available in this build');
+        return false;
       } else if (this.platform === 'android') {
         return await this.requestAndroidPermissions();
       }
       return false;
     } catch (error) {
       console.error('[HealthService] Error requesting permissions:', error);
-      return false;
-    }
-  }
-
-  private async requestiOSPermissions(): Promise<boolean> {
-    try {
-      const { CapacitorHealthkit } = await import('@perfood/capacitor-healthkit');
-      await CapacitorHealthkit.requestAuthorization({
-        all: [],
-        read: ['stepCount', 'distanceWalkingRunning', 'activeEnergyBurned'],
-        write: []
-      });
-      return true;
-    } catch (error) {
-      console.error('[HealthService] iOS permission error:', error);
       return false;
     }
   }
@@ -143,37 +130,14 @@ class HealthService {
 
     try {
       if (this.platform === 'ios') {
-        return await this.getiOSSteps(startDate, endDate);
+        // iOS not supported in this build
+        return 0;
       } else if (this.platform === 'android') {
         return await this.getAndroidSteps(startDate, endDate);
       }
       return 0;
     } catch (error) {
       console.error('[HealthService] Error getting steps:', error);
-      return 0;
-    }
-  }
-
-  private async getiOSSteps(startDate: Date, endDate: Date): Promise<number> {
-    try {
-      const { CapacitorHealthkit } = await import('@perfood/capacitor-healthkit');
-      const result = await CapacitorHealthkit.queryHKitSampleType<{ value: number }>({
-        sampleName: 'stepCount',
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        limit: 0
-      });
-      
-      // Sum up all step counts
-      let totalSteps = 0;
-      if (result && result.resultData) {
-        for (const entry of result.resultData) {
-          totalSteps += entry.value || 0;
-        }
-      }
-      return totalSteps;
-    } catch (error) {
-      console.error('[HealthService] iOS steps error:', error);
       return 0;
     }
   }
@@ -220,41 +184,9 @@ class HealthService {
       return 0;
     }
 
-    try {
-      if (this.platform === 'ios') {
-        return await this.getiOSDistance(startDate, endDate);
-      }
-      // Android Health Connect doesn't have a direct distance record type
-      // We'll calculate from steps instead
-      return 0;
-    } catch (error) {
-      console.error('[HealthService] Error getting distance:', error);
-      return 0;
-    }
-  }
-
-  private async getiOSDistance(startDate: Date, endDate: Date): Promise<number> {
-    try {
-      const { CapacitorHealthkit } = await import('@perfood/capacitor-healthkit');
-      const result = await CapacitorHealthkit.queryHKitSampleType<{ value: number }>({
-        sampleName: 'distanceWalkingRunning',
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        limit: 0
-      });
-      
-      let totalDistance = 0;
-      if (result && result.resultData) {
-        for (const entry of result.resultData) {
-          totalDistance += entry.value || 0;
-        }
-      }
-      // Convert meters to km
-      return totalDistance / 1000;
-    } catch (error) {
-      console.error('[HealthService] iOS distance error:', error);
-      return 0;
-    }
+    // Android Health Connect doesn't have a direct distance record type
+    // We'll calculate from steps instead
+    return 0;
   }
 
   // Calculate distance from steps if native distance isn't available
