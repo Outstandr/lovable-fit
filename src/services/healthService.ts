@@ -13,14 +13,31 @@ const AVG_STEP_LENGTH_M = 0.762;
 // Average calories per step (adjustable based on user weight)
 const CALORIES_PER_STEP = 0.04;
 
+// Storage key for persisting permission state
+const ANDROID_PERMISSION_KEY = 'hotstepper_health_connect_granted';
+
 class HealthService {
   private platform: Platform;
   private androidPermissionsGranted: boolean = false;
+  private healthConnectAvailable: boolean | null = null;
 
   constructor() {
     const nativePlatform = Capacitor.getPlatform();
     this.platform = nativePlatform === 'ios' ? 'ios' : 
                     nativePlatform === 'android' ? 'android' : 'web';
+    
+    // Restore permission state from storage (for Android)
+    if (this.platform === 'android') {
+      try {
+        const stored = localStorage.getItem(ANDROID_PERMISSION_KEY);
+        // We default to false for safety - user must re-grant after app restart
+        // This prevents crashes from stale permission state
+        this.androidPermissionsGranted = false;
+        console.log('[HealthService] Android permissions initialized to false (safe mode)');
+      } catch (e) {
+        this.androidPermissionsGranted = false;
+      }
+    }
   }
 
   getPlatform(): Platform {
@@ -29,6 +46,26 @@ class HealthService {
 
   isNative(): boolean {
     return this.platform !== 'web';
+  }
+
+  // Check if Health Connect is available on this device
+  async isHealthConnectAvailable(): Promise<boolean> {
+    if (this.platform !== 'android') return false;
+    if (this.healthConnectAvailable !== null) return this.healthConnectAvailable;
+    
+    try {
+      const { HealthConnect } = await import('@pianissimoproject/capacitor-health-connect');
+      const result = await HealthConnect.checkAvailability();
+      // The result has an 'availability' property, not 'available'
+      const isAvailable = result.availability === 'Available';
+      this.healthConnectAvailable = isAvailable;
+      console.log('[HealthService] Health Connect availability:', result.availability);
+      return isAvailable;
+    } catch (error) {
+      console.log('[HealthService] Health Connect availability check failed:', error);
+      this.healthConnectAvailable = false;
+      return false;
+    }
   }
 
   async requestPermissions(): Promise<boolean> {
@@ -67,35 +104,58 @@ class HealthService {
 
   private async requestAndroidPermissions(): Promise<boolean> {
     try {
-      try {
-        const { HealthConnect } = await import('@pianissimoproject/capacitor-health-connect');
-        const result = await HealthConnect.requestHealthPermissions({
-          read: ['Steps', 'ActiveCaloriesBurned'],
-          write: []
-        });
-        this.androidPermissionsGranted = result.hasAllPermissions;
-        console.log('[HealthService] Android permissions result:', result.hasAllPermissions);
-        return result.hasAllPermissions;
-      } catch (innerError) {
-        console.error('[HealthService] Inner Android permission error:', innerError);
-        this.androidPermissionsGranted = false;
+      // First check if Health Connect is available
+      const available = await this.isHealthConnectAvailable();
+      if (!available) {
+        console.log('[HealthService] Health Connect not available on this device');
         return false;
       }
-    } catch (outerError) {
-      console.error('[HealthService] Outer Android permission error:', outerError);
+
+      const { HealthConnect } = await import('@pianissimoproject/capacitor-health-connect');
+      
+      console.log('[HealthService] Requesting Health Connect permissions...');
+      const result = await HealthConnect.requestHealthPermissions({
+        read: ['Steps', 'ActiveCaloriesBurned'],
+        write: []
+      });
+      
+      this.androidPermissionsGranted = result.hasAllPermissions;
+      
+      // Persist permission state
+      if (result.hasAllPermissions) {
+        localStorage.setItem(ANDROID_PERMISSION_KEY, 'true');
+      } else {
+        localStorage.removeItem(ANDROID_PERMISSION_KEY);
+      }
+      
+      console.log('[HealthService] Android permissions result:', result.hasAllPermissions);
+      return result.hasAllPermissions;
+    } catch (error) {
+      console.error('[HealthService] Android permission error:', error);
       this.androidPermissionsGranted = false;
+      localStorage.removeItem(ANDROID_PERMISSION_KEY);
       return false;
     }
   }
 
-  async checkAndroidPermissions(): Promise<boolean> {
-    // Return cached permission state - don't call native API to check
-    // This prevents crashes from native exceptions
+  // Check if Android permissions were granted this session
+  // IMPORTANT: This does NOT call any native API to prevent crashes
+  checkAndroidPermissions(): boolean {
     return this.androidPermissionsGranted;
   }
   
   hasAndroidPermissions(): boolean {
     return this.androidPermissionsGranted;
+  }
+
+  // Mark permissions as granted (call after successful native permission grant)
+  setAndroidPermissionsGranted(granted: boolean): void {
+    this.androidPermissionsGranted = granted;
+    if (granted) {
+      localStorage.setItem(ANDROID_PERMISSION_KEY, 'true');
+    } else {
+      localStorage.removeItem(ANDROID_PERMISSION_KEY);
+    }
   }
 
   async getSteps(startDate: Date, endDate: Date): Promise<number> {
@@ -141,45 +201,39 @@ class HealthService {
   }
 
   private async getAndroidSteps(startDate: Date, endDate: Date): Promise<number> {
-    // CRITICAL: Only attempt to read if permissions were explicitly granted via requestPermissions
-    // in this session. This prevents SecurityException crashes on Android.
+    // CRITICAL GUARD: Never call Health Connect API without explicit permission
+    // This prevents SecurityException crashes that kill the entire app
     if (!this.androidPermissionsGranted) {
-      console.log('[HealthService] No Health Connect permission granted this session - returning 0');
+      console.log('[HealthService] Skipping Android steps - no permission granted');
       return 0;
     }
     
-    // Double-wrapped try-catch to prevent ANY exception from propagating
     try {
-      try {
-        const { HealthConnect } = await import('@pianissimoproject/capacitor-health-connect');
-        const result = await HealthConnect.readRecords({
-          type: 'Steps',
-          timeRangeFilter: {
-            type: 'between',
-            startTime: startDate,
-            endTime: endDate
-          }
-        });
-        
-        // Sum up all step counts
-        let totalSteps = 0;
-        if (result && result.records) {
-          for (const record of result.records) {
-            if (record.type === 'Steps') {
-              totalSteps += record.count || 0;
-            }
+      const { HealthConnect } = await import('@pianissimoproject/capacitor-health-connect');
+      const result = await HealthConnect.readRecords({
+        type: 'Steps',
+        timeRangeFilter: {
+          type: 'between',
+          startTime: startDate,
+          endTime: endDate
+        }
+      });
+      
+      // Sum up all step counts
+      let totalSteps = 0;
+      if (result && result.records) {
+        for (const record of result.records) {
+          if (record.type === 'Steps') {
+            totalSteps += record.count || 0;
           }
         }
-        return totalSteps;
-      } catch (innerError) {
-        console.error('[HealthService] Inner Android steps error:', innerError);
-        // Reset permission flag since it seems invalid
-        this.androidPermissionsGranted = false;
-        return 0;
       }
-    } catch (outerError) {
-      console.error('[HealthService] Outer Android steps error:', outerError);
+      return totalSteps;
+    } catch (error) {
+      console.error('[HealthService] Android steps error:', error);
+      // Permission might have been revoked - reset state
       this.androidPermissionsGranted = false;
+      localStorage.removeItem(ANDROID_PERMISSION_KEY);
       return 0;
     }
   }
@@ -239,6 +293,12 @@ class HealthService {
 
   // Get all health data for a date range
   async getHealthData(startDate: Date, endDate: Date): Promise<HealthData> {
+    // For Android, only proceed if permissions are granted
+    if (this.platform === 'android' && !this.androidPermissionsGranted) {
+      console.log('[HealthService] getHealthData: No Android permission - returning zeros');
+      return { steps: 0, distance: 0, calories: 0 };
+    }
+
     const steps = await this.getSteps(startDate, endDate);
     let distance = await this.getDistance(startDate, endDate);
     

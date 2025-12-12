@@ -29,6 +29,8 @@ function getEndOfToday(): Date {
 
 export function useHealthData(): UseHealthDataReturn {
   const { user } = useAuth();
+  const platform = healthService.getPlatform();
+  
   const [healthData, setHealthData] = useState<HealthData & {
     isLoading: boolean;
     hasPermission: boolean;
@@ -40,13 +42,15 @@ export function useHealthData(): UseHealthDataReturn {
     calories: 0,
     isLoading: true,
     hasPermission: false,
-    platform: healthService.getPlatform(),
+    platform,
     error: null
   });
 
   const requestPermissions = useCallback(async (): Promise<boolean> => {
     try {
+      console.log('[useHealthData] Requesting permissions...');
       const granted = await healthService.requestPermissions();
+      console.log('[useHealthData] Permission result:', granted);
       setHealthData(prev => ({ ...prev, hasPermission: granted }));
       return granted;
     } catch (error) {
@@ -64,9 +68,9 @@ export function useHealthData(): UseHealthDataReturn {
     setHealthData(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const platform = healthService.getPlatform();
+      const currentPlatform = healthService.getPlatform();
       
-      if (platform === 'web') {
+      if (currentPlatform === 'web') {
         // On web, try to load from database if available
         if (user) {
           const today = new Date().toISOString().split('T')[0];
@@ -104,35 +108,37 @@ export function useHealthData(): UseHealthDataReturn {
         return;
       }
 
-      // Native platform - check permissions first before trying to read
-      const hasPermission = platform === 'android' 
-        ? await healthService.checkAndroidPermissions()
-        : true; // iOS handles permissions differently
-      
-      if (!hasPermission) {
-        console.log('[useHealthData] No health permissions - skipping native fetch');
-        setHealthData({
-          steps: 0,
-          distance: 0,
-          calories: 0,
-          isLoading: false,
-          hasPermission: false,
-          platform,
-          error: null
-        });
-        return;
+      // For Android: Check if we have permissions BEFORE attempting any native calls
+      if (currentPlatform === 'android') {
+        const hasPermission = healthService.checkAndroidPermissions();
+        
+        if (!hasPermission) {
+          console.log('[useHealthData] Android - no permission, returning zeros');
+          setHealthData({
+            steps: 0,
+            distance: 0,
+            calories: 0,
+            isLoading: false,
+            hasPermission: false,
+            platform: 'android',
+            error: null
+          });
+          return;
+        }
       }
       
+      // Only fetch health data if we have permissions
       const startOfDay = getStartOfToday();
       const endOfDay = getEndOfToday();
       
+      console.log('[useHealthData] Fetching health data...');
       const data = await healthService.getHealthData(startOfDay, endOfDay);
       
       setHealthData({
         ...data,
         isLoading: false,
         hasPermission: true,
-        platform,
+        platform: currentPlatform,
         error: null
       });
     } catch (error) {
@@ -186,16 +192,17 @@ export function useHealthData(): UseHealthDataReturn {
     }
   }, [healthData.steps, healthData.platform, healthData.isLoading, syncToDatabase]);
 
-  // Polling for real-time updates on native platforms
+  // Polling for real-time updates on native platforms (only when we have permissions)
   useEffect(() => {
     if (healthData.platform === 'web') return;
+    if (!healthData.hasPermission) return; // Don't poll without permission
     
     const interval = setInterval(() => {
       fetchHealthData();
     }, 30000); // Update every 30 seconds
     
     return () => clearInterval(interval);
-  }, [healthData.platform, fetchHealthData]);
+  }, [healthData.platform, healthData.hasPermission, fetchHealthData]);
 
   return {
     healthData,
