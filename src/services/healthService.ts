@@ -108,14 +108,18 @@ class HealthService {
       console.log('[HealthService] Registering measurement listener...');
       this.measurementListener = await CapacitorPedometer.addListener('measurement', (data) => {
         try {
-          console.log('[HealthService] onSensorChanged / measurement event:', data);
+          console.log('[HealthService] 🚶 ========== MEASUREMENT EVENT ==========');
+          console.log('[HealthService] 🚶 Raw data:', JSON.stringify(data));
           const steps = data?.numberOfSteps ?? 0;
           const distanceMeters = data?.distance ?? 0;
+          
+          console.log('[HealthService] 🚶 Parsed: steps=' + steps + ', distanceM=' + distanceMeters);
           
           this.currentSteps = steps;
           this.currentDistance = distanceMeters / 1000; // Convert to km
           
-          console.log('[HealthService] Updated internal state -> steps:', this.currentSteps, 'distanceKm:', this.currentDistance);
+          console.log('[HealthService] 🚶 State updated: currentSteps=' + this.currentSteps + ', currentDistanceKm=' + this.currentDistance);
+          console.log('[HealthService] 🚶 ========================================');
         } catch (listenerError) {
           console.error('[HealthService] Error inside measurement listener:', listenerError);
         }

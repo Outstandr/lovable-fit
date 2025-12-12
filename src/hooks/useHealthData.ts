@@ -67,24 +67,6 @@ export function useHealthData(): UseHealthDataReturn {
     }
   }, []);
 
-  // Auto-request permission on app open for native platforms (with delay for plugin readiness)
-  useEffect(() => {
-    if (platform !== 'web' && !permissionChecked) {
-      // Delay to ensure Capacitor plugins are fully initialized
-      const timer = setTimeout(async () => {
-        try {
-          console.log('[useHealthData] Auto-requesting permission on app open...');
-          await requestPermissions();
-        } catch (error) {
-          console.error('[useHealthData] Auto-permission request failed:', error);
-          setPermissionChecked(true);
-        }
-      }, 1000); // 1 second delay for plugin initialization
-      
-      return () => clearTimeout(timer);
-    }
-  }, [platform, permissionChecked, requestPermissions]);
-
   const fetchHealthData = useCallback(async () => {
     setHealthData(prev => ({ ...prev, isLoading: true, error: null }));
 
@@ -180,6 +162,32 @@ export function useHealthData(): UseHealthDataReturn {
     }
   }, [user]);
 
+  // Auto-request permission on app open for native platforms (with delay for plugin readiness)
+  useEffect(() => {
+    if (platform !== 'web' && !permissionChecked) {
+      // Delay to ensure Capacitor plugins are fully initialized
+      const timer = setTimeout(async () => {
+        try {
+          console.log('[useHealthData] Auto-requesting permission on app open...');
+          const granted = await requestPermissions();
+          if (granted) {
+            console.log('[useHealthData] Permission granted, waiting for tracking to initialize...');
+            // Wait for tracking to start, then fetch data
+            setTimeout(() => {
+              console.log('[useHealthData] Fetching health data after permission grant...');
+              fetchHealthData();
+            }, 1500);
+          }
+        } catch (error) {
+          console.error('[useHealthData] Auto-permission request failed:', error);
+          setPermissionChecked(true);
+        }
+      }, 1000); // 1 second delay for plugin initialization
+      
+      return () => clearTimeout(timer);
+    }
+  }, [platform, permissionChecked, requestPermissions, fetchHealthData]);
+
   const syncToDatabase = useCallback(async () => {
     if (!user || healthData.steps === 0) return;
     
@@ -227,8 +235,9 @@ export function useHealthData(): UseHealthDataReturn {
     if (!healthData.hasPermission) return; // Don't poll without permission
     
     const interval = setInterval(() => {
+      console.log('[useHealthData] Polling for step updates...');
       fetchHealthData();
-    }, 30000); // Update every 30 seconds
+    }, 5000); // Update every 5 seconds for more responsive updates
     
     return () => clearInterval(interval);
   }, [healthData.platform, healthData.hasPermission, fetchHealthData]);
