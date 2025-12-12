@@ -46,37 +46,26 @@ class HealthService {
 
     try {
       console.log('[HealthService] Requesting ACTIVITY_RECOGNITION permission...');
-      
+
       const { CapacitorPedometer } = await import('@capgo/capacitor-pedometer');
-      
-      // Check current permission status
-      const permStatus = await CapacitorPedometer.checkPermissions();
-      console.log('[HealthService] Current permission status:', permStatus);
-      
-      if (permStatus.activityRecognition !== 'granted') {
-        // Request permission - this will show the "Physical activity" permission dialog
-        console.log('[HealthService] Requesting physical activity permission...');
-        const requestResult = await CapacitorPedometer.requestPermissions();
-        console.log('[HealthService] Permission request result:', requestResult);
-        
-        if (requestResult.activityRecognition === 'granted') {
-          this.permissionsGranted = true;
-          await this.startTracking();
-          return true;
-        } else {
-          console.log('[HealthService] Permission denied by user');
-          this.permissionsGranted = false;
-          return false;
-        }
-      } else {
-        // Already have permission
-        console.log('[HealthService] Permission already granted');
+
+      // Directly request permission - this should trigger the system dialog when needed
+      console.log('[HealthService] Requesting physical activity permission...');
+      const requestResult = await CapacitorPedometer.requestPermissions();
+      console.log('[HealthService] Permission request result:', requestResult);
+
+      if (requestResult?.activityRecognition === 'granted') {
         this.permissionsGranted = true;
         await this.startTracking();
         return true;
+      } else {
+        console.log('[HealthService] Permission not granted by user');
+        this.permissionsGranted = false;
+        return false;
       }
     } catch (error) {
       console.error('[HealthService] Error requesting permissions:', error);
+      this.permissionsGranted = false;
       return false;
     }
   }
