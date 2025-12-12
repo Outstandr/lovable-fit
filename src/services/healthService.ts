@@ -15,18 +15,19 @@ const CALORIES_PER_STEP = 0.04;
 
 class HealthService {
   private platform: Platform;
-  private androidPermissionsGranted: boolean = false;
-  private healthConnectChecked: boolean = false;
+  private permissionsGranted: boolean = false;
+  private currentSteps: number = 0;
+  private currentDistance: number = 0;
+  private isTracking: boolean = false;
+  private measurementListener: any = null;
 
   constructor() {
     const nativePlatform = Capacitor.getPlatform();
     this.platform = nativePlatform === 'ios' ? 'ios' : 
                     nativePlatform === 'android' ? 'android' : 'web';
     
-    // IMPORTANT: Always start with false - never call any Health Connect API 
-    // until user explicitly requests permissions via button tap
-    this.androidPermissionsGranted = false;
-    console.log('[HealthService] Initialized - Android permissions: false (safe mode)');
+    this.permissionsGranted = false;
+    console.log('[HealthService] Initialized with Pedometer plugin - platform:', this.platform);
   }
 
   getPlatform(): Platform {
@@ -37,25 +38,6 @@ class HealthService {
     return this.platform !== 'web';
   }
 
-  // ONLY call this from requestAndroidPermissions after user taps button
-  // Never call this on app startup - it can trigger native code that crashes
-  private async checkHealthConnectAvailability(): Promise<boolean> {
-    if (this.platform !== 'android') return false;
-    
-    try {
-      const { HealthConnect } = await import('@pianissimoproject/capacitor-health-connect');
-      const result = await HealthConnect.checkAvailability();
-      const isAvailable = result.availability === 'Available';
-      this.healthConnectChecked = true;
-      console.log('[HealthService] Health Connect availability:', result.availability);
-      return isAvailable;
-    } catch (error) {
-      console.log('[HealthService] Health Connect availability check failed:', error);
-      this.healthConnectChecked = true;
-      return false;
-    }
-  }
-
   async requestPermissions(): Promise<boolean> {
     if (!this.isNative()) {
       console.log('[HealthService] Web platform - no health permissions needed');
@@ -63,73 +45,111 @@ class HealthService {
     }
 
     try {
-      if (this.platform === 'ios') {
-        // iOS HealthKit not supported in this build (Android-only)
-        console.log('[HealthService] iOS HealthKit not available in this build');
-        return false;
-      } else if (this.platform === 'android') {
-        return await this.requestAndroidPermissions();
+      console.log('[HealthService] Requesting ACTIVITY_RECOGNITION permission...');
+      
+      const { CapacitorPedometer } = await import('@capgo/capacitor-pedometer');
+      
+      // Check current permission status
+      const permStatus = await CapacitorPedometer.checkPermissions();
+      console.log('[HealthService] Current permission status:', permStatus);
+      
+      if (permStatus.activityRecognition !== 'granted') {
+        // Request permission - this will show the "Physical activity" permission dialog
+        console.log('[HealthService] Requesting physical activity permission...');
+        const requestResult = await CapacitorPedometer.requestPermissions();
+        console.log('[HealthService] Permission request result:', requestResult);
+        
+        if (requestResult.activityRecognition === 'granted') {
+          this.permissionsGranted = true;
+          await this.startTracking();
+          return true;
+        } else {
+          console.log('[HealthService] Permission denied by user');
+          this.permissionsGranted = false;
+          return false;
+        }
+      } else {
+        // Already have permission
+        console.log('[HealthService] Permission already granted');
+        this.permissionsGranted = true;
+        await this.startTracking();
+        return true;
       }
-      return false;
     } catch (error) {
       console.error('[HealthService] Error requesting permissions:', error);
       return false;
     }
   }
 
-  private async requestAndroidPermissions(): Promise<boolean> {
-    console.log('[HealthService] requestAndroidPermissions called by user');
-    
+  // Backward compatibility methods
+  async requestAndroidPermissions(): Promise<boolean> {
+    return this.requestPermissions();
+  }
+
+  private async startTracking(): Promise<void> {
+    if (this.isTracking) {
+      console.log('[HealthService] Already tracking');
+      return;
+    }
+
     try {
-      // First, request ACTIVITY_RECOGNITION runtime permission (required for Health Connect)
-      await this.requestActivityRecognitionPermission();
+      const { CapacitorPedometer } = await import('@capgo/capacitor-pedometer');
       
-      // Check Health Connect availability - this is ONLY called when user taps button
-      const available = await this.checkHealthConnectAvailability();
-      if (!available) {
-        console.log('[HealthService] Health Connect not available on this device');
-        this.androidPermissionsGranted = false;
-        return false;
+      // Check if pedometer is available
+      const availability = await CapacitorPedometer.isAvailable();
+      console.log('[HealthService] Pedometer availability:', availability);
+      
+      if (!availability.stepCounting) {
+        console.log('[HealthService] Step counting not available on this device');
+        return;
       }
 
-      const { HealthConnect } = await import('@pianissimoproject/capacitor-health-connect');
-      
-      console.log('[HealthService] Opening Health Connect permission dialog...');
-      const result = await HealthConnect.requestHealthPermissions({
-        read: ['Steps', 'ActiveCaloriesBurned'],
-        write: []
+      // Add listener for real-time updates
+      this.measurementListener = await CapacitorPedometer.addListener('measurement', (data) => {
+        console.log('[HealthService] Step update:', data);
+        this.currentSteps = data.numberOfSteps || 0;
+        this.currentDistance = (data.distance || 0) / 1000; // Convert to km
       });
-      
-      this.androidPermissionsGranted = result.hasAllPermissions;
-      console.log('[HealthService] User granted permissions:', result.hasAllPermissions);
-      
-      return result.hasAllPermissions;
+
+      // Start measurement updates
+      await CapacitorPedometer.startMeasurementUpdates();
+      this.isTracking = true;
+      console.log('[HealthService] Started real-time step tracking');
     } catch (error) {
-      console.error('[HealthService] Android permission error:', error);
-      this.androidPermissionsGranted = false;
-      return false;
+      console.error('[HealthService] Error starting tracking:', error);
     }
   }
 
-  private async requestActivityRecognitionPermission(): Promise<void> {
-    // ACTIVITY_RECOGNITION permission is declared in AndroidManifest.xml
-    // Health Connect automatically handles requesting this permission when needed
-    console.log('[HealthService] ACTIVITY_RECOGNITION: Health Connect will request if needed');
+  async stopTracking(): Promise<void> {
+    if (!this.isTracking) return;
+
+    try {
+      const { CapacitorPedometer } = await import('@capgo/capacitor-pedometer');
+      await CapacitorPedometer.stopMeasurementUpdates();
+      
+      if (this.measurementListener) {
+        await this.measurementListener.remove();
+        this.measurementListener = null;
+      }
+      
+      this.isTracking = false;
+      console.log('[HealthService] Stopped step tracking');
+    } catch (error) {
+      console.error('[HealthService] Error stopping tracking:', error);
+    }
   }
 
-  // Check if Android permissions were granted this session
-  // IMPORTANT: This does NOT call any native API to prevent crashes
+  // Check if permissions were granted this session
   checkAndroidPermissions(): boolean {
-    return this.androidPermissionsGranted;
+    return this.permissionsGranted;
   }
   
   hasAndroidPermissions(): boolean {
-    return this.androidPermissionsGranted;
+    return this.permissionsGranted;
   }
 
-  // Mark permissions as granted (for internal use)
   setAndroidPermissionsGranted(granted: boolean): void {
-    this.androidPermissionsGranted = granted;
+    this.permissionsGranted = granted;
   }
 
   async getSteps(startDate: Date, endDate: Date): Promise<number> {
@@ -137,65 +157,24 @@ class HealthService {
       return 0;
     }
 
-    try {
-      if (this.platform === 'ios') {
-        // iOS not supported in this build
-        return 0;
-      } else if (this.platform === 'android') {
-        return await this.getAndroidSteps(startDate, endDate);
-      }
-      return 0;
-    } catch (error) {
-      console.error('[HealthService] Error getting steps:', error);
-      return 0;
-    }
+    // Return current tracked steps
+    // Note: Pedometer tracks steps since startMeasurementUpdates was called
+    return this.currentSteps;
   }
 
   private async getAndroidSteps(startDate: Date, endDate: Date): Promise<number> {
-    // CRITICAL GUARD: Never call Health Connect API without explicit permission
-    // This prevents SecurityException crashes that kill the entire app
-    if (!this.androidPermissionsGranted) {
-      console.log('[HealthService] Skipping Android steps - no permission granted');
+    if (!this.permissionsGranted) {
+      console.log('[HealthService] Skipping steps - no permission granted');
       return 0;
     }
-    
-    try {
-      const { HealthConnect } = await import('@pianissimoproject/capacitor-health-connect');
-      const result = await HealthConnect.readRecords({
-        type: 'Steps',
-        timeRangeFilter: {
-          type: 'between',
-          startTime: startDate,
-          endTime: endDate
-        }
-      });
-      
-      // Sum up all step counts
-      let totalSteps = 0;
-      if (result && result.records) {
-        for (const record of result.records) {
-          if (record.type === 'Steps') {
-            totalSteps += record.count || 0;
-          }
-        }
-      }
-      return totalSteps;
-    } catch (error) {
-      console.error('[HealthService] Android steps error:', error);
-      // Permission might have been revoked - reset state
-      this.androidPermissionsGranted = false;
-      return 0;
-    }
+    return this.currentSteps;
   }
 
   async getDistance(startDate: Date, endDate: Date): Promise<number> {
     if (!this.isNative()) {
       return 0;
     }
-
-    // Android Health Connect doesn't have a direct distance record type
-    // We'll calculate from steps instead
-    return 0;
+    return this.currentDistance;
   }
 
   // Calculate distance from steps if native distance isn't available
@@ -211,14 +190,13 @@ class HealthService {
 
   // Get all health data for a date range
   async getHealthData(startDate: Date, endDate: Date): Promise<HealthData> {
-    // For Android, only proceed if permissions are granted
-    if (this.platform === 'android' && !this.androidPermissionsGranted) {
-      console.log('[HealthService] getHealthData: No Android permission - returning zeros');
+    if (this.platform !== 'web' && !this.permissionsGranted) {
+      console.log('[HealthService] getHealthData: No permission - returning zeros');
       return { steps: 0, distance: 0, calories: 0 };
     }
 
     const steps = await this.getSteps(startDate, endDate);
-    let distance = await this.getDistance(startDate, endDate);
+    let distance = this.currentDistance;
     
     // Fallback to calculated distance if not available
     if (distance === 0 && steps > 0) {
@@ -228,6 +206,15 @@ class HealthService {
     const calories = this.calculateCalories(steps);
     
     return { steps, distance, calories };
+  }
+
+  // Get current step count (real-time)
+  getCurrentSteps(): number {
+    return this.currentSteps;
+  }
+
+  getCurrentDistance(): number {
+    return this.currentDistance;
   }
 }
 
