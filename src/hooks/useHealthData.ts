@@ -67,11 +67,21 @@ export function useHealthData(): UseHealthDataReturn {
     }
   }, []);
 
-  // Auto-request permission on app open for native platforms
+  // Auto-request permission on app open for native platforms (with delay for plugin readiness)
   useEffect(() => {
     if (platform !== 'web' && !permissionChecked) {
-      console.log('[useHealthData] Auto-requesting permission on app open...');
-      requestPermissions();
+      // Delay to ensure Capacitor plugins are fully initialized
+      const timer = setTimeout(async () => {
+        try {
+          console.log('[useHealthData] Auto-requesting permission on app open...');
+          await requestPermissions();
+        } catch (error) {
+          console.error('[useHealthData] Auto-permission request failed:', error);
+          setPermissionChecked(true);
+        }
+      }, 1000); // 1 second delay for plugin initialization
+      
+      return () => clearTimeout(timer);
     }
   }, [platform, permissionChecked, requestPermissions]);
 
