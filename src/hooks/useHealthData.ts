@@ -104,7 +104,25 @@ export function useHealthData(): UseHealthDataReturn {
         return;
       }
 
-      // Native platform - fetch from health APIs
+      // Native platform - check permissions first before trying to read
+      const hasPermission = platform === 'android' 
+        ? await healthService.checkAndroidPermissions()
+        : true; // iOS handles permissions differently
+      
+      if (!hasPermission) {
+        console.log('[useHealthData] No health permissions - skipping native fetch');
+        setHealthData({
+          steps: 0,
+          distance: 0,
+          calories: 0,
+          isLoading: false,
+          hasPermission: false,
+          platform,
+          error: null
+        });
+        return;
+      }
+      
       const startOfDay = getStartOfToday();
       const endOfDay = getEndOfToday();
       
