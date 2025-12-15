@@ -44,7 +44,7 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
 
   const requestPermissions = async (): Promise<boolean> => {
     try {
-      console.log('[LocationTracking] Requesting permissions...');
+      console.log('[LocationTracking] Checking permissions...');
       
       if (Capacitor.isNativePlatform()) {
         const permStatus = await Geolocation.checkPermissions();
@@ -52,6 +52,10 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
         
         if (permStatus.location !== 'granted') {
           console.log('[LocationTracking] Requesting permissions...');
+          
+          // Add delay to prevent crash if called right after activity permission
+          await new Promise(resolve => setTimeout(resolve, 300));
+          
           const result = await Geolocation.requestPermissions();
           console.log('[LocationTracking] Permission result:', result);
           
