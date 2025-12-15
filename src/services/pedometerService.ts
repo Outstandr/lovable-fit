@@ -1,5 +1,19 @@
-import { Capacitor } from '@capacitor/core';
-import { CapacitorPedometer } from '@tubbly/tubbly-capacitor-pedometer';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+interface PedometerPlugin {
+  startCounting(): Promise<void>;
+  stopCounting(): Promise<void>;
+  getStepCount(): Promise<{ count: number }>;
+  checkPermissions(): Promise<{ activityRecognition: string }>;
+  requestPermissions(): Promise<{ activityRecognition: string }>;
+}
+
+const CapacitorPedometer = registerPlugin<PedometerPlugin>('CapacitorPedometer');
+
+// Ensure plugin is loaded
+if (!CapacitorPedometer) {
+  console.error('[Pedometer] CapacitorPedometer plugin not found!');
+}
 
 const LOG_PREFIX = '[Pedometer]';
 
