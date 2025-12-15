@@ -1,5 +1,4 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
-import { Geolocation } from '@capacitor/geolocation';
 
 // @tubbly/tubbly-capacitor-pedometer only has these 3 methods
 interface PedometerPlugin {
@@ -38,13 +37,10 @@ class PedometerService {
     }
 
     try {
-      // Use Geolocation permission as a proxy for activity recognition on Android
-      const result = await Geolocation.checkPermissions();
-      console.log(`${LOG_PREFIX} Permission check:`, result);
-      
-      const granted = result.location === 'granted' || result.coarseLocation === 'granted';
-      this.hasPermission = granted;
-      return granted;
+      // For Android, activity recognition permission is automatically requested
+      // when startCounting() is called. We'll assume it's needed if tracking isn't started yet.
+      console.log(`${LOG_PREFIX} Android - Activity permission will be requested on start`);
+      return this.hasPermission;
     } catch (error) {
       console.error(`${LOG_PREFIX} Check permission error:`, error);
       return false;
@@ -60,24 +56,14 @@ class PedometerService {
     }
 
     try {
-      // Request location permission which triggers activity recognition permission on Android 10+
-      console.log(`${LOG_PREFIX} Requesting location/activity permissions...`);
-      const result = await Geolocation.requestPermissions();
-      console.log(`${LOG_PREFIX} Permission request result:`, result);
+      // For Android 10+ (API 29+), ACTIVITY_RECOGNITION permission is required
+      // The @tubbly plugin should trigger the system permission dialog automatically
+      // when startCounting() is called, as long as it's declared in AndroidManifest.xml
       
-      const granted = result.location === 'granted' || result.coarseLocation === 'granted';
-      this.hasPermission = granted;
-      
-      if (granted) {
-        console.log(`${LOG_PREFIX} ✅ Permissions granted`);
-      } else {
-        console.log(`${LOG_PREFIX} ❌ Permissions denied`);
-      }
-      
-      return granted;
+      console.log(`${LOG_PREFIX} Permission will be requested automatically on startCounting()`);
+      return true;
     } catch (error) {
       console.error(`${LOG_PREFIX} Permission error:`, error);
-      this.hasPermission = false;
       return false;
     }
   }
@@ -91,25 +77,22 @@ class PedometerService {
         return false;
       }
 
-      // Check/request permission first
-      const hasPermission = await this.checkPermission();
+      // Start counting - this will trigger Android's permission dialog automatically
+      // if the ACTIVITY_RECOGNITION permission is declared in AndroidManifest.xml
+      console.log(`${LOG_PREFIX} Calling startCounting() - this will trigger permission dialog...`);
       
-      if (!hasPermission) {
-        console.log(`${LOG_PREFIX} No permission, requesting...`);
-        const granted = await this.requestPermission();
-        
-        if (!granted) {
-          console.error(`${LOG_PREFIX} ❌ Permission denied, cannot start tracking`);
-          return false;
-        }
+      try {
+        await CapacitorPedometer.startCounting();
+        this.isTracking = true;
+        this.hasPermission = true;
+        console.log(`${LOG_PREFIX} ✅ Tracking started successfully (permission granted)`);
+      } catch (error: any) {
+        // If permission was denied, startCounting will throw an error
+        console.error(`${LOG_PREFIX} ❌ startCounting failed (permission likely denied):`, error);
+        this.isTracking = false;
+        this.hasPermission = false;
+        return false;
       }
-
-      // Start counting steps using @tubbly API
-      console.log(`${LOG_PREFIX} Calling startCounting()...`);
-      await CapacitorPedometer.startCounting();
-      this.isTracking = true;
-      this.hasPermission = true;
-      console.log(`${LOG_PREFIX} ✅ Tracking started successfully`);
       
       // Fetch initial step count after a delay
       setTimeout(async () => {
