@@ -153,38 +153,43 @@ export function usePedometer() {
 
   // Poll for step updates every 3 seconds
   useEffect(() => {
-    if (!state.isTracking) {
-      console.log(`${LOG_PREFIX} Not tracking, skipping poll setup`);
-      return;
-    }
+    // Give auto-start time to complete before checking tracking state
+    const checkDelay = setTimeout(() => {
+      if (!state.isTracking) {
+        console.log(`${LOG_PREFIX} Not tracking, skipping poll setup`);
+        return;
+      }
 
-    if (!state.hasPermission) {
-      console.log(`${LOG_PREFIX} No permission, skipping poll setup`);
-      return;
-    }
+      if (!state.hasPermission) {
+        console.log(`${LOG_PREFIX} No permission, skipping poll setup`);
+        return;
+      }
 
-    console.log(`${LOG_PREFIX} Starting 3s poll for step updates (permission: ${state.hasPermission}, tracking: ${state.isTracking})`);
-    
-    const interval = setInterval(async () => {
-      // Fetch fresh step count from sensor
-      await pedometerService.fetchSteps();
-      const serviceState = pedometerService.getState();
-      console.log(`${LOG_PREFIX} Poll update: steps=${serviceState.steps}, distance=${serviceState.distance.toFixed(2)}km, tracking=${serviceState.isTracking}`);
+      console.log(`${LOG_PREFIX} Starting 3s poll for step updates (permission: ${state.hasPermission}, tracking: ${state.isTracking})`);
       
-      setState(prev => ({
-        ...prev,
-        steps: serviceState.steps,
-        distance: serviceState.distance,
-        calories: serviceState.calories,
-        hasPermission: serviceState.hasPermission,
-        isTracking: serviceState.isTracking
-      }));
-    }, 3000);
+      const interval = setInterval(async () => {
+        // Fetch fresh step count from sensor
+        await pedometerService.fetchSteps();
+        const serviceState = pedometerService.getState();
+        console.log(`${LOG_PREFIX} Poll update: steps=${serviceState.steps}, distance=${serviceState.distance.toFixed(2)}km, tracking=${serviceState.isTracking}`);
+        
+        setState(prev => ({
+          ...prev,
+          steps: serviceState.steps,
+          distance: serviceState.distance,
+          calories: serviceState.calories,
+          hasPermission: serviceState.hasPermission,
+          isTracking: serviceState.isTracking
+        }));
+      }, 3000);
 
-    return () => {
-      console.log(`${LOG_PREFIX} Stopping poll (cleanup)`);
-      clearInterval(interval);
-    };
+      return () => {
+        console.log(`${LOG_PREFIX} Stopping poll (cleanup)`);
+        clearInterval(interval);
+      };
+    }, 500); // Wait 500ms to allow auto-start to update state
+
+    return () => clearTimeout(checkDelay);
   }, [state.isTracking, state.hasPermission]);
 
   // Sync to database when steps change significantly
