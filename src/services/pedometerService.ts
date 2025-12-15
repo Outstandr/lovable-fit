@@ -1,38 +1,11 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
 
+// @tubbly/tubbly-capacitor-pedometer only has these 3 methods
 interface PedometerPlugin {
-  startMeasurementUpdates(): Promise<void>;
-  stopMeasurementUpdates(): Promise<void>;
-  getMeasurement(): Promise<Measurement>;
-  isAvailable(): Promise<IsAvailableResult>;
-  checkPermissions(): Promise<PermissionStatus>;
-  requestPermissions(): Promise<PermissionStatus>;
-  addListener(eventName: 'measurement', listenerFunc: (event: Measurement) => void): Promise<any>;
-  removeAllListeners(): Promise<void>;
-}
-
-interface Measurement {
-  numberOfSteps: number;
-  distance?: number;
-  floorsAscended?: number;
-  floorsDescended?: number;
-  currentPace?: number;
-  currentCadence?: number;
-  averageActivePace?: number;
-  startDate: number;
-  endDate: number;
-}
-
-interface IsAvailableResult {
-  stepCounting: boolean;
-  distance: boolean;
-  pace: boolean;
-  cadence: boolean;
-  floorCounting: boolean;
-}
-
-interface PermissionStatus {
-  activityRecognition: 'prompt' | 'prompt-with-rationale' | 'granted' | 'denied';
+  startCounting(): Promise<void>;
+  stopCounting(): Promise<void>;
+  getStepCount(): Promise<{ count: number }>;
 }
 
 const CapacitorPedometer = registerPlugin<PedometerPlugin>('CapacitorPedometer');
@@ -45,7 +18,6 @@ class PedometerService {
   private isTracking = false;
   private hasPermission = false;
   private platform: 'android' | 'ios' | 'web';
-  private listenerHandle: any = null;
 
   constructor() {
     this.platform = Capacitor.getPlatform() as 'android' | 'ios' | 'web';
@@ -66,10 +38,11 @@ class PedometerService {
     }
 
     try {
-      const result = await CapacitorPedometer.checkPermissions();
+      // Use Geolocation permission as a proxy for activity recognition on Android
+      const result = await Geolocation.checkPermissions();
       console.log(`${LOG_PREFIX} Permission check:`, result);
       
-      const granted = result.activityRecognition === 'granted';
+      const granted = result.location === 'granted' || result.coarseLocation === 'granted';
       this.hasPermission = granted;
       return granted;
     } catch (error) {
@@ -87,16 +60,18 @@ class PedometerService {
     }
 
     try {
-      const result = await CapacitorPedometer.requestPermissions();
+      // Request location permission which triggers activity recognition permission on Android 10+
+      console.log(`${LOG_PREFIX} Requesting location/activity permissions...`);
+      const result = await Geolocation.requestPermissions();
       console.log(`${LOG_PREFIX} Permission request result:`, result);
       
-      const granted = result.activityRecognition === 'granted';
+      const granted = result.location === 'granted' || result.coarseLocation === 'granted';
       this.hasPermission = granted;
       
       if (granted) {
-        console.log(`${LOG_PREFIX} ✅ Permission granted`);
+        console.log(`${LOG_PREFIX} ✅ Permissions granted`);
       } else {
-        console.log(`${LOG_PREFIX} ❌ Permission denied: ${result.activityRecognition}`);
+        console.log(`${LOG_PREFIX} ❌ Permissions denied`);
       }
       
       return granted;
@@ -116,7 +91,7 @@ class PedometerService {
         return false;
       }
 
-      // Check permission first
+      // Check/request permission first
       const hasPermission = await this.checkPermission();
       
       if (!hasPermission) {
@@ -129,28 +104,26 @@ class PedometerService {
         }
       }
 
-      // Check availability
-      const availability = await CapacitorPedometer.isAvailable();
-      console.log(`${LOG_PREFIX} Availability:`, availability);
-      
-      if (!availability.stepCounting) {
-        console.error(`${LOG_PREFIX} Step counting not available on this device`);
-        return false;
-      }
-
-      // Start listening for measurement updates
-      this.listenerHandle = await CapacitorPedometer.addListener('measurement', (data: Measurement) => {
-        console.log(`${LOG_PREFIX} 🚶 Measurement update:`, data);
-        this.currentSteps = data.numberOfSteps;
-        this.currentDistance = data.distance ? data.distance / 1000 : this.calculateDistance(this.currentSteps);
-        console.log(`${LOG_PREFIX} Steps: ${this.currentSteps}, Distance: ${this.currentDistance.toFixed(2)} km`);
-      });
-
-      // Start measurement updates
-      await CapacitorPedometer.startMeasurementUpdates();
+      // Start counting steps using @tubbly API
+      console.log(`${LOG_PREFIX} Calling startCounting()...`);
+      await CapacitorPedometer.startCounting();
       this.isTracking = true;
       this.hasPermission = true;
       console.log(`${LOG_PREFIX} ✅ Tracking started successfully`);
+      
+      // Fetch initial step count after a delay
+      setTimeout(async () => {
+        try {
+          const result = await CapacitorPedometer.getStepCount();
+          if (result && typeof result.count === 'number') {
+            this.currentSteps = result.count;
+            this.currentDistance = this.calculateDistance(this.currentSteps);
+            console.log(`${LOG_PREFIX} Initial step count: ${this.currentSteps}`);
+          }
+        } catch (err) {
+          console.error(`${LOG_PREFIX} Error getting initial step count:`, err);
+        }
+      }, 1000);
       
       return true;
     } catch (error) {
@@ -168,9 +141,7 @@ class PedometerService {
         return;
       }
 
-      await CapacitorPedometer.stopMeasurementUpdates();
-      await CapacitorPedometer.removeAllListeners();
-      this.listenerHandle = null;
+      await CapacitorPedometer.stopCounting();
       this.isTracking = false;
       this.currentSteps = 0;
       this.currentDistance = 0;
@@ -186,9 +157,16 @@ class PedometerService {
         return this.currentSteps;
       }
 
-      // @capgo plugin updates automatically via listener
-      // Just return current value
-      return this.currentSteps;
+      const result = await CapacitorPedometer.getStepCount();
+      
+      if (result && typeof result.count === 'number') {
+        this.currentSteps = result.count;
+        this.currentDistance = this.calculateDistance(this.currentSteps);
+        console.log(`${LOG_PREFIX} Fetched ${this.currentSteps} steps`);
+        return this.currentSteps;
+      }
+      
+      return 0;
     } catch (error) {
       console.error(`${LOG_PREFIX} Error fetching steps:`, error);
       return 0;
