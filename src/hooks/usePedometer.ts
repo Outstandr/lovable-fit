@@ -124,29 +124,37 @@ export function usePedometer() {
       return;
     }
 
-    console.log(`${LOG_PREFIX} Native platform detected, auto-starting in 1.5s...`);
+    console.log(`${LOG_PREFIX} Native platform detected, checking permission in 1s...`);
     
     const timer = setTimeout(async () => {
       console.log(`${LOG_PREFIX} === AUTO-START BEGIN ===`);
-      console.log(`${LOG_PREFIX} Auto-start: calling startTracking...`);
-      const started = await startTracking();
       
-      if (started) {
-        console.log(`${LOG_PREFIX} Tracking started, waiting 2s for first measurement...`);
-        setTimeout(() => {
-          const serviceState = pedometerService.getState();
-          console.log(`${LOG_PREFIX} Initial state after 2s:`, JSON.stringify(serviceState));
-          setState(prev => ({
-            ...prev,
-            steps: serviceState.steps,
-            distance: serviceState.distance,
-            calories: serviceState.calories
-          }));
-        }, 2000);
+      // Check if permission already granted (don't request again)
+      const hasPermission = await pedometerService.checkPermission();
+      
+      if (hasPermission) {
+        console.log(`${LOG_PREFIX} Permission already granted, starting tracking...`);
+        const started = await startTracking();
+        
+        if (started) {
+          console.log(`${LOG_PREFIX} Tracking started, waiting 2s for first measurement...`);
+          setTimeout(() => {
+            const serviceState = pedometerService.getState();
+            console.log(`${LOG_PREFIX} Initial state after 2s:`, JSON.stringify(serviceState));
+            setState(prev => ({
+              ...prev,
+              steps: serviceState.steps,
+              distance: serviceState.distance,
+              calories: serviceState.calories
+            }));
+          }, 2000);
+        } else {
+          console.log(`${LOG_PREFIX} Failed to start tracking`);
+        }
       } else {
-        console.log(`${LOG_PREFIX} Failed to start tracking`);
+        console.log(`${LOG_PREFIX} Permission not granted yet, will request when starting session`);
       }
-    }, 1500); // Increased to 1.5 seconds
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, [startTracking]);
