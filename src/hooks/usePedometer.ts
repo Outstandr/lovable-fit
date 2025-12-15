@@ -124,12 +124,29 @@ export function usePedometer() {
       return;
     }
 
-    console.log(`${LOG_PREFIX} Native platform detected, auto-starting in 1s...`);
+    console.log(`${LOG_PREFIX} Native platform detected, auto-starting in 1.5s...`);
     
     const timer = setTimeout(async () => {
+      console.log(`${LOG_PREFIX} === AUTO-START BEGIN ===`);
       console.log(`${LOG_PREFIX} Auto-start: calling startTracking...`);
-      await startTracking();
-    }, 1000);
+      const started = await startTracking();
+      
+      if (started) {
+        console.log(`${LOG_PREFIX} Tracking started, waiting 2s for first measurement...`);
+        setTimeout(() => {
+          const serviceState = pedometerService.getState();
+          console.log(`${LOG_PREFIX} Initial state after 2s:`, JSON.stringify(serviceState));
+          setState(prev => ({
+            ...prev,
+            steps: serviceState.steps,
+            distance: serviceState.distance,
+            calories: serviceState.calories
+          }));
+        }, 2000);
+      } else {
+        console.log(`${LOG_PREFIX} Failed to start tracking`);
+      }
+    }, 1500); // Increased to 1.5 seconds
 
     return () => clearTimeout(timer);
   }, [startTracking]);
@@ -137,15 +154,20 @@ export function usePedometer() {
   // Poll for step updates every 3 seconds
   useEffect(() => {
     if (!state.isTracking) {
-      console.log(`${LOG_PREFIX} Not tracking, skipping poll`);
+      console.log(`${LOG_PREFIX} Not tracking, skipping poll setup`);
       return;
     }
 
-    console.log(`${LOG_PREFIX} Starting 3s poll for step updates`);
+    if (!state.hasPermission) {
+      console.log(`${LOG_PREFIX} No permission, skipping poll setup`);
+      return;
+    }
+
+    console.log(`${LOG_PREFIX} Starting 3s poll for step updates (permission: ${state.hasPermission}, tracking: ${state.isTracking})`);
     
     const interval = setInterval(() => {
       const serviceState = pedometerService.getState();
-      console.log(`${LOG_PREFIX} Poll: steps=${serviceState.steps}, distance=${serviceState.distance.toFixed(2)}km`);
+      console.log(`${LOG_PREFIX} Poll update: steps=${serviceState.steps}, distance=${serviceState.distance.toFixed(2)}km, tracking=${serviceState.isTracking}`);
       
       setState(prev => ({
         ...prev,
@@ -158,10 +180,10 @@ export function usePedometer() {
     }, 3000);
 
     return () => {
-      console.log(`${LOG_PREFIX} Stopping poll`);
+      console.log(`${LOG_PREFIX} Stopping poll (cleanup)`);
       clearInterval(interval);
     };
-  }, [state.isTracking]);
+  }, [state.isTracking, state.hasPermission]);
 
   // Sync to database when steps change significantly
   useEffect(() => {

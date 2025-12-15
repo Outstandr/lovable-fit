@@ -43,20 +43,52 @@ class PedometerService {
 
   async requestPermission(): Promise<boolean> {
     if (!this.isNative()) {
-      console.log(`${LOG_PREFIX} requestPermission: Not native, returning false`);
+      console.log(`${LOG_PREFIX} === PERMISSION REQUEST START ===`);
+      console.log(`${LOG_PREFIX} Not native, returning false`);
       return false;
     }
 
     try {
-      console.log(`${LOG_PREFIX} requestPermission: Calling CapacitorPedometer.requestPermissions()...`);
-      const result = await CapacitorPedometer.requestPermissions();
-      console.log(`${LOG_PREFIX} requestPermission: Result =`, JSON.stringify(result));
+      console.log(`${LOG_PREFIX} === PERMISSION REQUEST START ===`);
       
-      this.hasPermission = result.activityRecognition === 'granted';
-      console.log(`${LOG_PREFIX} requestPermission: hasPermission = ${this.hasPermission}`);
+      // STEP 1: Check current permission status
+      console.log(`${LOG_PREFIX} Step 1: Checking current permission status...`);
+      const checkResult = await CapacitorPedometer.checkPermissions();
+      console.log(`${LOG_PREFIX} Check result:`, JSON.stringify(checkResult));
+      
+      const currentStatus = checkResult?.activityRecognition ?? 'unknown';
+      console.log(`${LOG_PREFIX} Current status: ${currentStatus}`);
+      
+      // STEP 2: If already granted, we're good
+      if (currentStatus === 'granted') {
+        console.log(`${LOG_PREFIX} ✓ Permission already granted`);
+        this.hasPermission = true;
+        return true;
+      }
+      
+      // STEP 3: If explicitly denied, return false
+      if (currentStatus === 'denied') {
+        console.log(`${LOG_PREFIX} ✗ Permission explicitly denied`);
+        this.hasPermission = false;
+        return false;
+      }
+      
+      // STEP 4: Request permission (status is 'prompt' or unknown)
+      console.log(`${LOG_PREFIX} Step 2: Requesting permission from user...`);
+      const requestResult = await CapacitorPedometer.requestPermissions();
+      console.log(`${LOG_PREFIX} Request result:`, JSON.stringify(requestResult));
+      
+      const newStatus = requestResult?.activityRecognition ?? 'unknown';
+      console.log(`${LOG_PREFIX} New status after request: ${newStatus}`);
+      
+      // STEP 5: Check if granted after request
+      this.hasPermission = newStatus === 'granted';
+      console.log(`${LOG_PREFIX} ${this.hasPermission ? '✓ Permission granted' : '✗ Permission denied'}`);
       return this.hasPermission;
+      
     } catch (error) {
-      console.error(`${LOG_PREFIX} requestPermission: Error =`, error);
+      console.error(`${LOG_PREFIX} ✗ Error in permission request:`, error);
+      this.hasPermission = false;
       return false;
     }
   }
@@ -87,10 +119,30 @@ class PedometerService {
       // Step 2: Add listener FIRST (critical!)
       console.log(`${LOG_PREFIX} start: Adding measurement listener...`);
       this.listener = await CapacitorPedometer.addListener('measurement', (data) => {
-        console.log(`${LOG_PREFIX} 🚶 MEASUREMENT:`, JSON.stringify(data));
-        this.currentSteps = data?.numberOfSteps ?? 0;
-        this.currentDistance = (data?.distance ?? 0) / 1000; // Convert to km
-        console.log(`${LOG_PREFIX} 🚶 Updated: steps=${this.currentSteps}, distance=${this.currentDistance.toFixed(2)}km`);
+        try {
+          console.log(`${LOG_PREFIX} 🚶 ========== MEASUREMENT EVENT ==========`);
+          console.log(`${LOG_PREFIX} 🚶 Raw data:`, JSON.stringify(data, null, 2));
+          
+          if (!data) {
+            console.log(`${LOG_PREFIX} 🚶 No data received`);
+            return;
+          }
+          
+          const steps = data?.numberOfSteps ?? 0;
+          const distanceMeters = data?.distance ?? 0;
+          
+          console.log(`${LOG_PREFIX} 🚶 Parsed steps: ${steps}`);
+          console.log(`${LOG_PREFIX} 🚶 Parsed distance (m): ${distanceMeters}`);
+          
+          this.currentSteps = steps;
+          this.currentDistance = distanceMeters / 1000;
+          
+          console.log(`${LOG_PREFIX} 🚶 Updated currentSteps: ${this.currentSteps}`);
+          console.log(`${LOG_PREFIX} 🚶 Updated currentDistance (km): ${this.currentDistance.toFixed(3)}`);
+          console.log(`${LOG_PREFIX} 🚶 =========================================`);
+        } catch (listenerError) {
+          console.error(`${LOG_PREFIX} ✗ Error in measurement listener:`, listenerError);
+        }
       });
       console.log(`${LOG_PREFIX} start: Listener added`);
 
