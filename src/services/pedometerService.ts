@@ -57,18 +57,41 @@ class PedometerService {
       return true;
     }
 
-    // This plugin doesn't have explicit permission methods
-    // Permissions are requested when startCounting is called
-    // We'll try to start and stop to trigger permission request
     try {
-      console.log(`${LOG_PREFIX} Triggering permission via startCounting...`);
-      await CapacitorPedometer.startCounting();
-      await CapacitorPedometer.stopCounting();
+      // For Android, we need to explicitly request ACTIVITY_RECOGNITION permission
+      if (this.platform === 'android') {
+        console.log(`${LOG_PREFIX} Requesting Android ACTIVITY_RECOGNITION permission...`);
+        
+        // Check if permission is already granted
+        const checkResult = await CapacitorPedometer.checkPermissions();
+        console.log(`${LOG_PREFIX} Permission check result:`, checkResult);
+        
+        if (checkResult.activityRecognition !== 'granted') {
+          console.log(`${LOG_PREFIX} Permission not granted, requesting...`);
+          const requestResult = await CapacitorPedometer.requestPermissions();
+          console.log(`${LOG_PREFIX} Permission request result:`, requestResult);
+          
+          if (requestResult.activityRecognition === 'granted') {
+            this.hasPermission = true;
+            console.log(`${LOG_PREFIX} ✅ Permission granted`);
+            return true;
+          } else {
+            this.hasPermission = false;
+            console.log(`${LOG_PREFIX} ❌ Permission denied`);
+            return false;
+          }
+        } else {
+          this.hasPermission = true;
+          console.log(`${LOG_PREFIX} ✅ Permission already granted`);
+          return true;
+        }
+      }
+      
+      // For iOS, permissions are requested automatically on first use
       this.hasPermission = true;
-      console.log(`${LOG_PREFIX} Permission granted`);
       return true;
     } catch (error) {
-      console.error(`${LOG_PREFIX} Permission denied or error:`, error);
+      console.error(`${LOG_PREFIX} Permission error:`, error);
       this.hasPermission = false;
       return false;
     }
@@ -81,6 +104,16 @@ class PedometerService {
       if (this.platform === 'web') {
         console.log(`${LOG_PREFIX} Web platform, tracking not supported`);
         return false;
+      }
+
+      // Check/request permission first
+      if (!this.hasPermission) {
+        console.log(`${LOG_PREFIX} No permission yet, requesting...`);
+        const granted = await this.requestPermission();
+        if (!granted) {
+          console.error(`${LOG_PREFIX} ❌ Permission denied, cannot start tracking`);
+          return false;
+        }
       }
 
       // Start counting steps
