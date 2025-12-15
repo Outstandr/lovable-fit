@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
+import { CapacitorPedometer } from '@tubbly/tubbly-capacitor-pedometer';
 
 const LOG_PREFIX = '[Pedometer]';
 
@@ -8,17 +8,21 @@ class PedometerService {
   private currentDistance = 0;
   private isTracking = false;
   private hasPermission = false;
-  private listener: any = null;
+  private platform: 'android' | 'ios' | 'web';
+
+  constructor() {
+    this.platform = Capacitor.getPlatform() as 'android' | 'ios' | 'web';
+    console.log(`${LOG_PREFIX} Initialized on platform: ${this.platform}`);
+  }
 
   isNative(): boolean {
-    const platform = Capacitor.getPlatform();
-    const native = platform === 'android' || platform === 'ios';
-    console.log(`${LOG_PREFIX} isNative: ${native} (platform: ${platform})`);
+    const native = this.platform === 'android' || this.platform === 'ios';
+    console.log(`${LOG_PREFIX} isNative: ${native} (platform: ${this.platform})`);
     return native;
   }
 
   getPlatform(): 'android' | 'ios' | 'web' {
-    return Capacitor.getPlatform() as 'android' | 'ios' | 'web';
+    return this.platform;
   }
 
   async checkPermission(): Promise<boolean> {
@@ -26,163 +30,99 @@ class PedometerService {
       console.log(`${LOG_PREFIX} checkPermission: Not native, returning false`);
       return false;
     }
-
-    try {
-      console.log(`${LOG_PREFIX} checkPermission: Calling CapacitorPedometer.checkPermissions()...`);
-      const result = await CapacitorPedometer.checkPermissions();
-      console.log(`${LOG_PREFIX} checkPermission: Result =`, JSON.stringify(result));
-      
-      this.hasPermission = result.activityRecognition === 'granted';
-      console.log(`${LOG_PREFIX} checkPermission: hasPermission = ${this.hasPermission}`);
-      return this.hasPermission;
-    } catch (error) {
-      console.error(`${LOG_PREFIX} checkPermission: Error =`, error);
-      return false;
-    }
+    // This plugin doesn't have permission checking - permissions are handled at startCounting
+    console.log(`${LOG_PREFIX} checkPermission: Plugin handles permissions at start`);
+    return this.hasPermission;
   }
 
   async requestPermission(): Promise<boolean> {
-    if (!this.isNative()) {
-      console.log(`${LOG_PREFIX} === PERMISSION REQUEST START ===`);
-      console.log(`${LOG_PREFIX} Not native, returning false`);
-      return false;
+    console.log(`${LOG_PREFIX} Requesting permissions...`);
+    
+    if (this.platform === 'web') {
+      console.log(`${LOG_PREFIX} Web platform, no permissions needed`);
+      return true;
     }
 
+    // This plugin doesn't have explicit permission methods
+    // Permissions are requested when startCounting is called
+    // We'll try to start and stop to trigger permission request
     try {
-      console.log(`${LOG_PREFIX} === PERMISSION REQUEST START ===`);
-      
-      // STEP 1: Check current permission status
-      console.log(`${LOG_PREFIX} Step 1: Checking current permission status...`);
-      const checkResult = await CapacitorPedometer.checkPermissions();
-      console.log(`${LOG_PREFIX} Check result:`, JSON.stringify(checkResult));
-      
-      const currentStatus = checkResult?.activityRecognition ?? 'unknown';
-      console.log(`${LOG_PREFIX} Current status: ${currentStatus}`);
-      
-      // STEP 2: If already granted, we're good
-      if (currentStatus === 'granted') {
-        console.log(`${LOG_PREFIX} ✓ Permission already granted`);
-        this.hasPermission = true;
-        return true;
-      }
-      
-      // STEP 3: If explicitly denied, return false
-      if (currentStatus === 'denied') {
-        console.log(`${LOG_PREFIX} ✗ Permission explicitly denied`);
-        this.hasPermission = false;
-        return false;
-      }
-      
-      // STEP 4: Request permission (status is 'prompt' or unknown)
-      console.log(`${LOG_PREFIX} Step 2: Requesting permission from user...`);
-      const requestResult = await CapacitorPedometer.requestPermissions();
-      console.log(`${LOG_PREFIX} Request result:`, JSON.stringify(requestResult));
-      
-      const newStatus = requestResult?.activityRecognition ?? 'unknown';
-      console.log(`${LOG_PREFIX} New status after request: ${newStatus}`);
-      
-      // STEP 5: Check if granted after request
-      this.hasPermission = newStatus === 'granted';
-      console.log(`${LOG_PREFIX} ${this.hasPermission ? '✓ Permission granted' : '✗ Permission denied'}`);
-      return this.hasPermission;
-      
+      console.log(`${LOG_PREFIX} Triggering permission via startCounting...`);
+      await CapacitorPedometer.startCounting();
+      await CapacitorPedometer.stopCounting();
+      this.hasPermission = true;
+      console.log(`${LOG_PREFIX} Permission granted`);
+      return true;
     } catch (error) {
-      console.error(`${LOG_PREFIX} ✗ Error in permission request:`, error);
+      console.error(`${LOG_PREFIX} Permission denied or error:`, error);
       this.hasPermission = false;
       return false;
     }
   }
 
   async start(): Promise<boolean> {
-    if (!this.isNative()) {
-      console.log(`${LOG_PREFIX} start: Not native, cannot start`);
-      return false;
-    }
-
-    if (this.isTracking) {
-      console.log(`${LOG_PREFIX} start: Already tracking`);
-      return true;
-    }
-
     try {
-      // Step 1: Check permission
-      const hasPermission = await this.checkPermission();
-      if (!hasPermission) {
-        console.log(`${LOG_PREFIX} start: No permission, requesting...`);
-        const granted = await this.requestPermission();
-        if (!granted) {
-          console.log(`${LOG_PREFIX} start: Permission denied, cannot start`);
-          return false;
-        }
+      console.log(`${LOG_PREFIX} Starting tracking...`);
+
+      if (this.platform === 'web') {
+        console.log(`${LOG_PREFIX} Web platform, tracking not supported`);
+        return false;
       }
 
-      // Step 2: Add listener FIRST (critical!)
-      console.log(`${LOG_PREFIX} start: Adding measurement listener...`);
-      this.listener = await CapacitorPedometer.addListener('measurement', (data) => {
-        try {
-          console.log(`${LOG_PREFIX} 🚶 ========== MEASUREMENT EVENT ==========`);
-          console.log(`${LOG_PREFIX} 🚶 Raw data:`, JSON.stringify(data, null, 2));
-          
-          if (!data) {
-            console.log(`${LOG_PREFIX} 🚶 No data received`);
-            return;
-          }
-          
-          const steps = data?.numberOfSteps ?? 0;
-          const distanceMeters = data?.distance ?? 0;
-          
-          console.log(`${LOG_PREFIX} 🚶 Parsed steps: ${steps}`);
-          console.log(`${LOG_PREFIX} 🚶 Parsed distance (m): ${distanceMeters}`);
-          
-          this.currentSteps = steps;
-          this.currentDistance = distanceMeters / 1000;
-          
-          console.log(`${LOG_PREFIX} 🚶 Updated currentSteps: ${this.currentSteps}`);
-          console.log(`${LOG_PREFIX} 🚶 Updated currentDistance (km): ${this.currentDistance.toFixed(3)}`);
-          console.log(`${LOG_PREFIX} 🚶 =========================================`);
-        } catch (listenerError) {
-          console.error(`${LOG_PREFIX} ✗ Error in measurement listener:`, listenerError);
-        }
-      });
-      console.log(`${LOG_PREFIX} start: Listener added`);
-
-      // Step 3: Start updates
-      console.log(`${LOG_PREFIX} start: Calling startMeasurementUpdates()...`);
-      await CapacitorPedometer.startMeasurementUpdates();
-      console.log(`${LOG_PREFIX} start: Tracking started successfully`);
-
+      await CapacitorPedometer.startCounting();
       this.isTracking = true;
+      this.hasPermission = true;
+      console.log(`${LOG_PREFIX} ✅ Tracking started successfully`);
+      
       return true;
     } catch (error) {
-      console.error(`${LOG_PREFIX} start: Error =`, error);
+      console.error(`${LOG_PREFIX} Failed to start tracking:`, error);
       this.isTracking = false;
       return false;
     }
   }
 
   async stop(): Promise<void> {
-    if (!this.isNative()) {
-      console.log(`${LOG_PREFIX} stop: Not native`);
-      return;
-    }
-
     try {
-      console.log(`${LOG_PREFIX} stop: Stopping tracking...`);
+      console.log(`${LOG_PREFIX} Stopping tracking...`);
       
-      await CapacitorPedometer.stopMeasurementUpdates();
-      console.log(`${LOG_PREFIX} stop: Updates stopped`);
-      
-      if (this.listener) {
-        await this.listener.remove();
-        this.listener = null;
-        console.log(`${LOG_PREFIX} stop: Listener removed`);
+      if (this.platform === 'web') {
+        return;
       }
 
+      await CapacitorPedometer.stopCounting();
       this.isTracking = false;
-      console.log(`${LOG_PREFIX} stop: Tracking stopped`);
+      this.currentSteps = 0;
+      this.currentDistance = 0;
+      console.log(`${LOG_PREFIX} Tracking stopped`);
     } catch (error) {
-      console.error(`${LOG_PREFIX} stop: Error =`, error);
+      console.error(`${LOG_PREFIX} Error stopping tracking:`, error);
     }
+  }
+
+  async fetchSteps(): Promise<number> {
+    try {
+      if (this.platform === 'web' || !this.isTracking) {
+        console.log(`${LOG_PREFIX} Not tracking, returning 0`);
+        return 0;
+      }
+
+      const result = await CapacitorPedometer.getStepCount();
+      console.log(`${LOG_PREFIX} Step count from sensor:`, result.count);
+      
+      this.currentSteps = result.count || 0;
+      this.currentDistance = this.calculateDistance(this.currentSteps);
+      return this.currentSteps;
+    } catch (error) {
+      console.error(`${LOG_PREFIX} Error getting steps:`, error);
+      return 0;
+    }
+  }
+
+  private calculateDistance(steps: number): number {
+    // Average stride length is about 0.762 meters (2.5 feet)
+    const strideLength = 0.762;
+    return (steps * strideLength) / 1000; // Convert to km
   }
 
   getSteps(): number {
@@ -214,8 +154,7 @@ class PedometerService {
       hasPermission: this.hasPermission,
       steps: this.currentSteps,
       distance: this.currentDistance,
-      calories: this.getCalories(),
-      hasListener: !!this.listener
+      calories: this.getCalories()
     };
   }
 }

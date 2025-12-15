@@ -165,7 +165,9 @@ export function usePedometer() {
 
     console.log(`${LOG_PREFIX} Starting 3s poll for step updates (permission: ${state.hasPermission}, tracking: ${state.isTracking})`);
     
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
+      // Fetch fresh step count from sensor
+      await pedometerService.fetchSteps();
       const serviceState = pedometerService.getState();
       console.log(`${LOG_PREFIX} Poll update: steps=${serviceState.steps}, distance=${serviceState.distance.toFixed(2)}km, tracking=${serviceState.isTracking}`);
       
