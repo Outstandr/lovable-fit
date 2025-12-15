@@ -137,9 +137,9 @@ const Dashboard = () => {
               <span className="text-foreground">{debugState.steps}</span>
               <span>Distance:</span>
               <span className="text-foreground">{debugState.distance.toFixed(2)} km</span>
-              <span>Listener:</span>
-              <span className={debugState.hasListener ? 'text-accent' : 'text-muted-foreground'}>
-                {debugState.hasListener ? '✓ Active' : '✗ None'}
+              <span>Tracking:</span>
+              <span className={debugState.isTracking ? 'text-accent' : 'text-muted-foreground'}>
+                {debugState.isTracking ? '✓ Active' : '✗ Inactive'}
               </span>
             </div>
             {error && (
