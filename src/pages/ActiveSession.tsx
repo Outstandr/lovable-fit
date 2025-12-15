@@ -66,6 +66,12 @@ const ActiveSession = () => {
     setSessionStartTime(new Date());
     setIsRunning(true);
     setSessionStarted(true);
+    
+    // Don't start pedometer again - it was already started during permission flow
+    console.log('[ActiveSession] Pedometer already started during permission flow');
+    
+    // Start location tracking
+    console.log('[ActiveSession] Starting location tracking...');
     await startTracking();
   };
 

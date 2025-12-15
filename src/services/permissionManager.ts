@@ -49,9 +49,11 @@ class PermissionManager {
     }
 
     try {
-      console.log('[PermissionManager] STEP 1: Requesting physical activity permission...');
+      // STEP 1: Request Activity Permission by starting the pedometer
+      // The @tubbly plugin triggers the permission dialog when start() is called
+      console.log('[PermissionManager] STEP 1: Starting pedometer (triggers activity permission)...');
       
-      const activityGranted = await pedometerService.requestPermission();
+      const activityGranted = await pedometerService.start();
       this.state.activity = activityGranted ? 'granted' : 'denied';
       
       console.log(`[PermissionManager] Activity permission: ${this.state.activity}`);
@@ -61,9 +63,11 @@ class PermissionManager {
         return false;
       }
 
-      console.log('[PermissionManager] Waiting 500ms before location request...');
-      await this.delay(500);
+      // Wait 800ms between permission requests (prevents Android crash and allows first dialog to close)
+      console.log('[PermissionManager] Waiting 800ms before location request...');
+      await this.delay(800);
 
+      // STEP 2: Request Location Permission
       console.log('[PermissionManager] STEP 2: Requesting location permission...');
       
       const locationResult = await Geolocation.requestPermissions();
@@ -73,9 +77,11 @@ class PermissionManager {
       this.state.location = locationGranted ? 'granted' : 'denied';
       
       console.log(`[PermissionManager] Location permission: ${this.state.location}`);
+      console.log(`[PermissionManager] Location result details:`, locationResult);
       
       if (!locationGranted) {
         console.error('[PermissionManager] ❌ Location permission denied');
+        console.error('[PermissionManager] Location result was:', locationResult);
         return false;
       }
 
