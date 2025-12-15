@@ -15,21 +15,32 @@ export const PermissionFlow = ({ onComplete }: PermissionFlowProps) => {
     setIsRequesting(true);
     console.log('[PermissionFlow] Starting permission flow...');
     
-    setStep('activity');
-    
-    // Small delay to show activity permission screen
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const granted = await permissionManager.requestAllPermissions();
-    
-    if (granted) {
-      console.log('[PermissionFlow] All permissions granted!');
-      setStep('location');
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setStep('complete');
-      setTimeout(() => onComplete(true), 1000);
-    } else {
-      console.log('[PermissionFlow] Permissions denied');
+    try {
+      const granted = await permissionManager.requestAllPermissions();
+      
+      if (granted) {
+        console.log('[PermissionFlow] ✅ All permissions granted!');
+        setStep('location');
+        await new Promise(resolve => setTimeout(resolve, 800));
+        setStep('complete');
+        setTimeout(() => onComplete(true), 1000);
+      } else {
+        console.log('[PermissionFlow] ❌ Permissions denied');
+        const state = permissionManager.getState();
+        console.log('[PermissionFlow] Final state:', state);
+        
+        // Show which permission was denied
+        if (state.activity === 'denied') {
+          console.error('[PermissionFlow] Activity permission was denied');
+        }
+        if (state.location === 'denied') {
+          console.error('[PermissionFlow] Location permission was denied');
+        }
+        
+        onComplete(false);
+      }
+    } catch (error) {
+      console.error('[PermissionFlow] Error during permission flow:', error);
       onComplete(false);
     }
     

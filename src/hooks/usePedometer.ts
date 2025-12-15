@@ -116,48 +116,37 @@ export function usePedometer() {
     }
   }, [user, state.steps, state.distance, state.calories]);
 
-  // Auto-request permission on mount for native platforms
+  // Check permission status on mount but don't auto-start (let permission flow handle it)
   useEffect(() => {
     const platform = pedometerService.getPlatform();
     if (platform === 'web') {
-      console.log(`${LOG_PREFIX} Web platform, skipping permission request`);
+      console.log(`${LOG_PREFIX} Web platform, skipping permission check`);
       return;
     }
 
-    console.log(`${LOG_PREFIX} Native platform detected, checking permission in 1s...`);
+    console.log(`${LOG_PREFIX} Native platform detected, checking if tracking already started...`);
     
-    const timer = setTimeout(async () => {
-      console.log(`${LOG_PREFIX} === AUTO-START BEGIN ===`);
+    const timer = setTimeout(() => {
+      const serviceState = pedometerService.getState();
+      console.log(`${LOG_PREFIX} Service state:`, serviceState);
       
-      // Check if permission already granted (don't request again)
-      const hasPermission = await pedometerService.checkPermission();
-      
-      if (hasPermission) {
-        console.log(`${LOG_PREFIX} Permission already granted, starting tracking...`);
-        const started = await startTracking();
-        
-        if (started) {
-          console.log(`${LOG_PREFIX} Tracking started, waiting 2s for first measurement...`);
-          setTimeout(() => {
-            const serviceState = pedometerService.getState();
-            console.log(`${LOG_PREFIX} Initial state after 2s:`, JSON.stringify(serviceState));
-            setState(prev => ({
-              ...prev,
-              steps: serviceState.steps,
-              distance: serviceState.distance,
-              calories: serviceState.calories
-            }));
-          }, 2000);
-        } else {
-          console.log(`${LOG_PREFIX} Failed to start tracking`);
-        }
+      if (serviceState.isTracking) {
+        console.log(`${LOG_PREFIX} Already tracking, syncing state...`);
+        setState(prev => ({
+          ...prev,
+          steps: serviceState.steps,
+          distance: serviceState.distance,
+          calories: serviceState.calories,
+          hasPermission: serviceState.hasPermission,
+          isTracking: serviceState.isTracking
+        }));
       } else {
-        console.log(`${LOG_PREFIX} Permission not granted yet, will request when starting session`);
+        console.log(`${LOG_PREFIX} Not tracking yet, will be started by permission flow`);
       }
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [startTracking]);
+  }, []);
 
   // Poll for step updates every 3 seconds
   useEffect(() => {
