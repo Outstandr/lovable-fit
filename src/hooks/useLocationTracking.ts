@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { Geolocation, Position } from '@capacitor/geolocation';
+import { Geolocation, Position, PositionOptions, CallbackID } from '@capacitor/geolocation';
 
 export interface LocationPoint {
   latitude: number;
@@ -40,7 +40,7 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
   const [hasPermission, setHasPermission] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const watchIdRef = useRef<string | null>(null);
+  const watchIdRef = useRef<CallbackID | null>(null);
   const lastPositionRef = useRef<LocationPoint | null>(null);
 
   const requestPermissions = async (): Promise<boolean> => {
@@ -92,8 +92,45 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
     }
   };
 
+  const handleNewPosition = useCallback((position: Position | null) => {
+    if (!position) return;
+    
+    const newPoint: LocationPoint = {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      timestamp: Date.now(),
+    };
+
+    console.log('[LocationTracking] New position:', newPoint);
+    setCurrentPosition(newPoint);
+    
+    // Add to route if moved more than 5 meters (to filter GPS noise)
+    if (lastPositionRef.current) {
+      const distance = calculateDistance(
+        lastPositionRef.current.latitude,
+        lastPositionRef.current.longitude,
+        newPoint.latitude,
+        newPoint.longitude
+      );
+      
+      console.log(`[LocationTracking] Distance from last point: ${(distance * 1000).toFixed(1)}m`);
+      
+      // Only add point if moved more than 5 meters (0.005 km)
+      if (distance > 0.005) {
+        setRoutePoints(prev => [...prev, newPoint]);
+        setGpsDistance(prev => prev + distance);
+        lastPositionRef.current = newPoint;
+        console.log(`[LocationTracking] ✅ Route point added. Total distance: ${(gpsDistance + distance).toFixed(2)} km`);
+      }
+    } else {
+      // First point
+      lastPositionRef.current = newPoint;
+    }
+  }, [gpsDistance]);
+
   const startTracking = useCallback(async () => {
     try {
+      console.log('[LocationTracking] Starting tracking...');
       setError(null);
       
       const granted = await requestPermissions();
@@ -101,9 +138,12 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
       
       if (!granted) {
         setError('Location permission denied');
+        console.error('[LocationTracking] ❌ Permission denied, cannot start tracking');
         return;
       }
 
+      console.log('[LocationTracking] Getting initial position...');
+      
       // Get initial position
       const initialPosition = await Geolocation.getCurrentPosition({
         enableHighAccuracy: true,
@@ -116,105 +156,60 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
         timestamp: Date.now(),
       };
 
+      console.log('[LocationTracking] ✅ Initial position obtained:', initialPoint);
       setCurrentPosition(initialPoint);
       setRoutePoints([initialPoint]);
       lastPositionRef.current = initialPoint;
       setIsTracking(true);
 
-      // Start watching position
-      if (Capacitor.isNativePlatform()) {
-        watchIdRef.current = await Geolocation.watchPosition(
-          {
-            enableHighAccuracy: true,
-            timeout: 5000,
-            maximumAge: 0,
-          },
-          (position: Position | null, err) => {
-            if (err) {
-              console.error('[LocationTracking] Watch error:', err);
-              return;
-            }
-            if (position) {
-              handleNewPosition(position);
-            }
-          }
-        );
-      } else {
-        // Web fallback
-        const webWatchId = navigator.geolocation.watchPosition(
-          (position) => {
-            handleNewPosition({
-              coords: {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                accuracy: position.coords.accuracy,
-                altitude: position.coords.altitude,
-                altitudeAccuracy: position.coords.altitudeAccuracy,
-                heading: position.coords.heading,
-                speed: position.coords.speed,
-              },
-              timestamp: position.timestamp,
-            });
-          },
-          (err) => console.error('[LocationTracking] Web watch error:', err),
-          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-        );
-        watchIdRef.current = webWatchId.toString();
-      }
+      // Start watching position with CORRECTED callback syntax
+      console.log('[LocationTracking] Starting position watch...');
+      
+      const watchOptions: PositionOptions = {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      };
+
+      // CRITICAL FIX: Use correct Capacitor Geolocation API
+      watchIdRef.current = await Geolocation.watchPosition(watchOptions, (position, err) => {
+        if (err) {
+          console.error('[LocationTracking] Watch error:', err);
+          return;
+        }
+        if (position) {
+          handleNewPosition(position);
+        }
+      });
+
+      console.log('[LocationTracking] ✅ Watch started with ID:', watchIdRef.current);
+      
     } catch (err) {
       console.error('[LocationTracking] Start error:', err);
       setError('Failed to start location tracking');
+      setIsTracking(false);
     }
-  }, []);
-
-  const handleNewPosition = (position: Position) => {
-    const newPoint: LocationPoint = {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      timestamp: Date.now(),
-    };
-
-    setCurrentPosition(newPoint);
-    
-    // Add to route if moved more than 5 meters (to filter GPS noise)
-    if (lastPositionRef.current) {
-      const distance = calculateDistance(
-        lastPositionRef.current.latitude,
-        lastPositionRef.current.longitude,
-        newPoint.latitude,
-        newPoint.longitude
-      );
-      
-      // Only add point if moved more than 5 meters (0.005 km)
-      if (distance > 0.005) {
-        setRoutePoints(prev => [...prev, newPoint]);
-        setGpsDistance(prev => prev + distance);
-        lastPositionRef.current = newPoint;
-      }
-    }
-  };
+  }, [handleNewPosition]);
 
   const stopTracking = useCallback(() => {
+    console.log('[LocationTracking] Stopping tracking...');
+    
     if (watchIdRef.current !== null) {
-      if (Capacitor.isNativePlatform()) {
-        Geolocation.clearWatch({ id: watchIdRef.current });
-      } else {
-        navigator.geolocation.clearWatch(parseInt(watchIdRef.current));
-      }
+      Geolocation.clearWatch({ id: watchIdRef.current });
+      console.log('[LocationTracking] ✅ Watch cleared:', watchIdRef.current);
       watchIdRef.current = null;
     }
     setIsTracking(false);
-  }, []);
+    
+    console.log(`[LocationTracking] Final stats - Distance: ${gpsDistance.toFixed(2)} km, Route points: ${routePoints.length}`);
+  }, [gpsDistance, routePoints.length]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (watchIdRef.current !== null) {
-        if (Capacitor.isNativePlatform()) {
-          Geolocation.clearWatch({ id: watchIdRef.current });
-        } else {
-          navigator.geolocation.clearWatch(parseInt(watchIdRef.current));
-        }
+        console.log('[LocationTracking] Cleanup: Clearing watch on unmount');
+        Geolocation.clearWatch({ id: watchIdRef.current });
       }
     };
   }, []);
