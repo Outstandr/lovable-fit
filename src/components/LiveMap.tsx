@@ -4,7 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { LocationPoint } from '@/hooks/useLocationTracking';
 
-// Fix Leaflet default marker icons issue
+// Fix Leaflet default marker icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
@@ -18,7 +18,6 @@ interface LiveMapProps {
   isTracking: boolean;
 }
 
-// Component to handle map centering on position changes
 const MapCenterController = ({ position }: { position: LocationPoint | null }) => {
   const map = useMap();
   const hasInitialCenter = useRef(false);
@@ -28,7 +27,6 @@ const MapCenterController = ({ position }: { position: LocationPoint | null }) =
       map.setView([position.latitude, position.longitude], 17);
       hasInitialCenter.current = true;
     } else if (position) {
-      // Smoothly pan to new position
       map.panTo([position.latitude, position.longitude], { animate: true, duration: 0.5 });
     }
   }, [position, map]);
@@ -37,13 +35,11 @@ const MapCenterController = ({ position }: { position: LocationPoint | null }) =
 };
 
 const LiveMap = ({ currentPosition, routePoints, isTracking }: LiveMapProps) => {
-  // Convert route points to Leaflet format
   const routeLatLngs = routePoints.map(point => [point.latitude, point.longitude] as [number, number]);
 
-  // Default center (will be overridden when position is available)
   const defaultCenter: [number, number] = currentPosition 
     ? [currentPosition.latitude, currentPosition.longitude]
-    : [52.52, 13.405]; // Berlin as fallback
+    : [0, 0];
 
   return (
     <div className="absolute inset-0 rounded-xl overflow-hidden">
@@ -52,16 +48,18 @@ const LiveMap = ({ currentPosition, routePoints, isTracking }: LiveMapProps) => 
         zoom={17}
         className="h-full w-full"
         zoomControl={false}
-        attributionControl={false}
+        attributionControl={true}
       >
-        {/* Dark theme map tiles */}
+        {/* Free OpenStreetMap tiles - No API key required */}
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maxZoom={19}
         />
 
         <MapCenterController position={currentPosition} />
 
-        {/* Route polyline */}
+        {/* Route line */}
         {routeLatLngs.length > 1 && (
           <Polyline
             positions={routeLatLngs}
@@ -78,7 +76,6 @@ const LiveMap = ({ currentPosition, routePoints, isTracking }: LiveMapProps) => 
         {/* Current position marker */}
         {currentPosition && (
           <>
-            {/* Outer glow */}
             <CircleMarker
               center={[currentPosition.latitude, currentPosition.longitude]}
               radius={20}
@@ -89,7 +86,6 @@ const LiveMap = ({ currentPosition, routePoints, isTracking }: LiveMapProps) => 
                 weight: 0,
               }}
             />
-            {/* Inner dot */}
             <CircleMarker
               center={[currentPosition.latitude, currentPosition.longitude]}
               radius={8}
@@ -104,11 +100,16 @@ const LiveMap = ({ currentPosition, routePoints, isTracking }: LiveMapProps) => 
         )}
       </MapContainer>
 
-      {/* Tracking status overlay */}
+      {/* Status indicator */}
       <div className="absolute top-4 left-4 rounded-lg bg-background/80 backdrop-blur-sm px-3 py-1.5 border border-border/50">
         <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-          {isTracking ? 'GPS Tracking Active' : 'GPS Ready'}
+          {isTracking ? '📍 GPS Active' : '📍 GPS Ready'}
         </span>
+      </div>
+
+      {/* OpenStreetMap attribution (required by OSM) */}
+      <div className="absolute bottom-2 right-2 text-[8px] text-muted-foreground/70 bg-background/60 px-1 rounded">
+        Map data © OSM
       </div>
     </div>
   );
