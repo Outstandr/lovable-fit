@@ -45,20 +45,49 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
 
   const requestPermissions = async (): Promise<boolean> => {
     try {
+      console.log('[LocationTracking] Requesting location permissions...');
+      
       if (Capacitor.isNativePlatform()) {
-        const status = await Geolocation.requestPermissions();
-        return status.location === 'granted';
+        // Check current permission status
+        const permStatus = await Geolocation.checkPermissions();
+        console.log('[LocationTracking] Current permissions:', permStatus);
+        
+        if (permStatus.location !== 'granted') {
+          console.log('[LocationTracking] Permission not granted, requesting...');
+          const result = await Geolocation.requestPermissions();
+          console.log('[LocationTracking] Permission request result:', result);
+          
+          if (result.location === 'granted' || result.coarseLocation === 'granted') {
+            console.log('[LocationTracking] ✅ Location permission granted');
+            return true;
+          } else {
+            console.log('[LocationTracking] ❌ Location permission denied');
+            setError('Location permission denied');
+            return false;
+          }
+        } else {
+          console.log('[LocationTracking] ✅ Location permission already granted');
+          return true;
+        }
       } else {
         // Web fallback - use browser geolocation
         return new Promise((resolve) => {
           navigator.geolocation.getCurrentPosition(
-            () => resolve(true),
-            () => resolve(false)
+            () => {
+              console.log('[LocationTracking] ✅ Browser location permission granted');
+              resolve(true);
+            },
+            (err) => {
+              console.error('[LocationTracking] ❌ Browser location permission denied:', err);
+              setError('Location permission denied');
+              resolve(false);
+            }
           );
         });
       }
     } catch (err) {
       console.error('[LocationTracking] Permission error:', err);
+      setError('Failed to request location permission');
       return false;
     }
   };
