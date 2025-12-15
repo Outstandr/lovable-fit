@@ -153,15 +153,15 @@ export function usePedometer() {
 
   // Poll for step updates every 3 seconds
   useEffect(() => {
-    // Give auto-start time to complete before checking tracking state
-    const checkDelay = setTimeout(() => {
+    // Wait 2.5s for auto-start to complete before starting poll
+    const startDelay = setTimeout(() => {
       if (!state.isTracking) {
-        console.log(`${LOG_PREFIX} Not tracking, skipping poll setup`);
+        console.log(`${LOG_PREFIX} Not tracking after delay, skipping poll setup`);
         return;
       }
 
       if (!state.hasPermission) {
-        console.log(`${LOG_PREFIX} No permission, skipping poll setup`);
+        console.log(`${LOG_PREFIX} No permission after delay, skipping poll setup`);
         return;
       }
 
@@ -183,13 +183,15 @@ export function usePedometer() {
         }));
       }, 3000);
 
+      // Cleanup function for interval
       return () => {
         console.log(`${LOG_PREFIX} Stopping poll (cleanup)`);
         clearInterval(interval);
       };
-    }, 500); // Wait 500ms to allow auto-start to update state
+    }, 2500); // Wait 2.5s (auto-start is 1.5s + 1s fetch delay)
 
-    return () => clearTimeout(checkDelay);
+    // Cleanup function for delay
+    return () => clearTimeout(startDelay);
   }, [state.isTracking, state.hasPermission]);
 
   // Sync to database when steps change significantly
