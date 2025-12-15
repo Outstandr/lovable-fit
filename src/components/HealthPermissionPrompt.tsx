@@ -28,19 +28,15 @@ export function HealthPermissionPrompt({
       >
         <Smartphone className="h-10 w-10 text-primary mx-auto mb-3" />
         <h3 className="text-sm font-bold uppercase tracking-wider text-foreground mb-2">
-          Device Required
+          Native App Required
         </h3>
         <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-          Step tracking requires the native app. Install Hotstepper on your phone to track real health data.
+          Step tracking requires the native Android app. Install Hotstepper on your phone to track steps.
         </p>
         <div className="flex flex-col gap-2 text-xs text-muted-foreground">
           <div className="flex items-center justify-center gap-2">
             <CheckCircle2 className="h-3 w-3 text-accent" />
-            <span>iOS: HealthKit</span>
-          </div>
-          <div className="flex items-center justify-center gap-2">
-            <CheckCircle2 className="h-3 w-3 text-accent" />
-            <span>Android: Health Connect</span>
+            <span>Android: Pedometer sensor</span>
           </div>
         </div>
       </motion.div>
@@ -55,10 +51,10 @@ export function HealthPermissionPrompt({
     >
       <Activity className="h-10 w-10 text-primary mx-auto mb-3" />
       <h3 className="text-sm font-bold uppercase tracking-wider text-foreground mb-2">
-        Health Access Required
+        Pedometer Access Required
       </h3>
       <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-        Hotstepper needs access to your health data to track your daily steps and activity progress.
+        Hotstepper needs access to your device's step sensor to track your daily steps.
       </p>
       <Button 
         variant="tactical" 
@@ -67,7 +63,7 @@ export function HealthPermissionPrompt({
         disabled={isLoading}
         className="w-full"
       >
-        {isLoading ? 'Requesting...' : `Grant ${platform === 'ios' ? 'HealthKit' : 'Health Connect'} Access`}
+        {isLoading ? 'Requesting...' : 'Grant Pedometer Access'}
       </Button>
     </motion.div>
   );

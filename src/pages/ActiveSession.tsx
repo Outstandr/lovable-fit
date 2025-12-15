@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, MapPin, Clock, Gauge, Square } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useHealthData } from "@/hooks/useHealthData";
+import { usePedometer } from "@/hooks/usePedometer";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +14,7 @@ import MapPlaceholder from "@/components/MapPlaceholder";
 const ActiveSession = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { healthData, refetch } = useHealthData();
+  const { steps } = usePedometer();
   const { 
     currentPosition, 
     routePoints, 
@@ -28,7 +28,6 @@ const ActiveSession = () => {
   const [isRunning, setIsRunning] = useState(true);
   const [startSteps, setStartSteps] = useState<number | null>(null);
   const [sessionStartTime] = useState<Date>(new Date());
-  const lastStepsRef = useRef(0);
 
   // Start GPS tracking when session begins
   useEffect(() => {
@@ -38,11 +37,10 @@ const ActiveSession = () => {
 
   // Capture start steps when session begins
   useEffect(() => {
-    if (startSteps === null && !healthData.isLoading) {
-      setStartSteps(healthData.steps);
-      lastStepsRef.current = healthData.steps;
+    if (startSteps === null && steps > 0) {
+      setStartSteps(steps);
     }
-  }, [healthData.steps, healthData.isLoading, startSteps]);
+  }, [steps, startSteps]);
 
   // Timer for duration
   useEffect(() => {
@@ -55,17 +53,6 @@ const ActiveSession = () => {
     return () => clearInterval(interval);
   }, [isRunning]);
 
-  // Refresh health data more frequently during active session
-  useEffect(() => {
-    if (!isRunning) return;
-    
-    const interval = setInterval(() => {
-      refetch();
-    }, 5000); // Update every 5 seconds
-    
-    return () => clearInterval(interval);
-  }, [isRunning, refetch]);
-
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -76,12 +63,11 @@ const ActiveSession = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Calculate session stats - prefer GPS distance if available
-  const sessionSteps = startSteps !== null ? Math.max(0, healthData.steps - startSteps) : 0;
-  const stepBasedDistance = (sessionSteps * 0.762) / 1000; // Convert steps to km
-  const sessionDistance = gpsDistance > 0 ? gpsDistance : stepBasedDistance; // Prefer GPS
+  // Calculate session stats
+  const sessionSteps = startSteps !== null ? Math.max(0, steps - startSteps) : 0;
+  const stepBasedDistance = (sessionSteps * 0.762) / 1000;
+  const sessionDistance = gpsDistance > 0 ? gpsDistance : stepBasedDistance;
   
-  // Calculate pace (min:sec per km)
   const calculatePace = () => {
     if (sessionDistance <= 0 || duration <= 0) return "--:--";
     const paceSeconds = duration / sessionDistance;
@@ -106,7 +92,6 @@ const ActiveSession = () => {
     }
 
     try {
-      // Save session to database
       const { error } = await supabase
         .from('active_sessions')
         .insert({
