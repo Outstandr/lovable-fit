@@ -6,6 +6,8 @@ interface PedometerPlugin {
   getStepCount(): Promise<{ count: number }>;
   checkPermissions(): Promise<{ activityRecognition: string }>;
   requestPermissions(): Promise<{ activityRecognition: string }>;
+  addListener(eventName: string, callback: (data: any) => void): Promise<any>;
+  removeAllListeners(): Promise<void>;
 }
 
 const CapacitorPedometer = registerPlugin<PedometerPlugin>('CapacitorPedometer');
@@ -83,10 +85,20 @@ class PedometerService {
         return false;
       }
 
+      // Listen for real-time step count updates
+      await CapacitorPedometer.addListener('stepCountChange', (data: any) => {
+        console.log(`${LOG_PREFIX} 🚶 Step count event:`, data);
+        if (data && typeof data.count === 'number') {
+          this.currentSteps = data.count;
+          this.currentDistance = this.calculateDistance(this.currentSteps);
+          console.log(`${LOG_PREFIX} Updated: ${this.currentSteps} steps, ${this.currentDistance.toFixed(2)} km`);
+        }
+      });
+
       await CapacitorPedometer.startCounting();
       this.isTracking = true;
       this.hasPermission = true;
-      console.log(`${LOG_PREFIX} ✅ Tracking started successfully`);
+      console.log(`${LOG_PREFIX} ✅ Tracking started successfully with event listener`);
       
       return true;
     } catch (error) {
@@ -104,11 +116,12 @@ class PedometerService {
         return;
       }
 
+      await CapacitorPedometer.removeAllListeners();
       await CapacitorPedometer.stopCounting();
       this.isTracking = false;
       this.currentSteps = 0;
       this.currentDistance = 0;
-      console.log(`${LOG_PREFIX} Tracking stopped`);
+      console.log(`${LOG_PREFIX} Tracking stopped and listeners removed`);
     } catch (error) {
       console.error(`${LOG_PREFIX} Error stopping tracking:`, error);
     }
