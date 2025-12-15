@@ -7,12 +7,11 @@ import { LeaderboardPreview } from "@/components/LeaderboardPreview";
 import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
 import { HealthPermissionPrompt } from "@/components/HealthPermissionPrompt";
-import { useHealthData } from "@/hooks/useHealthData";
+import { usePedometer } from "@/hooks/usePedometer";
 import { useStreak } from "@/hooks/useStreak";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { healthService } from "@/services/healthService";
 
 const TARGET_STEPS = 10000;
 
@@ -26,16 +25,21 @@ interface LeaderboardEntry {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { healthData, refetch, requestPermissions } = useHealthData();
+  const { 
+    steps, distance, calories, 
+    hasPermission, isTracking, error, platform,
+    startTracking, stopTracking, requestPermission,
+    getDebugState
+  } = usePedometer();
   const { streak, updateStreakOnTargetHit } = useStreak();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [showDebug, setShowDebug] = useState(true);
 
   // Fetch leaderboard data
   useEffect(() => {
     const fetchLeaderboard = async () => {
       const today = new Date().toISOString().split('T')[0];
       
-      // First get daily steps
       const { data: stepsData, error: stepsError } = await supabase
         .from('daily_steps')
         .select('steps, user_id')
@@ -48,7 +52,6 @@ const Dashboard = () => {
         return;
       }
 
-      // Then get profiles for those users
       const userIds = stepsData.map(item => item.user_id);
       const { data: profilesData } = await supabase
         .from('profiles')
@@ -70,25 +73,24 @@ const Dashboard = () => {
     if (user) {
       fetchLeaderboard();
     }
-  }, [user, healthData.steps]);
+  }, [user, steps]);
 
   // Update streak when target is hit
   useEffect(() => {
-    if (healthData.steps >= TARGET_STEPS) {
+    if (steps >= TARGET_STEPS) {
       updateStreakOnTargetHit();
     }
-  }, [healthData.steps, updateStreakOnTargetHit]);
+  }, [steps, updateStreakOnTargetHit]);
 
   const dashboardData = {
-    steps: healthData.steps,
+    steps,
     target: TARGET_STEPS,
-    distance: healthData.distance,
-    calories: healthData.calories,
+    distance,
+    calories,
     streak: streak.currentStreak
   };
 
-  // Only show web notice (native auto-requests permission)
-  const showWebNotice = healthData.platform === 'web';
+  const debugState = getDebugState();
 
   return (
     <div className="min-h-screen pb-24">
@@ -107,8 +109,51 @@ const Dashboard = () => {
         </p>
       </motion.header>
 
-      {/* Web Notice - only shown on web platform */}
-      {showWebNotice && (
+      {/* Debug Panel */}
+      {showDebug && platform !== 'web' && (
+        <div className="px-4 pb-2">
+          <div className="tactical-card text-xs space-y-1">
+            <div className="flex justify-between items-center mb-2">
+              <span className="font-bold uppercase tracking-wider text-primary">Debug Panel</span>
+              <button 
+                onClick={() => setShowDebug(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Hide
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-1 text-muted-foreground">
+              <span>Platform:</span>
+              <span className="text-foreground">{debugState.platform}</span>
+              <span>Permission:</span>
+              <span className={debugState.hasPermission ? 'text-accent' : 'text-destructive'}>
+                {debugState.hasPermission ? '✓ Granted' : '✗ Not granted'}
+              </span>
+              <span>Tracking:</span>
+              <span className={debugState.isTracking ? 'text-accent' : 'text-muted-foreground'}>
+                {debugState.isTracking ? '✓ Active' : '✗ Inactive'}
+              </span>
+              <span>Steps:</span>
+              <span className="text-foreground">{debugState.steps}</span>
+              <span>Distance:</span>
+              <span className="text-foreground">{debugState.distance.toFixed(2)} km</span>
+              <span>Listener:</span>
+              <span className={debugState.hasListener ? 'text-accent' : 'text-muted-foreground'}>
+                {debugState.hasListener ? '✓ Active' : '✗ None'}
+              </span>
+            </div>
+            {error && (
+              <div className="mt-2 text-destructive flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {error}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Web Notice */}
+      {platform === 'web' && (
         <div className="px-4 pb-4">
           <HealthPermissionPrompt
             platform="web"
@@ -119,40 +164,31 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Native step controls & status */}
-      {healthData.platform !== 'web' && (
+      {/* Native step controls */}
+      {platform !== 'web' && (
         <div className="px-4 pb-2">
           <div className="tactical-card flex items-center justify-between gap-4">
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Current Steps</p>
-              <p className="text-2xl font-bold text-foreground">{healthData.steps}</p>
+              <p className="text-2xl font-bold text-foreground">{steps}</p>
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground mt-1">
-                Permission: {healthData.hasPermission ? 'Granted' : 'Not granted'}
+                {hasPermission ? '✓ Permission granted' : '✗ Permission not granted'}
               </p>
-              {healthData.error && (
-                <p className="text-[10px] text-destructive mt-1 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {healthData.error}
-                </p>
-              )}
             </div>
             <div className="flex flex-col gap-2">
               <Button
                 variant="tactical"
                 size="sm"
-                onClick={async () => {
-                  const granted = await requestPermissions();
-                  if (granted) {
-                    await refetch();
-                  }
-                }}
+                onClick={startTracking}
+                disabled={isTracking}
               >
-                Start
+                {isTracking ? 'Tracking...' : 'Start'}
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => healthService.stopTracking()}
+                onClick={stopTracking}
+                disabled={!isTracking}
               >
                 Stop
               </Button>
