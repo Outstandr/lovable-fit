@@ -34,6 +34,7 @@ const Dashboard = () => {
   const { streak, updateStreakOnTargetHit } = useStreak();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [showDebug, setShowDebug] = useState(true);
+  const [recentSessions, setRecentSessions] = useState<any[]>([]);
 
   // Fetch leaderboard data
   useEffect(() => {
@@ -72,6 +73,31 @@ const Dashboard = () => {
 
     if (user) {
       fetchLeaderboard();
+    }
+  }, [user, steps]);
+
+  // Fetch recent active sessions
+  useEffect(() => {
+    const fetchRecentSessions = async () => {
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('active_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('ended_at', { ascending: false })
+        .limit(5);
+
+      if (error) {
+        console.error('[Dashboard] Sessions error:', error);
+        return;
+      }
+
+      setRecentSessions(data || []);
+    };
+
+    if (user) {
+      fetchRecentSessions();
     }
   }, [user, steps]);
 
@@ -246,6 +272,69 @@ const Dashboard = () => {
           </motion.div>
         )}
       </div>
+
+      {/* Recent Sessions */}
+      {recentSessions.length > 0 && (
+        <div className="px-4 pb-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
+                Recent Sessions
+              </h2>
+            </div>
+            <div className="space-y-2">
+              {recentSessions.map((session, index) => {
+                const duration = session.duration_seconds || 0;
+                const hours = Math.floor(duration / 3600);
+                const minutes = Math.floor((duration % 3600) / 60);
+                const durationText = hours > 0 
+                  ? `${hours}h ${minutes}m` 
+                  : `${minutes}m`;
+
+                return (
+                  <motion.div
+                    key={session.id}
+                    className="tactical-card"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.7 + index * 0.1 }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-muted-foreground">
+                          {session.ended_at ? new Date(session.ended_at).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }) : 'In progress'}
+                        </p>
+                        <div className="flex items-center gap-4 mt-1">
+                          <div>
+                            <span className="text-lg font-bold text-foreground">{session.steps || 0}</span>
+                            <span className="text-[10px] text-muted-foreground ml-1">steps</span>
+                          </div>
+                          <div>
+                            <span className="text-lg font-bold text-foreground">{session.distance_km?.toFixed(2) || '0.00'}</span>
+                            <span className="text-[10px] text-muted-foreground ml-1">km</span>
+                          </div>
+                          <div>
+                            <span className="text-sm font-semibold text-primary">{durationText}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Action Button */}
       <div className="fixed bottom-20 left-4 right-4 z-40">
