@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { Geolocation, Position, PositionOptions, CallbackID } from '@capacitor/geolocation';
+import { Geolocation, Position } from '@capacitor/geolocation';
 
 export interface LocationPoint {
   latitude: number;
@@ -11,7 +11,7 @@ export interface LocationPoint {
 export interface UseLocationTrackingReturn {
   currentPosition: LocationPoint | null;
   routePoints: LocationPoint[];
-  gpsDistance: number;
+  gpsDistance: number; // in km
   isTracking: boolean;
   hasPermission: boolean;
   error: string | null;
@@ -19,8 +19,9 @@ export interface UseLocationTrackingReturn {
   stopTracking: () => void;
 }
 
+// Calculate distance between two GPS points using Haversine formula
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-  const R = 6371;
+  const R = 6371; // Earth's radius in km
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = 
@@ -39,40 +40,51 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
   const [hasPermission, setHasPermission] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const watchIdRef = useRef<CallbackID | null>(null);
+  const watchIdRef = useRef<string | null>(null);
   const lastPositionRef = useRef<LocationPoint | null>(null);
 
   const requestPermissions = async (): Promise<boolean> => {
     try {
-      console.log('[LocationTracking] Checking permissions...');
+      console.log('[LocationTracking] Requesting location permissions...');
       
       if (Capacitor.isNativePlatform()) {
+        // Check current permission status
         const permStatus = await Geolocation.checkPermissions();
         console.log('[LocationTracking] Current permissions:', permStatus);
         
         if (permStatus.location !== 'granted') {
-          console.log('[LocationTracking] Requesting permissions...');
-          
-          // Add delay to prevent crash if called right after activity permission
-          await new Promise(resolve => setTimeout(resolve, 300));
-          
+          console.log('[LocationTracking] Permission not granted, requesting...');
           const result = await Geolocation.requestPermissions();
-          console.log('[LocationTracking] Permission result:', result);
+          console.log('[LocationTracking] Permission request result:', result);
           
           if (result.location === 'granted' || result.coarseLocation === 'granted') {
-            console.log('[LocationTracking] ✅ Permission granted');
+            console.log('[LocationTracking] ✅ Location permission granted');
             return true;
           } else {
-            console.log('[LocationTracking] ❌ Permission denied');
+            console.log('[LocationTracking] ❌ Location permission denied');
             setError('Location permission denied');
             return false;
           }
         } else {
-          console.log('[LocationTracking] ✅ Permission already granted');
+          console.log('[LocationTracking] ✅ Location permission already granted');
           return true;
         }
+      } else {
+        // Web fallback - use browser geolocation
+        return new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            () => {
+              console.log('[LocationTracking] ✅ Browser location permission granted');
+              resolve(true);
+            },
+            (err) => {
+              console.error('[LocationTracking] ❌ Browser location permission denied:', err);
+              setError('Location permission denied');
+              resolve(false);
+            }
+          );
+        });
       }
-      return true;
     } catch (err) {
       console.error('[LocationTracking] Permission error:', err);
       setError('Failed to request location permission');
@@ -80,45 +92,8 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
     }
   };
 
-  const handleNewPosition = useCallback((position: Position | null) => {
-    if (!position) return;
-    
-    const newPoint: LocationPoint = {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      timestamp: Date.now(),
-    };
-
-    console.log('[LocationTracking] New position:', newPoint);
-    setCurrentPosition(newPoint);
-    
-    if (lastPositionRef.current) {
-      const distance = calculateDistance(
-        lastPositionRef.current.latitude,
-        lastPositionRef.current.longitude,
-        newPoint.latitude,
-        newPoint.longitude
-      );
-      
-      console.log(`[LocationTracking] Distance: ${(distance * 1000).toFixed(1)}m`);
-      
-      if (distance > 0.005) {
-        setRoutePoints(prev => [...prev, newPoint]);
-        setGpsDistance(prev => {
-          const newDistance = prev + distance;
-          console.log(`[LocationTracking] ✅ Total distance: ${newDistance.toFixed(2)} km`);
-          return newDistance;
-        });
-        lastPositionRef.current = newPoint;
-      }
-    } else {
-      lastPositionRef.current = newPoint;
-    }
-  }, []);
-
   const startTracking = useCallback(async () => {
     try {
-      console.log('[LocationTracking] Starting tracking...');
       setError(null);
       
       const granted = await requestPermissions();
@@ -126,12 +101,10 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
       
       if (!granted) {
         setError('Location permission denied');
-        console.error('[LocationTracking] ❌ Permission denied');
         return;
       }
 
-      console.log('[LocationTracking] Getting initial position...');
-      
+      // Get initial position
       const initialPosition = await Geolocation.getCurrentPosition({
         enableHighAccuracy: true,
         timeout: 10000,
@@ -143,60 +116,105 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
         timestamp: Date.now(),
       };
 
-      console.log('[LocationTracking] ✅ Initial position:', initialPoint);
       setCurrentPosition(initialPoint);
       setRoutePoints([initialPoint]);
       lastPositionRef.current = initialPoint;
       setIsTracking(true);
 
-      console.log('[LocationTracking] Starting position watch...');
-      
-      const watchOptions: PositionOptions = {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      };
-
-      watchIdRef.current = await Geolocation.watchPosition(
-        watchOptions,
-        (position, err) => {
-          if (err) {
-            console.error('[LocationTracking] Watch error:', err);
-            return;
+      // Start watching position
+      if (Capacitor.isNativePlatform()) {
+        watchIdRef.current = await Geolocation.watchPosition(
+          {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0,
+          },
+          (position: Position | null, err) => {
+            if (err) {
+              console.error('[LocationTracking] Watch error:', err);
+              return;
+            }
+            if (position) {
+              handleNewPosition(position);
+            }
           }
-          if (position) {
-            handleNewPosition(position);
-          }
-        }
-      );
-
-      console.log('[LocationTracking] ✅ Watch started, ID:', watchIdRef.current);
-      
+        );
+      } else {
+        // Web fallback
+        const webWatchId = navigator.geolocation.watchPosition(
+          (position) => {
+            handleNewPosition({
+              coords: {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                altitude: position.coords.altitude,
+                altitudeAccuracy: position.coords.altitudeAccuracy,
+                heading: position.coords.heading,
+                speed: position.coords.speed,
+              },
+              timestamp: position.timestamp,
+            });
+          },
+          (err) => console.error('[LocationTracking] Web watch error:', err),
+          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        );
+        watchIdRef.current = webWatchId.toString();
+      }
     } catch (err) {
       console.error('[LocationTracking] Start error:', err);
       setError('Failed to start location tracking');
-      setIsTracking(false);
     }
-  }, [handleNewPosition]);
+  }, []);
+
+  const handleNewPosition = (position: Position) => {
+    const newPoint: LocationPoint = {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      timestamp: Date.now(),
+    };
+
+    setCurrentPosition(newPoint);
+    
+    // Add to route if moved more than 5 meters (to filter GPS noise)
+    if (lastPositionRef.current) {
+      const distance = calculateDistance(
+        lastPositionRef.current.latitude,
+        lastPositionRef.current.longitude,
+        newPoint.latitude,
+        newPoint.longitude
+      );
+      
+      // Only add point if moved more than 5 meters (0.005 km)
+      if (distance > 0.005) {
+        setRoutePoints(prev => [...prev, newPoint]);
+        setGpsDistance(prev => prev + distance);
+        lastPositionRef.current = newPoint;
+      }
+    }
+  };
 
   const stopTracking = useCallback(() => {
-    console.log('[LocationTracking] Stopping tracking...');
-    
     if (watchIdRef.current !== null) {
-      Geolocation.clearWatch({ id: watchIdRef.current });
-      console.log('[LocationTracking] ✅ Watch cleared:', watchIdRef.current);
+      if (Capacitor.isNativePlatform()) {
+        Geolocation.clearWatch({ id: watchIdRef.current });
+      } else {
+        navigator.geolocation.clearWatch(parseInt(watchIdRef.current));
+      }
       watchIdRef.current = null;
     }
     setIsTracking(false);
-    
-    console.log(`[LocationTracking] Final: ${gpsDistance.toFixed(2)} km, ${routePoints.length} points`);
-  }, [gpsDistance, routePoints.length]);
+  }, []);
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (watchIdRef.current !== null) {
-        console.log('[LocationTracking] Cleanup on unmount');
-        Geolocation.clearWatch({ id: watchIdRef.current });
+        if (Capacitor.isNativePlatform()) {
+          Geolocation.clearWatch({ id: watchIdRef.current });
+        } else {
+          navigator.geolocation.clearWatch(parseInt(watchIdRef.current));
+        }
       }
     };
   }, []);

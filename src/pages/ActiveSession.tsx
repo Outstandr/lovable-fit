@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, MapPin, Clock, Gauge, Square } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -10,83 +10,31 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import LiveMap from "@/components/LiveMap";
 import MapPlaceholder from "@/components/MapPlaceholder";
-import { PermissionFlow } from "@/components/PermissionFlow";
-import { permissionManager } from "@/services/permissionManager";
 
 const ActiveSession = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { steps, hasPermission: hasActivityPermission } = usePedometer();
+  const { steps } = usePedometer();
   
   const { 
     currentPosition, 
     routePoints, 
     gpsDistance, 
-    isTracking: isGpsTracking,
-    hasPermission: hasLocationPermission,
+    isTracking: isGpsTracking, 
     startTracking, 
     stopTracking 
   } = useLocationTracking();
   
   const [duration, setDuration] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
+  const [isRunning, setIsRunning] = useState(true);
   const [startSteps, setStartSteps] = useState<number | null>(null);
-  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
-  const [showPermissionFlow, setShowPermissionFlow] = useState(false);
-  const [sessionStarted, setSessionStarted] = useState(false);
+  const [sessionStartTime] = useState<Date>(new Date());
 
-  // Check permissions on mount and start session if already granted
+  // Start GPS tracking when session begins
   useEffect(() => {
-    const checkAndStart = async () => {
-      const state = await permissionManager.checkAllPermissions();
-      console.log('[ActiveSession] Permission state:', state);
-      
-      if (state.activity === 'granted' && state.location === 'granted') {
-        // Permissions already granted, start immediately
-        console.log('[ActiveSession] Permissions already granted, starting session...');
-        startSession();
-      } else {
-        // Show permission flow
-        console.log('[ActiveSession] Need permissions, showing flow...');
-        setShowPermissionFlow(true);
-      }
-    };
-    
-    checkAndStart();
-    
-    return () => {
-      if (sessionStarted) {
-        stopTracking();
-      }
-    };
-  }, []);
-
-  const startSession = async () => {
-    console.log('[ActiveSession] Starting session...');
-    setSessionStartTime(new Date());
-    setIsRunning(true);
-    setSessionStarted(true);
-    
-    // Don't start pedometer again - it was already started during permission flow
-    console.log('[ActiveSession] Pedometer already started during permission flow');
-    
-    // Start location tracking
-    console.log('[ActiveSession] Starting location tracking...');
-    await startTracking();
-  };
-
-  const handlePermissionFlowComplete = async (granted: boolean) => {
-    setShowPermissionFlow(false);
-    
-    if (granted) {
-      console.log('[ActiveSession] Permissions granted, starting session...');
-      startSession();
-    } else {
-      console.error('[ActiveSession] Permissions not granted');
-      toast.error("Permissions required to track your activity");
-      navigate('/');
-    }
-  };
+    startTracking();
+    return () => stopTracking();
+  }, [startTracking, stopTracking]);
 
   // Capture start steps when session begins
   useEffect(() => {
@@ -156,7 +104,7 @@ const ActiveSession = () => {
         .from('active_sessions')
         .insert({
           user_id: user.id,
-          started_at: sessionStartTime?.toISOString() || new Date().toISOString(),
+          started_at: sessionStartTime.toISOString(),
           ended_at: new Date().toISOString(),
           duration_seconds: duration,
           steps: sessionSteps,
@@ -174,37 +122,6 @@ const ActiveSession = () => {
 
     navigate('/');
   };
-
-  // Show permission flow if needed
-  if (showPermissionFlow) {
-    return (
-      <div className="min-h-screen flex flex-col bg-background">
-        <motion.header 
-          className="flex items-center gap-4 px-4 pt-6 pb-4"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <button 
-            onClick={() => navigate('/')}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-secondary/80 transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div>
-            <h1 className="text-lg font-bold uppercase tracking-widest text-primary">
-              Setup Required
-            </h1>
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Grant permissions to start
-            </p>
-          </div>
-        </motion.header>
-        <div className="flex-1 flex items-center justify-center">
-          <PermissionFlow onComplete={handlePermissionFlowComplete} />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col">

@@ -116,79 +116,75 @@ export function usePedometer() {
     }
   }, [user, state.steps, state.distance, state.calories]);
 
-  // Check permission status on mount but don't auto-start (let permission flow handle it)
+  // Auto-request permission on mount for native platforms
   useEffect(() => {
     const platform = pedometerService.getPlatform();
     if (platform === 'web') {
-      console.log(`${LOG_PREFIX} Web platform, skipping permission check`);
+      console.log(`${LOG_PREFIX} Web platform, skipping permission request`);
       return;
     }
 
-    console.log(`${LOG_PREFIX} Native platform detected, checking if tracking already started...`);
+    console.log(`${LOG_PREFIX} Native platform detected, auto-starting in 1.5s...`);
     
-    const timer = setTimeout(() => {
-      const serviceState = pedometerService.getState();
-      console.log(`${LOG_PREFIX} Service state:`, serviceState);
+    const timer = setTimeout(async () => {
+      console.log(`${LOG_PREFIX} === AUTO-START BEGIN ===`);
+      console.log(`${LOG_PREFIX} Auto-start: calling startTracking...`);
+      const started = await startTracking();
       
-      if (serviceState.isTracking) {
-        console.log(`${LOG_PREFIX} Already tracking, syncing state...`);
-        setState(prev => ({
-          ...prev,
-          steps: serviceState.steps,
-          distance: serviceState.distance,
-          calories: serviceState.calories,
-          hasPermission: serviceState.hasPermission,
-          isTracking: serviceState.isTracking
-        }));
+      if (started) {
+        console.log(`${LOG_PREFIX} Tracking started, waiting 2s for first measurement...`);
+        setTimeout(() => {
+          const serviceState = pedometerService.getState();
+          console.log(`${LOG_PREFIX} Initial state after 2s:`, JSON.stringify(serviceState));
+          setState(prev => ({
+            ...prev,
+            steps: serviceState.steps,
+            distance: serviceState.distance,
+            calories: serviceState.calories
+          }));
+        }, 2000);
       } else {
-        console.log(`${LOG_PREFIX} Not tracking yet, will be started by permission flow`);
+        console.log(`${LOG_PREFIX} Failed to start tracking`);
       }
-    }, 1000);
+    }, 1500); // Increased to 1.5 seconds
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [startTracking]);
 
   // Poll for step updates every 3 seconds
   useEffect(() => {
-    // Wait 2.5s for auto-start to complete before starting poll
-    const startDelay = setTimeout(() => {
-      if (!state.isTracking) {
-        console.log(`${LOG_PREFIX} Not tracking after delay, skipping poll setup`);
-        return;
-      }
+    if (!state.isTracking) {
+      console.log(`${LOG_PREFIX} Not tracking, skipping poll setup`);
+      return;
+    }
 
-      if (!state.hasPermission) {
-        console.log(`${LOG_PREFIX} No permission after delay, skipping poll setup`);
-        return;
-      }
+    if (!state.hasPermission) {
+      console.log(`${LOG_PREFIX} No permission, skipping poll setup`);
+      return;
+    }
 
-      console.log(`${LOG_PREFIX} Starting 3s poll for step updates (permission: ${state.hasPermission}, tracking: ${state.isTracking})`);
+    console.log(`${LOG_PREFIX} Starting 3s poll for step updates (permission: ${state.hasPermission}, tracking: ${state.isTracking})`);
+    
+    const interval = setInterval(async () => {
+      // Fetch fresh step count from sensor
+      await pedometerService.fetchSteps();
+      const serviceState = pedometerService.getState();
+      console.log(`${LOG_PREFIX} Poll update: steps=${serviceState.steps}, distance=${serviceState.distance.toFixed(2)}km, tracking=${serviceState.isTracking}`);
       
-      const interval = setInterval(async () => {
-        // Fetch fresh step count from sensor
-        await pedometerService.fetchSteps();
-        const serviceState = pedometerService.getState();
-        console.log(`${LOG_PREFIX} Poll update: steps=${serviceState.steps}, distance=${serviceState.distance.toFixed(2)}km, tracking=${serviceState.isTracking}`);
-        
-        setState(prev => ({
-          ...prev,
-          steps: serviceState.steps,
-          distance: serviceState.distance,
-          calories: serviceState.calories,
-          hasPermission: serviceState.hasPermission,
-          isTracking: serviceState.isTracking
-        }));
-      }, 3000);
+      setState(prev => ({
+        ...prev,
+        steps: serviceState.steps,
+        distance: serviceState.distance,
+        calories: serviceState.calories,
+        hasPermission: serviceState.hasPermission,
+        isTracking: serviceState.isTracking
+      }));
+    }, 3000);
 
-      // Cleanup function for interval
-      return () => {
-        console.log(`${LOG_PREFIX} Stopping poll (cleanup)`);
-        clearInterval(interval);
-      };
-    }, 2500); // Wait 2.5s (auto-start is 1.5s + 1s fetch delay)
-
-    // Cleanup function for delay
-    return () => clearTimeout(startDelay);
+    return () => {
+      console.log(`${LOG_PREFIX} Stopping poll (cleanup)`);
+      clearInterval(interval);
+    };
   }, [state.isTracking, state.hasPermission]);
 
   // Sync to database when steps change significantly
