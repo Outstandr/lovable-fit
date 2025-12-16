@@ -16,7 +16,7 @@ import { Capacitor } from "@capacitor/core";
 const ActiveSession = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { steps, dataSource } = usePedometer();
+  const { steps, activeCalories, avgSpeed: hcAvgSpeed, dataSource } = usePedometer();
   
   const { 
     currentPosition, 

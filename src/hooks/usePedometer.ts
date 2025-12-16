@@ -11,6 +11,9 @@ interface PedometerState {
   steps: number;
   distance: number;
   calories: number;
+  activeCalories: number;
+  avgSpeed: number;
+  maxSpeed: number;
   hasPermission: boolean;
   isTracking: boolean;
   error: string | null;
@@ -31,6 +34,9 @@ export function usePedometer() {
     steps: 0,
     distance: 0,
     calories: 0,
+    activeCalories: 0,
+    avgSpeed: 0,
+    maxSpeed: 0,
     hasPermission: false,
     isTracking: false,
     error: null,
@@ -98,21 +104,22 @@ export function usePedometer() {
     }
   }, []);
 
-  // Fetch steps from Health Connect
-  const fetchHealthConnectSteps = useCallback(async (): Promise<boolean> => {
-    const data = await healthConnectService.readTodaySteps();
+  // Fetch health data from Health Connect
+  const fetchHealthConnectData = useCallback(async (): Promise<boolean> => {
+    const data = await healthConnectService.readTodayHealthData();
     
     if (data === null) {
       return false;
     }
 
-    const distance = (data.steps * 0.762) / 1000; // Convert to km
-    
     setState(prev => ({
       ...prev,
       steps: data.steps,
-      calories: data.calories,
-      distance,
+      distance: data.distance > 0 ? data.distance : (data.steps * 0.762) / 1000,
+      calories: data.totalCalories,
+      activeCalories: data.activeCalories,
+      avgSpeed: data.avgSpeed,
+      maxSpeed: data.maxSpeed,
     }));
 
     return true;
@@ -156,7 +163,7 @@ export function usePedometer() {
       
       if (healthConnectReady) {
         console.log(`${LOG_PREFIX} Using Health Connect as data source`);
-        await fetchHealthConnectSteps();
+        await fetchHealthConnectData();
         setState(prev => ({ ...prev, isInitializing: false, isTracking: true }));
         return;
       }
@@ -180,7 +187,7 @@ export function usePedometer() {
 
     const timer = setTimeout(init, 1500);
     return () => clearTimeout(timer);
-  }, [tryHealthConnect, fetchHealthConnectSteps, startPedometerFallback]);
+  }, [tryHealthConnect, fetchHealthConnectData, startPedometerFallback]);
 
   // Polling for step updates
   useEffect(() => {
@@ -201,7 +208,7 @@ export function usePedometer() {
     const poll = async () => {
       try {
         if (state.dataSource === 'healthconnect') {
-          const success = await fetchHealthConnectSteps();
+          const success = await fetchHealthConnectData();
           if (!success) {
             // Health Connect failed, switch to pedometer
             console.log(`${LOG_PREFIX} Health Connect failed, switching to pedometer`);
@@ -229,7 +236,7 @@ export function usePedometer() {
 
     const interval = setInterval(poll, pollInterval);
     return () => clearInterval(interval);
-  }, [state.dataSource, state.isInitializing, state.platform, fetchHealthConnectSteps, startPedometerFallback]);
+  }, [state.dataSource, state.isInitializing, state.platform, fetchHealthConnectData, startPedometerFallback]);
 
   // Sync to database when steps change significantly
   useEffect(() => {
@@ -291,7 +298,7 @@ export function usePedometer() {
       const granted = await requestHealthConnectPermission();
       
       if (granted) {
-        await fetchHealthConnectSteps();
+        await fetchHealthConnectData();
         setState(prev => ({ ...prev, isTracking: true }));
         return true;
       }
@@ -311,7 +318,7 @@ export function usePedometer() {
       }));
     }
     return started;
-  }, [state.dataSource, state.healthConnectAvailable, state.healthConnectPermissionGranted, requestHealthConnectPermission, fetchHealthConnectSteps]);
+  }, [state.dataSource, state.healthConnectAvailable, state.healthConnectPermissionGranted, requestHealthConnectPermission, fetchHealthConnectData]);
 
   // Stop tracking
   const stopTracking = useCallback(async (): Promise<void> => {
@@ -331,6 +338,9 @@ export function usePedometer() {
     steps: state.steps,
     distance: state.distance,
     calories: state.calories,
+    activeCalories: state.activeCalories,
+    avgSpeed: state.avgSpeed,
+    maxSpeed: state.maxSpeed,
     hasPermission: state.hasPermission,
     isTracking: state.isTracking,
     error: state.error,
