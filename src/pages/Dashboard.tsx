@@ -1,12 +1,10 @@
 import { motion } from "framer-motion";
-import { MapPin, Flame, Zap, Play, AlertCircle } from "lucide-react";
+import { MapPin, Flame, Clock, Play, Settings, Share2, PersonStanding } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ProgressRing } from "@/components/ProgressRing";
-import { StatCard } from "@/components/StatCard";
-import { LeaderboardPreview } from "@/components/LeaderboardPreview";
 import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
-import { HealthConnectPrompt } from "@/components/HealthConnectPrompt";
+import { WeeklyChart } from "@/components/WeeklyChart";
 import { DataSourceBadge } from "@/components/DataSourceBadge";
 import { usePedometer } from "@/hooks/usePedometer";
 import { useStreak } from "@/hooks/useStreak";
@@ -16,69 +14,15 @@ import { useAuth } from "@/hooks/useAuth";
 
 const TARGET_STEPS = 10000;
 
-interface LeaderboardEntry {
-  rank: number;
-  name: string;
-  steps: number;
-  isCurrentUser?: boolean;
-}
-
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { 
     steps, distance, calories, 
-    hasPermission, isTracking, error, platform,
-    startTracking, stopTracking,
-    // Health Connect specific
     dataSource,
-    healthConnectAvailable,
-    isInitializing,
-    skipHealthConnect,
   } = usePedometer();
   const { streak, updateStreakOnTargetHit } = useStreak();
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
-
-  // Fetch leaderboard data
-  useEffect(() => {
-    const fetchLeaderboard = async () => {
-      const today = new Date().toISOString().split('T')[0];
-      
-      const { data: stepsData, error: stepsError } = await supabase
-        .from('daily_steps')
-        .select('steps, user_id')
-        .eq('date', today)
-        .order('steps', { ascending: false })
-        .limit(10);
-
-      if (stepsError || !stepsData) {
-        console.error('[Dashboard] Leaderboard error:', stepsError);
-        return;
-      }
-
-      const userIds = stepsData.map(item => item.user_id);
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('id, display_name')
-        .in('id', userIds);
-
-      const profileMap = new Map(profilesData?.map(p => [p.id, p.display_name]) || []);
-
-      const entries: LeaderboardEntry[] = stepsData.map((item, index) => ({
-        rank: index + 1,
-        name: profileMap.get(item.user_id) || 'Unknown',
-        steps: item.steps,
-        isCurrentUser: item.user_id === user?.id
-      }));
-
-      setLeaderboard(entries);
-    };
-
-    if (user) {
-      fetchLeaderboard();
-    }
-  }, [user, steps]);
 
   // Fetch recent active sessions
   useEffect(() => {
@@ -89,8 +33,9 @@ const Dashboard = () => {
         .from('active_sessions')
         .select('*')
         .eq('user_id', user.id)
+        .not('ended_at', 'is', null)
         .order('ended_at', { ascending: false })
-        .limit(5);
+        .limit(3);
 
       if (error) {
         console.error('[Dashboard] Sessions error:', error);
@@ -112,150 +57,116 @@ const Dashboard = () => {
     }
   }, [steps, updateStreakOnTargetHit]);
 
-  const dashboardData = {
-    steps,
-    target: TARGET_STEPS,
-    distance,
-    calories,
-    streak: streak.currentStreak
-  };
+  // Calculate duration from steps (rough estimate: 100 steps/minute average)
+  const estimatedMinutes = Math.round(steps / 100);
+  const hours = Math.floor(estimatedMinutes / 60);
+  const minutes = estimatedMinutes % 60;
+  const durationDisplay = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-24 relative">
+      {/* Subtle radial gradient overlay */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(circle at top center, hsl(186, 100%, 50%, 0.05), transparent 60%)'
+      }} />
+
       {/* Header */}
       <motion.header 
-        className="px-4 pt-6 pb-4"
+        className="flex items-center justify-between px-4 pt-6 pb-2 relative z-10"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-xl font-bold uppercase tracking-[0.2em] text-foreground">
-          Hotstepper
-        </h1>
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Protocol Active • Day {dashboardData.streak}
-        </p>
+        <button 
+          onClick={() => navigate('/profile')}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+        >
+          <Settings className="h-5 w-5" />
+        </button>
+        <div className="flex items-center gap-2">
+          <h1 className="text-lg font-bold text-foreground">Today</h1>
+          <DataSourceBadge dataSource={dataSource} compact />
+        </div>
+        <button 
+          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+        >
+          <Share2 className="h-5 w-5" />
+        </button>
       </motion.header>
 
-      {/* Health Connect Prompt - shows for native platforms */}
-      {platform !== 'web' && (
-        <div className="px-4 pb-2">
-          <HealthConnectPrompt
-            platform={platform}
-            healthConnectAvailable={healthConnectAvailable}
-            dataSource={dataSource}
-            onSkipHealthConnect={skipHealthConnect}
-            isInitializing={isInitializing}
-          />
-        </div>
-      )}
-
-      {/* Web Notice */}
-      {platform === 'web' && (
-        <div className="px-4 pb-4">
-          <HealthConnectPrompt platform="web" />
-        </div>
-      )}
-
-      {/* Native step controls */}
-      {platform !== 'web' && (
-        <div className="px-4 pb-2">
-          <div className="tactical-card flex items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Current Steps</p>
-                <DataSourceBadge dataSource={dataSource} compact />
-              </div>
-              <p className="text-2xl font-bold text-foreground">{steps}</p>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground mt-1">
-                {hasPermission ? '✓ Permission granted' : '✗ Permission not granted'}
-              </p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Button
-                variant="tactical"
-                size="sm"
-                onClick={startTracking}
-                disabled={isTracking}
-              >
-                {isTracking ? 'Tracking...' : 'Start'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={stopTracking}
-                disabled={!isTracking}
-              >
-                Stop
-              </Button>
-            </div>
+      {/* Main Progress Ring */}
+      <motion.div 
+        className="flex justify-center px-4 py-8 relative z-10"
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.6, delay: 0.1 }}
+      >
+        <div className="relative">
+          <ProgressRing current={steps} target={TARGET_STEPS} size={280} strokeWidth={16} />
+          {/* Walker icon overlay - positioned above the number */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <PersonStanding className="h-8 w-8 text-primary opacity-60 -mt-24" />
           </div>
         </div>
-      )}
+      </motion.div>
 
-      {/* Main Progress Ring */}
-      <div className="flex justify-center px-4 py-6">
-        <ProgressRing current={dashboardData.steps} target={dashboardData.target} />
-      </div>
+      {/* Quick Stats Row */}
+      <motion.div 
+        className="grid grid-cols-3 gap-3 px-4 relative z-10"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.3 }}
+      >
+        {/* Calories */}
+        <div className="flex flex-col items-center gap-2">
+          <div className="h-14 w-14 rounded-full bg-card flex items-center justify-center border border-border/30">
+            <Flame className="h-6 w-6 text-primary" />
+          </div>
+          <div className="text-center">
+            <p className="text-xl font-bold text-foreground tabular-nums">{calories}</p>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Calories</p>
+          </div>
+        </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-3 gap-3 px-4">
-        <StatCard 
-          icon={MapPin} 
-          label="Distance" 
-          value={`${dashboardData.distance.toFixed(1)} KM`}
-          delay={0.2}
-        />
-        <StatCard 
-          icon={Flame} 
-          label="Calories" 
-          value={`${dashboardData.calories}`}
-          delay={0.3}
-        />
-        <StatCard 
-          icon={Zap} 
-          label="Streak" 
-          value={`Day ${dashboardData.streak}`}
-          highlight
-          delay={0.4}
-        />
-      </div>
+        {/* Distance */}
+        <div className="flex flex-col items-center gap-2">
+          <div className="h-14 w-14 rounded-full bg-card flex items-center justify-center border border-border/30">
+            <MapPin className="h-6 w-6 text-primary" />
+          </div>
+          <div className="text-center">
+            <p className="text-xl font-bold text-foreground tabular-nums">{distance.toFixed(1)}</p>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">KM</p>
+          </div>
+        </div>
 
-      {/* Leaderboard Preview */}
-      <div className="px-4 py-6">
-        {leaderboard.length > 0 ? (
-          <LeaderboardPreview 
-            entries={leaderboard}
-            onViewAll={() => navigate('/leaderboard')}
-          />
-        ) : (
-          <motion.div 
-            className="tactical-card text-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-          >
-            <AlertCircle className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
-            <p className="text-xs text-muted-foreground">
-              No leaderboard data yet. Start walking to join the competition!
-            </p>
-          </motion.div>
-        )}
+        {/* Duration */}
+        <div className="flex flex-col items-center gap-2">
+          <div className="h-14 w-14 rounded-full bg-card flex items-center justify-center border border-border/30">
+            <Clock className="h-6 w-6 text-primary" />
+          </div>
+          <div className="text-center">
+            <p className="text-xl font-bold text-foreground tabular-nums">{durationDisplay}</p>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Active</p>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Weekly Chart */}
+      <div className="px-4 pt-6 relative z-10">
+        <WeeklyChart />
       </div>
 
       {/* Recent Sessions */}
       {recentSessions.length > 0 && (
-        <div className="px-4 pb-6">
+        <div className="px-4 pt-6 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
+            transition={{ delay: 0.5 }}
           >
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
-                Recent Sessions
-              </h2>
-            </div>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-foreground mb-3">
+              Recent Sessions
+            </h2>
             <div className="space-y-2">
               {recentSessions.map((session, index) => {
                 const duration = session.duration_seconds || 0;
@@ -268,40 +179,53 @@ const Dashboard = () => {
                 return (
                   <motion.div
                     key={session.id}
-                    className="tactical-card"
+                    className="tactical-card flex items-center justify-between"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.7 + index * 0.1 }}
+                    transition={{ delay: 0.6 + index * 0.1 }}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-muted-foreground">
-                          {session.ended_at ? new Date(session.ended_at).toLocaleDateString('en-US', { 
-                            month: 'short', 
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          }) : 'In progress'}
-                        </p>
-                        <div className="flex items-center gap-4 mt-1">
-                          <div>
-                            <span className="text-lg font-bold text-foreground">{session.steps || 0}</span>
-                            <span className="text-[10px] text-muted-foreground ml-1">steps</span>
-                          </div>
-                          <div>
-                            <span className="text-lg font-bold text-foreground">{session.distance_km?.toFixed(2) || '0.00'}</span>
-                            <span className="text-[10px] text-muted-foreground ml-1">km</span>
-                          </div>
-                          <div>
-                            <span className="text-sm font-semibold text-primary">{durationText}</span>
-                          </div>
-                        </div>
+                    <div>
+                      <p className="text-[11px] font-medium text-muted-foreground">
+                        {session.ended_at ? new Date(session.ended_at).toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric',
+                        }) : 'In progress'}
+                      </p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-lg font-bold text-foreground tabular-nums">
+                          {(session.steps || 0).toLocaleString()}
+                          <span className="text-xs text-muted-foreground ml-1">steps</span>
+                        </span>
+                        <span className="text-lg font-bold text-foreground tabular-nums">
+                          {session.distance_km?.toFixed(2) || '0.00'}
+                          <span className="text-xs text-muted-foreground ml-1">km</span>
+                        </span>
                       </div>
+                    </div>
+                    <div className="px-3 py-1.5 rounded-full bg-primary/20 text-primary text-sm font-semibold">
+                      {durationText}
                     </div>
                   </motion.div>
                 );
               })}
             </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Empty state for sessions */}
+      {recentSessions.length === 0 && (
+        <div className="px-4 pt-6 relative z-10">
+          <motion.div
+            className="tactical-card text-center py-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <PersonStanding className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+            <p className="text-sm text-muted-foreground">
+              No sessions yet. Start your first active session!
+            </p>
           </motion.div>
         </div>
       )}
@@ -317,7 +241,10 @@ const Dashboard = () => {
             variant="tactical" 
             size="full"
             onClick={() => navigate('/active')}
-            className="animate-pulse-glow"
+            className="h-14 text-sm font-bold uppercase tracking-widest shadow-lg"
+            style={{
+              boxShadow: '0 8px 24px hsl(186, 100%, 50%, 0.35)'
+            }}
           >
             <Play className="mr-2 h-5 w-5" />
             Start Active Session
