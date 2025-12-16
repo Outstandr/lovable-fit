@@ -19,10 +19,12 @@ export interface UseLocationTrackingReturn {
   maxSpeed: number; // in km/h
   gpsAccuracy: number | null; // in meters
   isTracking: boolean;
+  isAcquiringGPS: boolean; // true while waiting for first GPS fix
   hasPermission: boolean;
   error: string | null;
   startTracking: () => Promise<void>;
   stopTracking: () => void;
+  retryGPS: () => Promise<void>;
 }
 
 const LOG_PREFIX = '[GPS]';
@@ -56,6 +58,7 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
   const [maxSpeed, setMaxSpeed] = useState(0);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [isTracking, setIsTracking] = useState(false);
+  const [isAcquiringGPS, setIsAcquiringGPS] = useState(false);
   const [hasPermission, setHasPermission] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -168,6 +171,7 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
   const startTracking = useCallback(async () => {
     try {
       setError(null);
+      setIsAcquiringGPS(true);
       console.log(`${LOG_PREFIX} Starting GPS tracking...`);
       
       const granted = await requestPermissions();
@@ -175,6 +179,7 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
       
       if (!granted) {
         setError('Location permission denied');
+        setIsAcquiringGPS(false);
         console.log(`${LOG_PREFIX} Permission denied`);
         return;
       }
@@ -189,11 +194,11 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
       setMaxSpeed(0);
       setRoutePoints([]);
 
-      // Get initial position
-      console.log(`${LOG_PREFIX} Getting initial position...`);
+      // Get initial position with 30 second timeout
+      console.log(`${LOG_PREFIX} Getting initial position (30s timeout)...`);
       const initialPosition = await Geolocation.getCurrentPosition({
         enableHighAccuracy: true,
-        timeout: 15000,
+        timeout: 30000,
       });
 
       const initialPoint: LocationPoint = {
@@ -209,13 +214,14 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
       setGpsAccuracy(initialPosition.coords.accuracy ?? null);
       lastPositionRef.current = initialPoint;
       setIsTracking(true);
+      setIsAcquiringGPS(false);
 
-      // Start watching position
+      // Start watching position with 30 second timeout
       if (Capacitor.isNativePlatform()) {
         watchIdRef.current = await Geolocation.watchPosition(
           {
             enableHighAccuracy: true,
-            timeout: 10000,
+            timeout: 30000,
             maximumAge: 0,
           },
           (position: Position | null, err) => {
@@ -247,15 +253,27 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
             });
           },
           (err) => console.error(`${LOG_PREFIX} Web watch error:`, err),
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+          { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
         );
         watchIdRef.current = webWatchId.toString();
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(`${LOG_PREFIX} Start error:`, err);
-      setError('Failed to start location tracking');
+      setIsAcquiringGPS(false);
+      if (err?.message?.includes('timeout') || err?.code === 3) {
+        setError('GPS timeout - could not acquire signal');
+      } else {
+        setError('Failed to start location tracking');
+      }
     }
   }, [handleNewPosition]);
+
+  const retryGPS = useCallback(async () => {
+    console.log(`${LOG_PREFIX} Retrying GPS...`);
+    setError(null);
+    setCurrentPosition(null);
+    await startTracking();
+  }, [startTracking]);
 
   const stopTracking = useCallback(() => {
     console.log(`${LOG_PREFIX} Stopping GPS tracking...`);
@@ -294,9 +312,11 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
     maxSpeed,
     gpsAccuracy,
     isTracking,
+    isAcquiringGPS,
     hasPermission,
     error,
     startTracking,
     stopTracking,
+    retryGPS,
   };
 };
