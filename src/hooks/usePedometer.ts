@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { pedometerService } from '@/services/pedometerService';
+import { healthConnectService, DataSource, HealthConnectStatus } from '@/services/healthConnectService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 const LOG_PREFIX = '[usePedometer]';
 
@@ -13,7 +15,15 @@ interface PedometerState {
   isTracking: boolean;
   error: string | null;
   platform: 'android' | 'ios' | 'web';
+  // Health Connect specific
+  dataSource: DataSource;
+  healthConnectAvailable: HealthConnectStatus;
+  healthConnectPermissionGranted: boolean;
+  isInitializing: boolean;
 }
+
+const HEALTH_CONNECT_POLL_INTERVAL = 30000; // 30 seconds
+const PEDOMETER_POLL_INTERVAL = 3000; // 3 seconds
 
 export function usePedometer() {
   const { user } = useAuth();
@@ -24,68 +34,226 @@ export function usePedometer() {
     hasPermission: false,
     isTracking: false,
     error: null,
-    platform: pedometerService.getPlatform()
+    platform: pedometerService.getPlatform(),
+    dataSource: 'unavailable',
+    healthConnectAvailable: 'Unknown',
+    healthConnectPermissionGranted: false,
+    isInitializing: true,
   });
 
-  // Request permission
-  const requestPermission = useCallback(async (): Promise<boolean> => {
-    console.log(`${LOG_PREFIX} requestPermission called`);
-    setState(prev => ({ ...prev, error: null }));
+  const healthConnectSetupShown = useRef(false);
+  const lastSyncSteps = useRef(0);
+
+  // Check Health Connect availability and try to use it
+  const tryHealthConnect = useCallback(async (): Promise<boolean> => {
+    console.log(`${LOG_PREFIX} Trying Health Connect...`);
     
-    try {
-      const granted = await pedometerService.requestPermission();
-      console.log(`${LOG_PREFIX} requestPermission result: ${granted}`);
-      setState(prev => ({ ...prev, hasPermission: granted }));
-      return granted;
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Permission request failed';
-      console.error(`${LOG_PREFIX} requestPermission error:`, error);
-      setState(prev => ({ ...prev, error: msg }));
+    const availability = await healthConnectService.checkAvailability();
+    setState(prev => ({ ...prev, healthConnectAvailable: availability }));
+
+    if (availability !== 'Available') {
+      console.log(`${LOG_PREFIX} Health Connect not available: ${availability}`);
       return false;
     }
-  }, []);
 
-  // Start tracking
-  const startTracking = useCallback(async (): Promise<boolean> => {
-    console.log(`${LOG_PREFIX} startTracking called`);
-    setState(prev => ({ ...prev, error: null }));
+    // Check if we already have permission
+    let hasPermission = await healthConnectService.checkPermission();
     
-    try {
-      const started = await pedometerService.start();
-      console.log(`${LOG_PREFIX} startTracking result: ${started}`);
-      
-      if (started) {
-        setState(prev => ({ 
-          ...prev, 
-          isTracking: true, 
-          hasPermission: true 
-        }));
-      } else {
-        setState(prev => ({ 
-          ...prev, 
-          error: 'Could not start tracking. Permission may be denied.' 
-        }));
+    if (!hasPermission) {
+      // Check localStorage to see if user dismissed setup
+      const dismissed = localStorage.getItem('healthConnectSetupDismissed');
+      if (dismissed !== 'true') {
+        // Will show prompt via component, don't request here
+        console.log(`${LOG_PREFIX} Health Connect available but needs permission`);
+        return false;
       }
-      return started;
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Failed to start tracking';
-      console.error(`${LOG_PREFIX} startTracking error:`, error);
-      setState(prev => ({ ...prev, error: msg }));
+    }
+
+    if (hasPermission) {
+      console.log(`${LOG_PREFIX} Health Connect ready!`);
+      setState(prev => ({ 
+        ...prev, 
+        healthConnectPermissionGranted: true,
+        dataSource: 'healthconnect',
+        hasPermission: true,
+      }));
+      return true;
+    }
+
+    return false;
+  }, []);
+
+  // Request Health Connect permission explicitly
+  const requestHealthConnectPermission = useCallback(async (): Promise<boolean> => {
+    console.log(`${LOG_PREFIX} Requesting Health Connect permission...`);
+    
+    const granted = await healthConnectService.requestPermission();
+    
+    if (granted) {
+      setState(prev => ({
+        ...prev,
+        healthConnectPermissionGranted: true,
+        dataSource: 'healthconnect',
+        hasPermission: true,
+        error: null,
+      }));
+      toast.success('Health Connect activated!');
+      return true;
+    } else {
+      console.log(`${LOG_PREFIX} Health Connect permission denied, falling back to pedometer`);
+      toast.warning('Using phone sensor - grant permission for better accuracy');
       return false;
     }
   }, []);
 
-  // Stop tracking
-  const stopTracking = useCallback(async (): Promise<void> => {
-    console.log(`${LOG_PREFIX} stopTracking called`);
+  // Fetch steps from Health Connect
+  const fetchHealthConnectSteps = useCallback(async (): Promise<boolean> => {
+    const data = await healthConnectService.readTodaySteps();
     
-    try {
-      await pedometerService.stop();
-      setState(prev => ({ ...prev, isTracking: false }));
-    } catch (error) {
-      console.error(`${LOG_PREFIX} stopTracking error:`, error);
+    if (data === null) {
+      return false;
     }
+
+    const distance = (data.steps * 0.762) / 1000; // Convert to km
+    
+    setState(prev => ({
+      ...prev,
+      steps: data.steps,
+      calories: data.calories,
+      distance,
+    }));
+
+    return true;
   }, []);
+
+  // Fallback to pedometer
+  const startPedometerFallback = useCallback(async (): Promise<boolean> => {
+    console.log(`${LOG_PREFIX} Starting pedometer fallback...`);
+    
+    const started = await pedometerService.start();
+    
+    if (started) {
+      setState(prev => ({
+        ...prev,
+        dataSource: 'pedometer',
+        isTracking: true,
+        hasPermission: true,
+      }));
+      
+      // Only show toast if we haven't shown it this session
+      if (!healthConnectSetupShown.current) {
+        healthConnectSetupShown.current = true;
+      }
+      
+      return true;
+    }
+    
+    return false;
+  }, []);
+
+  // Main initialization
+  useEffect(() => {
+    const platform = pedometerService.getPlatform();
+    
+    if (platform === 'web') {
+      console.log(`${LOG_PREFIX} Web platform, skipping initialization`);
+      setState(prev => ({ ...prev, isInitializing: false }));
+      return;
+    }
+
+    const init = async () => {
+      console.log(`${LOG_PREFIX} === INITIALIZATION BEGIN ===`);
+      
+      // Try Health Connect first
+      const healthConnectReady = await tryHealthConnect();
+      
+      if (healthConnectReady) {
+        console.log(`${LOG_PREFIX} Using Health Connect as data source`);
+        await fetchHealthConnectSteps();
+        setState(prev => ({ ...prev, isInitializing: false, isTracking: true }));
+        return;
+      }
+
+      // Check if Health Connect is available but needs permission
+      const availability = await healthConnectService.checkAvailability();
+      if (availability === 'Available') {
+        // Let the prompt component handle this
+        setState(prev => ({ 
+          ...prev, 
+          isInitializing: false,
+          healthConnectAvailable: availability,
+        }));
+        return;
+      }
+
+      // Fall back to pedometer
+      await startPedometerFallback();
+      setState(prev => ({ ...prev, isInitializing: false }));
+    };
+
+    const timer = setTimeout(init, 1500);
+    return () => clearTimeout(timer);
+  }, [tryHealthConnect, fetchHealthConnectSteps, startPedometerFallback]);
+
+  // Polling for step updates
+  useEffect(() => {
+    if (state.platform === 'web' || state.isInitializing) {
+      return;
+    }
+
+    if (state.dataSource === 'unavailable') {
+      return;
+    }
+
+    const pollInterval = state.dataSource === 'healthconnect' 
+      ? HEALTH_CONNECT_POLL_INTERVAL 
+      : PEDOMETER_POLL_INTERVAL;
+
+    console.log(`${LOG_PREFIX} Starting ${state.dataSource} poll every ${pollInterval / 1000}s`);
+
+    const poll = async () => {
+      try {
+        if (state.dataSource === 'healthconnect') {
+          const success = await fetchHealthConnectSteps();
+          if (!success) {
+            // Health Connect failed, switch to pedometer
+            console.log(`${LOG_PREFIX} Health Connect failed, switching to pedometer`);
+            toast.warning('Switched to phone sensor');
+            await startPedometerFallback();
+          }
+        } else if (state.dataSource === 'pedometer') {
+          await pedometerService.fetchSteps();
+          const serviceState = pedometerService.getState();
+          
+          setState(prev => ({
+            ...prev,
+            steps: serviceState.steps,
+            distance: serviceState.distance,
+            calories: serviceState.calories,
+          }));
+        }
+      } catch (error) {
+        console.error(`${LOG_PREFIX} Poll error:`, error);
+      }
+    };
+
+    // Initial poll
+    poll();
+
+    const interval = setInterval(poll, pollInterval);
+    return () => clearInterval(interval);
+  }, [state.dataSource, state.isInitializing, state.platform, fetchHealthConnectSteps, startPedometerFallback]);
+
+  // Sync to database when steps change significantly
+  useEffect(() => {
+    if (!user || state.steps === 0) return;
+    
+    // Sync every 100 steps
+    if (state.steps - lastSyncSteps.current >= 100) {
+      lastSyncSteps.current = state.steps;
+      syncToDatabase();
+    }
+  }, [state.steps, user]);
 
   // Sync to database
   const syncToDatabase = useCallback(async (): Promise<void> => {
@@ -108,91 +276,61 @@ export function usePedometer() {
       
       if (error) {
         console.error(`${LOG_PREFIX} syncToDatabase error:`, error);
-      } else {
-        console.log(`${LOG_PREFIX} syncToDatabase success`);
       }
     } catch (error) {
       console.error(`${LOG_PREFIX} syncToDatabase error:`, error);
     }
   }, [user, state.steps, state.distance, state.calories]);
 
-  // Auto-request permission on mount for native platforms
-  useEffect(() => {
-    const platform = pedometerService.getPlatform();
-    if (platform === 'web') {
-      console.log(`${LOG_PREFIX} Web platform, skipping permission request`);
-      return;
+  // Manual permission request (for prompt component)
+  const requestPermission = useCallback(async (): Promise<boolean> => {
+    // Try Health Connect first if available
+    if (state.healthConnectAvailable === 'Available' && !state.healthConnectPermissionGranted) {
+      const granted = await requestHealthConnectPermission();
+      if (granted) return true;
     }
-
-    console.log(`${LOG_PREFIX} Native platform detected, auto-starting in 1.5s...`);
     
-    const timer = setTimeout(async () => {
-      console.log(`${LOG_PREFIX} === AUTO-START BEGIN ===`);
-      console.log(`${LOG_PREFIX} Auto-start: calling startTracking...`);
-      const started = await startTracking();
-      
-      if (started) {
-        console.log(`${LOG_PREFIX} Tracking started, waiting 2s for first measurement...`);
-        setTimeout(() => {
-          const serviceState = pedometerService.getState();
-          console.log(`${LOG_PREFIX} Initial state after 2s:`, JSON.stringify(serviceState));
-          setState(prev => ({
-            ...prev,
-            steps: serviceState.steps,
-            distance: serviceState.distance,
-            calories: serviceState.calories
-          }));
-        }, 2000);
-      } else {
-        console.log(`${LOG_PREFIX} Failed to start tracking`);
-      }
-    }, 1500); // Increased to 1.5 seconds
+    // Fall back to pedometer
+    return await startPedometerFallback();
+  }, [state.healthConnectAvailable, state.healthConnectPermissionGranted, requestHealthConnectPermission, startPedometerFallback]);
 
-    return () => clearTimeout(timer);
-  }, [startTracking]);
+  // Skip Health Connect and use pedometer only
+  const skipHealthConnect = useCallback(async () => {
+    localStorage.setItem('healthConnectSetupDismissed', 'true');
+    await startPedometerFallback();
+  }, [startPedometerFallback]);
 
-  // Poll for step updates every 3 seconds
-  useEffect(() => {
-    if (!state.isTracking) {
-      console.log(`${LOG_PREFIX} Not tracking, skipping poll setup`);
-      return;
+  // Start tracking
+  const startTracking = useCallback(async (): Promise<boolean> => {
+    if (state.dataSource === 'healthconnect') {
+      setState(prev => ({ ...prev, isTracking: true }));
+      return true;
     }
-
-    if (!state.hasPermission) {
-      console.log(`${LOG_PREFIX} No permission, skipping poll setup`);
-      return;
-    }
-
-    console.log(`${LOG_PREFIX} Starting 3s poll for step updates (permission: ${state.hasPermission}, tracking: ${state.isTracking})`);
     
-    const interval = setInterval(async () => {
-      // Fetch fresh step count from sensor
-      await pedometerService.fetchSteps();
-      const serviceState = pedometerService.getState();
-      console.log(`${LOG_PREFIX} Poll update: steps=${serviceState.steps}, distance=${serviceState.distance.toFixed(2)}km, tracking=${serviceState.isTracking}`);
-      
-      setState(prev => ({
-        ...prev,
-        steps: serviceState.steps,
-        distance: serviceState.distance,
-        calories: serviceState.calories,
-        hasPermission: serviceState.hasPermission,
-        isTracking: serviceState.isTracking
+    const started = await pedometerService.start();
+    if (started) {
+      setState(prev => ({ 
+        ...prev, 
+        isTracking: true, 
+        hasPermission: true,
+        dataSource: 'pedometer',
       }));
-    }, 3000);
-
-    return () => {
-      console.log(`${LOG_PREFIX} Stopping poll (cleanup)`);
-      clearInterval(interval);
-    };
-  }, [state.isTracking, state.hasPermission]);
-
-  // Sync to database when steps change significantly
-  useEffect(() => {
-    if (state.steps > 0 && state.steps % 100 === 0) {
-      syncToDatabase();
     }
-  }, [state.steps, syncToDatabase]);
+    return started;
+  }, [state.dataSource]);
+
+  // Stop tracking
+  const stopTracking = useCallback(async (): Promise<void> => {
+    if (state.dataSource === 'pedometer') {
+      await pedometerService.stop();
+    }
+    setState(prev => ({ ...prev, isTracking: false }));
+  }, [state.dataSource]);
+
+  // Open Health Connect settings
+  const openHealthConnectSettings = useCallback(async () => {
+    await healthConnectService.openSettings();
+  }, []);
 
   return {
     // State
@@ -204,13 +342,27 @@ export function usePedometer() {
     error: state.error,
     platform: state.platform,
     
+    // Health Connect specific
+    dataSource: state.dataSource,
+    healthConnectAvailable: state.healthConnectAvailable,
+    healthConnectPermissionGranted: state.healthConnectPermissionGranted,
+    isInitializing: state.isInitializing,
+    
     // Actions
     requestPermission,
+    requestHealthConnectPermission,
+    skipHealthConnect,
     startTracking,
     stopTracking,
     syncToDatabase,
+    openHealthConnectSettings,
     
     // Debug
-    getDebugState: () => pedometerService.getState()
+    getDebugState: () => ({
+      ...pedometerService.getState(),
+      dataSource: state.dataSource,
+      healthConnectAvailable: state.healthConnectAvailable,
+      healthConnectPermissionGranted: state.healthConnectPermissionGranted,
+    }),
   };
 }

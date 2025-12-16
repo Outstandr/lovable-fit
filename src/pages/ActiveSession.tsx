@@ -10,12 +10,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import LiveMap from "@/components/LiveMap";
 import MapPlaceholder from "@/components/MapPlaceholder";
+import { DataSourceBadge } from "@/components/DataSourceBadge";
 import { Capacitor } from "@capacitor/core";
 
 const ActiveSession = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { steps } = usePedometer();
+  const { steps, dataSource } = usePedometer();
   
   const { 
     currentPosition, 
@@ -370,7 +371,10 @@ const ActiveSession = () => {
             <div className="flex flex-col items-center gap-1">
               <Footprints className="h-4 w-4 text-primary" />
               <span className="text-lg font-bold text-foreground">{sessionData.steps}</span>
-              <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">Steps</span>
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">Steps</span>
+                <DataSourceBadge dataSource={dataSource} compact />
+              </div>
             </div>
           </div>
         </div>
