@@ -76,8 +76,13 @@ const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy }: Live
   const mapRef = useRef<google.maps.Map | null>(null);
   const hasInitialCenter = useRef(false);
 
+  // Google Maps API key - this is a publishable key (safe for client-side)
+  // Get your key from: https://console.cloud.google.com/google/maps-apis
+  // Enable "Maps JavaScript API" and restrict by HTTP referrers
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+  
   const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
+    googleMapsApiKey: apiKey,
   });
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
