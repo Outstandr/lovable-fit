@@ -4,37 +4,38 @@ import { ArrowLeft, MapPin, Clock, Gauge, Square } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { usePedometer } from "@/hooks/usePedometer";
-import { useLocationTracking } from "@/hooks/useLocationTracking";
+// import { useLocationTracking } from "@/hooks/useLocationTracking";  // TEMPORARILY DISABLED
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import LiveMap from "@/components/LiveMap";
-import MapPlaceholder from "@/components/MapPlaceholder";
+// import LiveMap from "@/components/LiveMap";  // TEMPORARILY DISABLED
+// import MapPlaceholder from "@/components/MapPlaceholder";  // TEMPORARILY DISABLED
 
 const ActiveSession = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { steps } = usePedometer();
   
-  const { 
-    currentPosition, 
-    routePoints, 
-    gpsDistance, 
-    isTracking: isGpsTracking, 
-    startTracking, 
-    stopTracking 
-  } = useLocationTracking();
+  // TEMPORARILY DISABLED - Map/GPS causing crashes
+  // const { 
+  //   currentPosition, 
+  //   routePoints, 
+  //   gpsDistance, 
+  //   isTracking: isGpsTracking, 
+  //   startTracking, 
+  //   stopTracking 
+  // } = useLocationTracking();
   
   const [duration, setDuration] = useState(0);
   const [isRunning, setIsRunning] = useState(true);
   const [startSteps, setStartSteps] = useState<number | null>(null);
   const [sessionStartTime] = useState<Date>(new Date());
 
-  // Start GPS tracking when session begins
-  useEffect(() => {
-    startTracking();
-    return () => stopTracking();
-  }, [startTracking, stopTracking]);
+  // TEMPORARILY DISABLED - GPS tracking
+  // useEffect(() => {
+  //   startTracking();
+  //   return () => stopTracking();
+  // }, [startTracking, stopTracking]);
 
   // Capture start steps when session begins
   useEffect(() => {
@@ -64,10 +65,10 @@ const ActiveSession = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Calculate session stats - prefer GPS distance, fallback to steps
+  // Calculate session stats - USING STEPS ONLY (GPS disabled)
   const sessionSteps = startSteps !== null ? Math.max(0, steps - startSteps) : 0;
   const stepBasedDistance = (sessionSteps * 0.762) / 1000;
-  const sessionDistance = gpsDistance > 0 ? gpsDistance : stepBasedDistance;
+  const sessionDistance = stepBasedDistance; // ONLY USING STEPS (GPS disabled)
   
   const calculatePace = () => {
     if (sessionDistance <= 0 || duration <= 0) return "--:--";
@@ -85,14 +86,7 @@ const ActiveSession = () => {
 
   const handleStop = async () => {
     setIsRunning(false);
-    stopTracking();
-    
-    // Show session summary
-    toast.success(
-      `Session Complete! Duration: ${formatTime(duration)} | Steps: ${sessionSteps} | Distance: ${sessionDistance.toFixed(2)} km`,
-      { duration: 5000 }
-    );
-
+    // stopTracking();  // DISABLED
     if (!user) {
       toast.error("Not logged in");
       navigate('/');
@@ -115,6 +109,8 @@ const ActiveSession = () => {
       if (error) {
         console.error('[ActiveSession] Save error:', error);
         toast.error("Failed to save session");
+      } else {
+        toast.success(`Session saved! ${sessionSteps} steps`);
       }
     } catch (error) {
       console.error('[ActiveSession] Error:', error);
@@ -147,22 +143,22 @@ const ActiveSession = () => {
         </div>
       </motion.header>
 
-      {/* Map Area */}
+      {/* Map Area - TEMPORARILY DISABLED */}
       <motion.div 
-        className="flex-1 mx-4 rounded-xl overflow-hidden bg-secondary/50 relative min-h-[300px]"
+        className="flex-1 mx-4 rounded-xl overflow-hidden bg-secondary/50 relative min-h-[300px] flex items-center justify-center"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.2 }}
       >
-        {currentPosition ? (
-          <LiveMap 
-            currentPosition={currentPosition}
-            routePoints={routePoints}
-            isTracking={isGpsTracking}
-          />
-        ) : (
-          <MapPlaceholder />
-        )}
+        <div className="text-center p-8">
+          <MapPin className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+          <p className="text-sm font-medium text-muted-foreground">
+            Map temporarily disabled for testing
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Step tracking active
+          </p>
+        </div>
       </motion.div>
 
       {/* Stats Panel */}

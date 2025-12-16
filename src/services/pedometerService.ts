@@ -1,13 +1,19 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 
-// @tubbly/tubbly-capacitor-pedometer only has these 3 methods
 interface PedometerPlugin {
   startCounting(): Promise<void>;
   stopCounting(): Promise<void>;
   getStepCount(): Promise<{ count: number }>;
+  checkPermissions(): Promise<{ activityRecognition: string }>;
+  requestPermissions(): Promise<{ activityRecognition: string }>;
 }
 
 const CapacitorPedometer = registerPlugin<PedometerPlugin>('CapacitorPedometer');
+
+// Ensure plugin is loaded
+if (!CapacitorPedometer) {
+  console.error('[Pedometer] CapacitorPedometer plugin not found!');
+}
 
 const LOG_PREFIX = '[Pedometer]';
 
@@ -24,7 +30,9 @@ class PedometerService {
   }
 
   isNative(): boolean {
-    return this.platform === 'android' || this.platform === 'ios';
+    const native = this.platform === 'android' || this.platform === 'ios';
+    console.log(`${LOG_PREFIX} isNative: ${native} (platform: ${this.platform})`);
+    return native;
   }
 
   getPlatform(): 'android' | 'ios' | 'web' {
@@ -33,18 +41,12 @@ class PedometerService {
 
   async checkPermission(): Promise<boolean> {
     if (!this.isNative()) {
+      console.log(`${LOG_PREFIX} checkPermission: Not native, returning false`);
       return false;
     }
-
-    try {
-      // For Android, activity recognition permission is automatically requested
-      // when startCounting() is called. We'll assume it's needed if tracking isn't started yet.
-      console.log(`${LOG_PREFIX} Android - Activity permission will be requested on start`);
-      return this.hasPermission;
-    } catch (error) {
-      console.error(`${LOG_PREFIX} Check permission error:`, error);
-      return false;
-    }
+    // This plugin doesn't have permission checking - permissions are handled at startCounting
+    console.log(`${LOG_PREFIX} checkPermission: Plugin handles permissions at start`);
+    return this.hasPermission;
   }
 
   async requestPermission(): Promise<boolean> {
@@ -55,15 +57,19 @@ class PedometerService {
       return true;
     }
 
+    // This plugin doesn't have explicit permission methods
+    // Permissions are requested when startCounting is called
+    // We'll try to start and stop to trigger permission request
     try {
-      // For Android 10+ (API 29+), ACTIVITY_RECOGNITION permission is required
-      // The @tubbly plugin should trigger the system permission dialog automatically
-      // when startCounting() is called, as long as it's declared in AndroidManifest.xml
-      
-      console.log(`${LOG_PREFIX} Permission will be requested automatically on startCounting()`);
+      console.log(`${LOG_PREFIX} Triggering permission via startCounting...`);
+      await CapacitorPedometer.startCounting();
+      await CapacitorPedometer.stopCounting();
+      this.hasPermission = true;
+      console.log(`${LOG_PREFIX} Permission granted`);
       return true;
     } catch (error) {
-      console.error(`${LOG_PREFIX} Permission error:`, error);
+      console.error(`${LOG_PREFIX} Permission denied or error:`, error);
+      this.hasPermission = false;
       return false;
     }
   }
@@ -77,36 +83,19 @@ class PedometerService {
         return false;
       }
 
-      // Start counting - this will trigger Android's permission dialog automatically
-      // if the ACTIVITY_RECOGNITION permission is declared in AndroidManifest.xml
-      console.log(`${LOG_PREFIX} Calling startCounting() - this will trigger permission dialog...`);
+      // Start counting steps
+      await CapacitorPedometer.startCounting();
+      this.isTracking = true;
+      this.hasPermission = true;
+      console.log(`${LOG_PREFIX} ✅ Tracking started successfully`);
       
-      try {
-        await CapacitorPedometer.startCounting();
-        this.isTracking = true;
-        this.hasPermission = true;
-        console.log(`${LOG_PREFIX} ✅ Tracking started successfully (permission granted)`);
-      } catch (error: any) {
-        // If permission was denied, startCounting will throw an error
-        console.error(`${LOG_PREFIX} ❌ startCounting failed (permission likely denied):`, error);
-        this.isTracking = false;
-        this.hasPermission = false;
-        return false;
+      // Fetch initial step count
+      const result = await CapacitorPedometer.getStepCount();
+      if (result && typeof result.count === 'number') {
+        this.currentSteps = result.count;
+        this.currentDistance = this.calculateDistance(this.currentSteps);
+        console.log(`${LOG_PREFIX} Initial step count: ${this.currentSteps}`);
       }
-      
-      // Fetch initial step count after a delay
-      setTimeout(async () => {
-        try {
-          const result = await CapacitorPedometer.getStepCount();
-          if (result && typeof result.count === 'number') {
-            this.currentSteps = result.count;
-            this.currentDistance = this.calculateDistance(this.currentSteps);
-            console.log(`${LOG_PREFIX} Initial step count: ${this.currentSteps}`);
-          }
-        } catch (err) {
-          console.error(`${LOG_PREFIX} Error getting initial step count:`, err);
-        }
-      }, 1000);
       
       return true;
     } catch (error) {
@@ -137,10 +126,11 @@ class PedometerService {
   async fetchSteps(): Promise<number> {
     try {
       if (this.platform === 'web' || !this.isTracking) {
-        return this.currentSteps;
+        return 0;
       }
 
       const result = await CapacitorPedometer.getStepCount();
+      console.log(`${LOG_PREFIX} getStepCount result:`, result);
       
       if (result && typeof result.count === 'number') {
         this.currentSteps = result.count;
@@ -157,8 +147,9 @@ class PedometerService {
   }
 
   private calculateDistance(steps: number): number {
+    // Average stride length is about 0.762 meters (2.5 feet)
     const strideLength = 0.762;
-    return (steps * strideLength) / 1000;
+    return (steps * strideLength) / 1000; // Convert to km
   }
 
   getSteps(): number {
@@ -170,6 +161,7 @@ class PedometerService {
   }
 
   getCalories(): number {
+    // Rough estimate: 0.04 calories per step
     return Math.round(this.currentSteps * 0.04);
   }
 
@@ -181,6 +173,7 @@ class PedometerService {
     return this.hasPermission;
   }
 
+  // For debugging
   getState() {
     return {
       platform: this.getPlatform(),
