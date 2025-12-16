@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Clock, Gauge, Square, Zap, Footprints } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, MapPin, Clock, Gauge, Square, Zap, Footprints, Satellite, RefreshCw, Settings, X, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { usePedometer } from "@/hooks/usePedometer";
@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import LiveMap from "@/components/LiveMap";
 import MapPlaceholder from "@/components/MapPlaceholder";
+import { Capacitor } from "@capacitor/core";
 
 const ActiveSession = () => {
   const navigate = useNavigate();
@@ -25,10 +26,12 @@ const ActiveSession = () => {
     maxSpeed,
     gpsAccuracy,
     isTracking: isGpsTracking, 
+    isAcquiringGPS,
     hasPermission: hasGpsPermission,
     error: gpsError,
     startTracking, 
-    stopTracking 
+    stopTracking,
+    retryGPS
   } = useLocationTracking();
   
   const [duration, setDuration] = useState(0);
@@ -36,6 +39,7 @@ const ActiveSession = () => {
   const [startSteps, setStartSteps] = useState<number | null>(null);
   const [sessionStartTime] = useState<Date>(new Date());
   const [gpsInitialized, setGpsInitialized] = useState(false);
+  const [useStepsOnly, setUseStepsOnly] = useState(false);
 
   // Start GPS tracking when component mounts
   useEffect(() => {
@@ -141,10 +145,29 @@ const ActiveSession = () => {
     navigate('/');
   };
 
+  const handleUseStepsOnly = () => {
+    setUseStepsOnly(true);
+    stopTracking();
+  };
+
+  const handleRetryGPS = async () => {
+    setUseStepsOnly(false);
+    await retryGPS();
+  };
+
+  const handleOpenSettings = () => {
+    if (Capacitor.isNativePlatform()) {
+      // On native, we can't directly open settings, but we can show a toast
+      toast.info("Please open your device Settings > Location to enable GPS");
+    }
+  };
+
   // Determine what to show in map area
-  const showMap = gpsInitialized && hasGpsPermission && currentPosition;
-  const showPlaceholder = !showMap;
-  const gpsUnavailable = gpsInitialized && (!hasGpsPermission || !!gpsError);
+  const showMap = !useStepsOnly && gpsInitialized && hasGpsPermission && currentPosition && !isAcquiringGPS;
+  const showPlaceholder = useStepsOnly || (!showMap && !isAcquiringGPS && (gpsError || !hasGpsPermission));
+  const showLoadingOverlay = isAcquiringGPS && !useStepsOnly;
+  const showErrorOverlay = !isAcquiringGPS && gpsError && !useStepsOnly && !currentPosition;
+  const gpsUnavailable = useStepsOnly || (gpsInitialized && (!hasGpsPermission || !!gpsError));
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -186,12 +209,125 @@ const ActiveSession = () => {
           />
         ) : (
           <MapPlaceholder 
-            message={gpsUnavailable ? "GPS unavailable - using step distance" : "Acquiring GPS signal..."}
+            message={gpsUnavailable ? "GPS unavailable - using step distance" : "Waiting for GPS..."}
             sessionSteps={sessionSteps}
             sessionDistance={stepBasedDistance}
             showStepsFallback={gpsUnavailable}
           />
         )}
+
+        {/* GPS Acquiring Overlay */}
+        <AnimatePresence>
+          {showLoadingOverlay && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-md"
+            >
+              <motion.div
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  opacity: [0.7, 1, 0.7]
+                }}
+                transition={{ 
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+                className="mb-6"
+              >
+                <Satellite className="h-16 w-16 text-primary" />
+              </motion.div>
+              
+              <h3 className="text-lg font-bold uppercase tracking-widest text-foreground mb-2">
+                Acquiring GPS Signal
+              </h3>
+              <p className="text-sm text-muted-foreground text-center px-8 mb-4">
+                This may take up to 30 seconds. Make sure you're near a window or outdoors for best results.
+              </p>
+              
+              {gpsAccuracy && (
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  <span className="text-xs font-medium text-primary">
+                    Signal strength: {Math.round(gpsAccuracy)}m
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Searching for satellites...</span>
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/')}
+                className="mt-8 border-border/50"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Cancel
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* GPS Error Overlay */}
+        <AnimatePresence>
+          {showErrorOverlay && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-md"
+            >
+              <div className="mb-6 p-4 rounded-full bg-destructive/20">
+                <Satellite className="h-12 w-12 text-destructive" />
+              </div>
+              
+              <h3 className="text-lg font-bold uppercase tracking-widest text-foreground mb-2">
+                GPS Signal Not Available
+              </h3>
+              <p className="text-sm text-muted-foreground text-center px-8 mb-6">
+                {gpsError || "Please check your location settings and try again"}
+              </p>
+
+              <div className="flex flex-col gap-3 w-48">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleRetryGPS}
+                  className="w-full"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Try Again
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenSettings}
+                  className="w-full border-border/50"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Open Settings
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleUseStepsOnly}
+                  className="w-full text-muted-foreground"
+                >
+                  <Footprints className="h-4 w-4 mr-2" />
+                  Use Steps Only
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {/* Stats Panel */}
