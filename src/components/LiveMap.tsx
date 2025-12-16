@@ -38,6 +38,21 @@ const MapCenterController = ({ position }: { position: LocationPoint | null }) =
   return null;
 };
 
+// Component to fix map size after render
+const MapSizeController = () => {
+  const map = useMap();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [map]);
+
+  return null;
+};
+
 // GPS Signal Quality Indicator
 const GpsSignalIndicator = ({ accuracy }: { accuracy: number | null }) => {
   let quality: 'excellent' | 'good' | 'fair' | 'poor' = 'poor';
@@ -84,20 +99,23 @@ const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy }: Live
     : [52.52, 13.405]; // Berlin as fallback
 
   return (
-    <div className="absolute inset-0 rounded-xl overflow-hidden">
+    <div className="absolute inset-0 rounded-xl overflow-hidden" style={{ height: '100%', width: '100%' }}>
       <MapContainer
         center={defaultCenter}
         zoom={17}
         className="h-full w-full"
+        style={{ height: '100%', width: '100%' }}
         zoomControl={false}
         attributionControl={false}
       >
         {/* Dark theme map tiles - CartoDB Dark */}
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
 
         <MapCenterController position={currentPosition} />
+        <MapSizeController />
 
         {/* Route polyline */}
         {routeLatLngs.length > 1 && (
@@ -143,7 +161,7 @@ const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy }: Live
       </MapContainer>
 
       {/* Status overlay */}
-      <div className="absolute top-4 left-4 rounded-lg bg-background/80 backdrop-blur-sm px-3 py-1.5 border border-border/50 flex items-center gap-3">
+      <div className="absolute top-4 left-4 z-[1000] rounded-lg bg-background/80 backdrop-blur-sm px-3 py-1.5 border border-border/50 flex items-center gap-3">
         <span className="text-xs font-semibold uppercase tracking-wider text-primary">
           {isTracking ? 'GPS Active' : 'GPS Ready'}
         </span>
@@ -153,7 +171,7 @@ const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy }: Live
 
       {/* Route distance indicator */}
       {routeLatLngs.length > 1 && (
-        <div className="absolute bottom-4 right-4 rounded-lg bg-background/80 backdrop-blur-sm px-3 py-1.5 border border-border/50">
+        <div className="absolute bottom-4 right-4 z-[1000] rounded-lg bg-background/80 backdrop-blur-sm px-3 py-1.5 border border-border/50">
           <span className="text-xs font-semibold text-foreground">
             {routeLatLngs.length} points
           </span>
