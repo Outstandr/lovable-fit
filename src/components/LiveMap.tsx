@@ -1,17 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Polyline, CircleMarker, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { useCallback, useRef } from 'react';
+import { GoogleMap, useLoadScript, Polyline, Circle } from '@react-google-maps/api';
 import { LocationPoint } from '@/hooks/useLocationTracking';
-import { Signal, SignalLow, SignalMedium, SignalHigh, Loader2 } from 'lucide-react';
-
-// Fix Leaflet default marker icons issue
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
+import { Signal, SignalLow, SignalMedium, SignalHigh, Loader2, AlertTriangle } from 'lucide-react';
 
 interface LiveMapProps {
   currentPosition: LocationPoint | null;
@@ -20,60 +10,53 @@ interface LiveMapProps {
   gpsAccuracy?: number | null;
 }
 
-// Component to handle map centering on position changes
-const MapCenterController = ({ position }: { position: LocationPoint | null }) => {
-  const map = useMap();
-  const hasInitialCenter = useRef(false);
+// Dark theme map styles matching Midnight Ops aesthetic
+const darkMapStyles: google.maps.MapTypeStyle[] = [
+  { elementType: 'geometry', stylers: [{ color: '#1a1a2e' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#1a1a2e' }] },
+  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#38414e' }] },
+  { featureType: 'administrative.land_parcel', elementType: 'labels.text.fill', stylers: [{ color: '#64779e' }] },
+  { featureType: 'landscape.man_made', elementType: 'geometry.stroke', stylers: [{ color: '#38414e' }] },
+  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#283d6a' }] },
+  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#6f9ba5' }] },
+  { featureType: 'poi.park', elementType: 'geometry.fill', stylers: [{ color: '#1b3a34' }] },
+  { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: '#447530' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#38414e' }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#212a37' }] },
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9ca5b3' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#4a5568' }] },
+  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#1f2a38' }] },
+  { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#b0b8c1' }] },
+  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#2f3948' }] },
+  { featureType: 'transit.station', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#17263c' }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#515c6d' }] },
+];
 
-  useEffect(() => {
-    if (position && !hasInitialCenter.current) {
-      map.setView([position.latitude, position.longitude], 17);
-      hasInitialCenter.current = true;
-    } else if (position) {
-      // Smoothly pan to new position
-      map.panTo([position.latitude, position.longitude], { animate: true, duration: 0.5 });
-    }
-  }, [position, map]);
-
-  return null;
+const mapContainerStyle = {
+  width: '100%',
+  height: '100%',
 };
 
-// Component to fix map size after render
-const MapSizeController = () => {
-  const map = useMap();
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      map.invalidateSize();
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [map]);
-
-  return null;
-};
+const defaultCenter = { lat: 52.52, lng: 13.405 }; // Berlin as fallback
 
 // GPS Signal Quality Indicator
 const GpsSignalIndicator = ({ accuracy }: { accuracy: number | null }) => {
-  let quality: 'excellent' | 'good' | 'fair' | 'poor' = 'poor';
   let SignalIcon = Signal;
   let colorClass = 'text-muted-foreground';
   
   if (accuracy !== null) {
     if (accuracy <= 10) {
-      quality = 'excellent';
       SignalIcon = SignalHigh;
       colorClass = 'text-green-500';
     } else if (accuracy <= 25) {
-      quality = 'good';
       SignalIcon = SignalMedium;
       colorClass = 'text-primary';
     } else if (accuracy <= 50) {
-      quality = 'fair';
       SignalIcon = SignalLow;
       colorClass = 'text-yellow-500';
     } else {
-      quality = 'poor';
       SignalIcon = Signal;
       colorClass = 'text-destructive';
     }
@@ -90,27 +73,48 @@ const GpsSignalIndicator = ({ accuracy }: { accuracy: number | null }) => {
 };
 
 const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy }: LiveMapProps) => {
-  const [isReady, setIsReady] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const hasInitialCenter = useRef(false);
 
-  // Delay rendering to ensure DOM is ready and prevent context errors
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsReady(true);
-    }, 100);
-    return () => clearTimeout(timer);
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
+  });
+
+  const onMapLoad = useCallback((map: google.maps.Map) => {
+    mapRef.current = map;
   }, []);
 
-  // Convert route points to Leaflet format
-  const routeLatLngs = routePoints.map(point => [point.latitude, point.longitude] as [number, number]);
+  // Pan to current position when it updates
+  const onPositionChange = useCallback(() => {
+    if (!mapRef.current || !currentPosition) return;
 
-  // Default center (will be overridden when position is available)
-  const defaultCenter: [number, number] = currentPosition 
-    ? [currentPosition.latitude, currentPosition.longitude]
-    : [52.52, 13.405]; // Berlin as fallback
+    const newCenter = { lat: currentPosition.latitude, lng: currentPosition.longitude };
+    
+    if (!hasInitialCenter.current) {
+      mapRef.current.setCenter(newCenter);
+      hasInitialCenter.current = true;
+    } else {
+      mapRef.current.panTo(newCenter);
+    }
+  }, [currentPosition]);
 
-  // Show loading state while initializing
-  if (!isReady) {
+  // Effect to pan map when position changes
+  if (currentPosition && mapRef.current) {
+    onPositionChange();
+  }
+
+  // Convert route points to Google Maps format
+  const routePath = routePoints.map(point => ({
+    lat: point.latitude,
+    lng: point.longitude,
+  }));
+
+  const center = currentPosition 
+    ? { lat: currentPosition.latitude, lng: currentPosition.longitude }
+    : defaultCenter;
+
+  // Loading state
+  if (!isLoaded) {
     return (
       <div className="absolute inset-0 rounded-xl overflow-hidden bg-secondary/50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-2">
@@ -121,75 +125,80 @@ const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy }: Live
     );
   }
 
+  // Error state
+  if (loadError) {
+    return (
+      <div className="absolute inset-0 rounded-xl overflow-hidden bg-secondary/50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-center px-4">
+          <AlertTriangle className="h-8 w-8 text-destructive" />
+          <span className="text-sm font-medium text-foreground">Map Load Error</span>
+          <span className="text-xs text-muted-foreground">Check your Google Maps API key</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div 
-      ref={containerRef}
-      className="absolute inset-0 rounded-xl overflow-hidden" 
-      style={{ height: '100%', width: '100%' }}
-    >
-      <MapContainer
-        key="live-map-container"
-        center={defaultCenter}
+    <div className="absolute inset-0 rounded-xl overflow-hidden" style={{ height: '100%', width: '100%' }}>
+      <GoogleMap
+        mapContainerStyle={mapContainerStyle}
+        center={center}
         zoom={17}
-        className="h-full w-full"
-        style={{ height: '100%', width: '100%' }}
-        zoomControl={false}
-        attributionControl={false}
+        onLoad={onMapLoad}
+        options={{
+          styles: darkMapStyles,
+          disableDefaultUI: true,
+          gestureHandling: 'greedy',
+          zoomControl: false,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+        }}
       >
-        {/* Dark theme map tiles - CartoDB Dark */}
-        <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        />
-
-        <MapCenterController position={currentPosition} />
-        <MapSizeController />
-
         {/* Route polyline */}
-        {routeLatLngs.length > 1 && (
+        {routePath.length > 1 && (
           <Polyline
-            positions={routeLatLngs}
-            pathOptions={{
-              color: '#00d4ff',
-              weight: 4,
-              opacity: 0.9,
-              lineCap: 'round',
-              lineJoin: 'round',
+            path={routePath}
+            options={{
+              strokeColor: '#00d4ff',
+              strokeWeight: 4,
+              strokeOpacity: 0.9,
             }}
           />
         )}
 
-        {/* Current position marker */}
+        {/* Current position marker - outer glow */}
         {currentPosition && (
           <>
-            {/* Outer glow / accuracy radius */}
-            <CircleMarker
-              center={[currentPosition.latitude, currentPosition.longitude]}
-              radius={20}
-              pathOptions={{
-                color: '#00d4ff',
+            <Circle
+              center={{ lat: currentPosition.latitude, lng: currentPosition.longitude }}
+              radius={25}
+              options={{
+                strokeColor: '#00d4ff',
+                strokeOpacity: 0,
+                strokeWeight: 0,
                 fillColor: '#00d4ff',
                 fillOpacity: 0.15,
-                weight: 0,
               }}
             />
-            {/* Inner dot */}
-            <CircleMarker
-              center={[currentPosition.latitude, currentPosition.longitude]}
+            {/* Inner marker */}
+            <Circle
+              center={{ lat: currentPosition.latitude, lng: currentPosition.longitude }}
               radius={8}
-              pathOptions={{
-                color: '#00d4ff',
+              options={{
+                strokeColor: '#ffffff',
+                strokeOpacity: 1,
+                strokeWeight: 2,
                 fillColor: '#00d4ff',
                 fillOpacity: 1,
-                weight: 2,
               }}
             />
           </>
         )}
-      </MapContainer>
+      </GoogleMap>
 
       {/* Status overlay */}
-      <div className="absolute top-4 left-4 z-[1000] rounded-lg bg-background/80 backdrop-blur-sm px-3 py-1.5 border border-border/50 flex items-center gap-3">
+      <div className="absolute top-4 left-4 z-10 rounded-lg bg-background/80 backdrop-blur-sm px-3 py-1.5 border border-border/50 flex items-center gap-3">
         <span className="text-xs font-semibold uppercase tracking-wider text-primary">
           {isTracking ? 'GPS Active' : 'GPS Ready'}
         </span>
@@ -197,11 +206,11 @@ const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy }: Live
         <GpsSignalIndicator accuracy={gpsAccuracy ?? null} />
       </div>
 
-      {/* Route distance indicator */}
-      {routeLatLngs.length > 1 && (
-        <div className="absolute bottom-4 right-4 z-[1000] rounded-lg bg-background/80 backdrop-blur-sm px-3 py-1.5 border border-border/50">
+      {/* Route points indicator */}
+      {routePath.length > 1 && (
+        <div className="absolute bottom-4 right-4 z-10 rounded-lg bg-background/80 backdrop-blur-sm px-3 py-1.5 border border-border/50">
           <span className="text-xs font-semibold text-foreground">
-            {routeLatLngs.length} points
+            {routePath.length} points
           </span>
         </div>
       )}
