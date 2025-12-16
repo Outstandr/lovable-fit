@@ -6,7 +6,8 @@ import { StatCard } from "@/components/StatCard";
 import { LeaderboardPreview } from "@/components/LeaderboardPreview";
 import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
-import { HealthPermissionPrompt } from "@/components/HealthPermissionPrompt";
+import { HealthConnectPrompt } from "@/components/HealthConnectPrompt";
+import { DataSourceBadge } from "@/components/DataSourceBadge";
 import { usePedometer } from "@/hooks/usePedometer";
 import { useStreak } from "@/hooks/useStreak";
 import { useEffect, useState } from "react";
@@ -29,7 +30,14 @@ const Dashboard = () => {
     steps, distance, calories, 
     hasPermission, isTracking, error, platform,
     startTracking, stopTracking, requestPermission,
-    getDebugState
+    getDebugState,
+    // Health Connect specific
+    dataSource,
+    healthConnectAvailable,
+    healthConnectPermissionGranted,
+    isInitializing,
+    requestHealthConnectPermission,
+    skipHealthConnect,
   } = usePedometer();
   const { streak, updateStreakOnTargetHit } = useStreak();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -178,10 +186,28 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* Health Connect Prompt - shows for native platforms */}
+      {platform !== 'web' && (
+        <div className="px-4 pb-2">
+          <HealthConnectPrompt
+            platform={platform}
+            hasPermission={hasPermission}
+            onRequestPermission={requestPermission}
+            isLoading={isInitializing}
+            healthConnectAvailable={healthConnectAvailable}
+            healthConnectPermissionGranted={healthConnectPermissionGranted}
+            dataSource={dataSource}
+            onRequestHealthConnectPermission={requestHealthConnectPermission}
+            onSkipHealthConnect={skipHealthConnect}
+            isInitializing={isInitializing}
+          />
+        </div>
+      )}
+
       {/* Web Notice */}
       {platform === 'web' && (
         <div className="px-4 pb-4">
-          <HealthPermissionPrompt
+          <HealthConnectPrompt
             platform="web"
             hasPermission={false}
             onRequestPermission={async () => false}
@@ -195,7 +221,10 @@ const Dashboard = () => {
         <div className="px-4 pb-2">
           <div className="tactical-card flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Current Steps</p>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Current Steps</p>
+                <DataSourceBadge dataSource={dataSource} compact />
+              </div>
               <p className="text-2xl font-bold text-foreground">{steps}</p>
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground mt-1">
                 {hasPermission ? '✓ Permission granted' : '✗ Permission not granted'}
