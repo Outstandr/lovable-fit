@@ -29,19 +29,15 @@ const Dashboard = () => {
   const { 
     steps, distance, calories, 
     hasPermission, isTracking, error, platform,
-    startTracking, stopTracking, requestPermission,
-    getDebugState,
+    startTracking, stopTracking,
     // Health Connect specific
     dataSource,
     healthConnectAvailable,
-    healthConnectPermissionGranted,
     isInitializing,
-    requestHealthConnectPermission,
     skipHealthConnect,
   } = usePedometer();
   const { streak, updateStreakOnTargetHit } = useStreak();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [showDebug, setShowDebug] = useState(true);
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
 
   // Fetch leaderboard data
@@ -124,8 +120,6 @@ const Dashboard = () => {
     streak: streak.currentStreak
   };
 
-  const debugState = getDebugState();
-
   return (
     <div className="min-h-screen pb-24">
       {/* Header */}
@@ -143,61 +137,13 @@ const Dashboard = () => {
         </p>
       </motion.header>
 
-      {/* Debug Panel */}
-      {showDebug && platform !== 'web' && (
-        <div className="px-4 pb-2">
-          <div className="tactical-card text-xs space-y-1">
-            <div className="flex justify-between items-center mb-2">
-              <span className="font-bold uppercase tracking-wider text-primary">Debug Panel</span>
-              <button 
-                onClick={() => setShowDebug(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                Hide
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-1 text-muted-foreground">
-              <span>Platform:</span>
-              <span className="text-foreground">{debugState.platform}</span>
-              <span>Permission:</span>
-              <span className={debugState.hasPermission ? 'text-accent' : 'text-destructive'}>
-                {debugState.hasPermission ? '✓ Granted' : '✗ Not granted'}
-              </span>
-              <span>Tracking:</span>
-              <span className={debugState.isTracking ? 'text-accent' : 'text-muted-foreground'}>
-                {debugState.isTracking ? '✓ Active' : '✗ Inactive'}
-              </span>
-              <span>Steps:</span>
-              <span className="text-foreground">{debugState.steps}</span>
-              <span>Distance:</span>
-              <span className="text-foreground">{debugState.distance.toFixed(2)} km</span>
-              <span>Tracking:</span>
-              <span className={debugState.isTracking ? 'text-accent' : 'text-muted-foreground'}>
-                {debugState.isTracking ? '✓ Active' : '✗ Inactive'}
-              </span>
-            </div>
-            {error && (
-              <div className="mt-2 text-destructive flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                {error}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Health Connect Prompt - shows for native platforms */}
       {platform !== 'web' && (
         <div className="px-4 pb-2">
           <HealthConnectPrompt
             platform={platform}
-            hasPermission={hasPermission}
-            onRequestPermission={requestPermission}
-            isLoading={isInitializing}
             healthConnectAvailable={healthConnectAvailable}
-            healthConnectPermissionGranted={healthConnectPermissionGranted}
             dataSource={dataSource}
-            onRequestHealthConnectPermission={requestHealthConnectPermission}
             onSkipHealthConnect={skipHealthConnect}
             isInitializing={isInitializing}
           />
@@ -207,12 +153,7 @@ const Dashboard = () => {
       {/* Web Notice */}
       {platform === 'web' && (
         <div className="px-4 pb-4">
-          <HealthConnectPrompt
-            platform="web"
-            hasPermission={false}
-            onRequestPermission={async () => false}
-            isLoading={false}
-          />
+          <HealthConnectPrompt platform="web" />
         </div>
       )}
 

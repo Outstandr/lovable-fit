@@ -57,18 +57,8 @@ export function usePedometer() {
     }
 
     // Check if we already have permission
-    let hasPermission = await healthConnectService.checkPermission();
+    const hasPermission = await healthConnectService.checkPermission();
     
-    if (!hasPermission) {
-      // Check localStorage to see if user dismissed setup
-      const dismissed = localStorage.getItem('healthConnectSetupDismissed');
-      if (dismissed !== 'true') {
-        // Will show prompt via component, don't request here
-        console.log(`${LOG_PREFIX} Health Connect available but needs permission`);
-        return false;
-      }
-    }
-
     if (hasPermission) {
       console.log(`${LOG_PREFIX} Health Connect ready!`);
       setState(prev => ({ 
@@ -80,10 +70,12 @@ export function usePedometer() {
       return true;
     }
 
+    // Permission not granted yet - will be requested when user starts tracking
+    console.log(`${LOG_PREFIX} Health Connect available but needs permission (will request on start)`);
     return false;
   }, []);
 
-  // Request Health Connect permission explicitly
+  // Request Health Connect permission (called automatically when starting tracking)
   const requestHealthConnectPermission = useCallback(async (): Promise<boolean> => {
     console.log(`${LOG_PREFIX} Requesting Health Connect permission...`);
     
@@ -101,7 +93,7 @@ export function usePedometer() {
       return true;
     } else {
       console.log(`${LOG_PREFIX} Health Connect permission denied, falling back to pedometer`);
-      toast.warning('Using phone sensor - grant permission for better accuracy');
+      // Silently fall back - no toast to avoid spam
       return false;
     }
   }, []);
@@ -140,11 +132,6 @@ export function usePedometer() {
         hasPermission: true,
       }));
       
-      // Only show toast if we haven't shown it this session
-      if (!healthConnectSetupShown.current) {
-        healthConnectSetupShown.current = true;
-      }
-      
       return true;
     }
     
@@ -177,7 +164,7 @@ export function usePedometer() {
       // Check if Health Connect is available but needs permission
       const availability = await healthConnectService.checkAvailability();
       if (availability === 'Available') {
-        // Let the prompt component handle this
+        // Permission will be requested when user starts tracking
         setState(prev => ({ 
           ...prev, 
           isInitializing: false,
@@ -282,31 +269,38 @@ export function usePedometer() {
     }
   }, [user, state.steps, state.distance, state.calories]);
 
-  // Manual permission request (for prompt component)
-  const requestPermission = useCallback(async (): Promise<boolean> => {
-    // Try Health Connect first if available
-    if (state.healthConnectAvailable === 'Available' && !state.healthConnectPermissionGranted) {
-      const granted = await requestHealthConnectPermission();
-      if (granted) return true;
-    }
-    
-    // Fall back to pedometer
-    return await startPedometerFallback();
-  }, [state.healthConnectAvailable, state.healthConnectPermissionGranted, requestHealthConnectPermission, startPedometerFallback]);
-
   // Skip Health Connect and use pedometer only
   const skipHealthConnect = useCallback(async () => {
     localStorage.setItem('healthConnectSetupDismissed', 'true');
     await startPedometerFallback();
   }, [startPedometerFallback]);
 
-  // Start tracking
+  // Start tracking - automatically requests permissions if needed
   const startTracking = useCallback(async (): Promise<boolean> => {
+    console.log(`${LOG_PREFIX} startTracking called, current dataSource: ${state.dataSource}`);
+    
+    // If already using Health Connect, just mark as tracking
     if (state.dataSource === 'healthconnect') {
       setState(prev => ({ ...prev, isTracking: true }));
       return true;
     }
     
+    // If Health Connect is available but not yet connected, try to get permission automatically
+    if (state.healthConnectAvailable === 'Available' && !state.healthConnectPermissionGranted) {
+      console.log(`${LOG_PREFIX} Attempting Health Connect permission request...`);
+      const granted = await requestHealthConnectPermission();
+      
+      if (granted) {
+        await fetchHealthConnectSteps();
+        setState(prev => ({ ...prev, isTracking: true }));
+        return true;
+      }
+      
+      // Permission denied - silently fall back to pedometer
+      console.log(`${LOG_PREFIX} Permission denied, falling back to pedometer`);
+    }
+    
+    // Fall back to pedometer
     const started = await pedometerService.start();
     if (started) {
       setState(prev => ({ 
@@ -317,7 +311,7 @@ export function usePedometer() {
       }));
     }
     return started;
-  }, [state.dataSource]);
+  }, [state.dataSource, state.healthConnectAvailable, state.healthConnectPermissionGranted, requestHealthConnectPermission, fetchHealthConnectSteps]);
 
   // Stop tracking
   const stopTracking = useCallback(async (): Promise<void> => {
@@ -349,20 +343,10 @@ export function usePedometer() {
     isInitializing: state.isInitializing,
     
     // Actions
-    requestPermission,
-    requestHealthConnectPermission,
     skipHealthConnect,
     startTracking,
     stopTracking,
     syncToDatabase,
     openHealthConnectSettings,
-    
-    // Debug
-    getDebugState: () => ({
-      ...pedometerService.getState(),
-      dataSource: state.dataSource,
-      healthConnectAvailable: state.healthConnectAvailable,
-      healthConnectPermissionGranted: state.healthConnectPermissionGranted,
-    }),
   };
 }
