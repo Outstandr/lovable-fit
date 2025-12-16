@@ -58,7 +58,7 @@ class HealthConnectService {
     try {
       console.log(`${LOG_PREFIX} Checking permissions...`);
       const result = await HealthConnect.checkHealthPermissions({
-        read: ['Steps', 'ActiveCaloriesBurned'],
+        read: (['Steps', 'Distance', 'ActiveCaloriesBurned', 'TotalCaloriesBurned', 'Speed'] as unknown) as any,
         write: [],
       });
       
@@ -83,7 +83,7 @@ class HealthConnectService {
     try {
       console.log(`${LOG_PREFIX} Requesting permissions...`);
       const result = await HealthConnect.requestHealthPermissions({
-        read: ['Steps', 'ActiveCaloriesBurned'],
+        read: (['Steps', 'Distance', 'ActiveCaloriesBurned', 'TotalCaloriesBurned', 'Speed'] as unknown) as any,
         write: [],
       });
       
