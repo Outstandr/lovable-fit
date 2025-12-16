@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Polyline, CircleMarker, useMap } from 'react-l
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { LocationPoint } from '@/hooks/useLocationTracking';
+import { Signal, SignalLow, SignalMedium, SignalHigh } from 'lucide-react';
 
 // Fix Leaflet default marker icons issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -16,6 +17,7 @@ interface LiveMapProps {
   currentPosition: LocationPoint | null;
   routePoints: LocationPoint[];
   isTracking: boolean;
+  gpsAccuracy?: number | null;
 }
 
 // Component to handle map centering on position changes
@@ -36,7 +38,43 @@ const MapCenterController = ({ position }: { position: LocationPoint | null }) =
   return null;
 };
 
-const LiveMap = ({ currentPosition, routePoints, isTracking }: LiveMapProps) => {
+// GPS Signal Quality Indicator
+const GpsSignalIndicator = ({ accuracy }: { accuracy: number | null }) => {
+  let quality: 'excellent' | 'good' | 'fair' | 'poor' = 'poor';
+  let SignalIcon = Signal;
+  let colorClass = 'text-muted-foreground';
+  
+  if (accuracy !== null) {
+    if (accuracy <= 10) {
+      quality = 'excellent';
+      SignalIcon = SignalHigh;
+      colorClass = 'text-green-500';
+    } else if (accuracy <= 25) {
+      quality = 'good';
+      SignalIcon = SignalMedium;
+      colorClass = 'text-primary';
+    } else if (accuracy <= 50) {
+      quality = 'fair';
+      SignalIcon = SignalLow;
+      colorClass = 'text-yellow-500';
+    } else {
+      quality = 'poor';
+      SignalIcon = Signal;
+      colorClass = 'text-destructive';
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <SignalIcon className={`h-3.5 w-3.5 ${colorClass}`} />
+      <span className="text-[10px] uppercase tracking-wider">
+        {accuracy !== null ? `${Math.round(accuracy)}m` : 'N/A'}
+      </span>
+    </div>
+  );
+};
+
+const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy }: LiveMapProps) => {
   // Convert route points to Leaflet format
   const routeLatLngs = routePoints.map(point => [point.latitude, point.longitude] as [number, number]);
 
@@ -54,7 +92,7 @@ const LiveMap = ({ currentPosition, routePoints, isTracking }: LiveMapProps) => 
         zoomControl={false}
         attributionControl={false}
       >
-        {/* Dark theme map tiles */}
+        {/* Dark theme map tiles - CartoDB Dark */}
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
@@ -78,7 +116,7 @@ const LiveMap = ({ currentPosition, routePoints, isTracking }: LiveMapProps) => 
         {/* Current position marker */}
         {currentPosition && (
           <>
-            {/* Outer glow */}
+            {/* Outer glow / accuracy radius */}
             <CircleMarker
               center={[currentPosition.latitude, currentPosition.longitude]}
               radius={20}
@@ -104,12 +142,23 @@ const LiveMap = ({ currentPosition, routePoints, isTracking }: LiveMapProps) => 
         )}
       </MapContainer>
 
-      {/* Tracking status overlay */}
-      <div className="absolute top-4 left-4 rounded-lg bg-background/80 backdrop-blur-sm px-3 py-1.5 border border-border/50">
+      {/* Status overlay */}
+      <div className="absolute top-4 left-4 rounded-lg bg-background/80 backdrop-blur-sm px-3 py-1.5 border border-border/50 flex items-center gap-3">
         <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-          {isTracking ? 'GPS Tracking Active' : 'GPS Ready'}
+          {isTracking ? 'GPS Active' : 'GPS Ready'}
         </span>
+        <div className="h-3 w-px bg-border/50" />
+        <GpsSignalIndicator accuracy={gpsAccuracy ?? null} />
       </div>
+
+      {/* Route distance indicator */}
+      {routeLatLngs.length > 1 && (
+        <div className="absolute bottom-4 right-4 rounded-lg bg-background/80 backdrop-blur-sm px-3 py-1.5 border border-border/50">
+          <span className="text-xs font-semibold text-foreground">
+            {routeLatLngs.length} points
+          </span>
+        </div>
+      )}
     </div>
   );
 };
