@@ -96,19 +96,26 @@ class HealthConnectService {
     }
   }
 
-  async readTodaySteps(): Promise<{ steps: number; calories: number } | null> {
+  async readTodayHealthData(): Promise<{ 
+    steps: number; 
+    distance: number; 
+    activeCalories: number;
+    totalCalories: number;
+    avgSpeed: number;
+    maxSpeed: number;
+  } | null> {
     if (!this.isNative() || !this.state.hasPermission) {
       return null;
     }
 
     try {
-      // Get today at midnight
       const now = new Date();
       const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
       
-      console.log(`${LOG_PREFIX} Reading steps from ${startOfDay.toISOString()} to ${now.toISOString()}`);
+      console.log(`${LOG_PREFIX} Reading health data from ${startOfDay.toISOString()} to ${now.toISOString()}`);
       
-      const { records } = await HealthConnect.readRecords({
+      // Read Steps
+      const { records: stepRecords } = await HealthConnect.readRecords({
         type: 'Steps',
         timeRangeFilter: {
           type: 'between',
@@ -117,20 +124,22 @@ class HealthConnectService {
         },
       });
 
-      // Aggregate all step records
       let totalSteps = 0;
-      for (const record of records) {
+      for (const record of stepRecords) {
         if ('count' in record) {
           totalSteps += record.count;
         }
       }
+      console.log(`${LOG_PREFIX} Total steps: ${totalSteps}`);
 
-      console.log(`${LOG_PREFIX} Total steps today: ${totalSteps} (from ${records.length} records)`);
+      // Estimate distance from steps (avg stride ~0.762m)
+      const totalDistance = (totalSteps * 0.762) / 1000; // in km
+      console.log(`${LOG_PREFIX} Estimated distance: ${totalDistance.toFixed(2)} km`);
 
-      // Try to read calories
-      let totalCalories = 0;
+      // Read Active Calories
+      let activeCalories = 0;
       try {
-        const { records: calorieRecords } = await HealthConnect.readRecords({
+        const { records: activeCalRecords } = await HealthConnect.readRecords({
           type: 'ActiveCaloriesBurned',
           timeRangeFilter: {
             type: 'between',
@@ -139,28 +148,55 @@ class HealthConnectService {
           },
         });
 
-        for (const record of calorieRecords) {
+        for (const record of activeCalRecords) {
           if ('energy' in record && record.energy) {
-            // Convert to kcal if needed
             if (record.energy.unit === 'kilocalories') {
-              totalCalories += record.energy.value;
+              activeCalories += record.energy.value;
             } else if (record.energy.unit === 'calories') {
-              totalCalories += record.energy.value / 1000;
+              activeCalories += record.energy.value / 1000;
             }
           }
         }
-        console.log(`${LOG_PREFIX} Total calories today: ${Math.round(totalCalories)}`);
+        console.log(`${LOG_PREFIX} Active calories: ${Math.round(activeCalories)}`);
       } catch (e) {
-        // Calories might not be available, estimate from steps
-        totalCalories = Math.round(totalSteps * 0.04);
-        console.log(`${LOG_PREFIX} Estimated calories from steps: ${totalCalories}`);
+        console.log(`${LOG_PREFIX} Active calories not available, estimating from steps`);
+        activeCalories = Math.round(totalSteps * 0.04);
       }
 
-      return { steps: totalSteps, calories: Math.round(totalCalories) };
+      // Estimate total calories (active + ~30% BMR contribution during activity)
+      const totalCalories = activeCalories > 0 ? Math.round(activeCalories * 1.3) : Math.round(totalSteps * 0.04);
+
+      // Calculate average speed from distance and time elapsed
+      const elapsedHours = (now.getTime() - startOfDay.getTime()) / (1000 * 60 * 60);
+      const avgSpeed = elapsedHours > 0 && totalDistance > 0 ? totalDistance / elapsedHours : 0;
+
+      console.log(`${LOG_PREFIX} Health data summary:`, {
+        steps: totalSteps,
+        distance: totalDistance.toFixed(2) + ' km',
+        activeCalories: Math.round(activeCalories),
+        totalCalories: Math.round(totalCalories),
+        avgSpeed: avgSpeed.toFixed(1) + ' km/h',
+      });
+
+      return {
+        steps: totalSteps,
+        distance: totalDistance,
+        activeCalories: Math.round(activeCalories),
+        totalCalories: Math.round(totalCalories),
+        avgSpeed: avgSpeed,
+        maxSpeed: 0, // Not available from this plugin
+      };
     } catch (error) {
-      console.error(`${LOG_PREFIX} readTodaySteps error:`, error);
+      console.error(`${LOG_PREFIX} readTodayHealthData error:`, error);
       return null;
     }
+  }
+
+  // Legacy method for backward compatibility
+  async readTodaySteps(): Promise<{ steps: number; calories: number } | null> {
+    const data = await this.readTodayHealthData();
+    if (!data) return null;
+    return { steps: data.steps, calories: data.totalCalories };
   }
 
   async openSettings(): Promise<void> {

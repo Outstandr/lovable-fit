@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { MapPin, Flame, Clock, Play, Settings, Share2, PersonStanding } from "lucide-react";
+import { MapPin, Flame, Zap, Play, Settings, Share2, PersonStanding } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ProgressRing } from "@/components/ProgressRing";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { 
-    steps, distance, calories, 
+    steps, distance, calories, avgSpeed,
     dataSource,
   } = usePedometer();
   const { streak, updateStreakOnTargetHit } = useStreak();
@@ -56,12 +56,6 @@ const Dashboard = () => {
       updateStreakOnTargetHit();
     }
   }, [steps, updateStreakOnTargetHit]);
-
-  // Calculate duration from steps (rough estimate: 100 steps/minute average)
-  const estimatedMinutes = Math.round(steps / 100);
-  const hours = Math.floor(estimatedMinutes / 60);
-  const minutes = estimatedMinutes % 60;
-  const durationDisplay = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 
   return (
     <div className="min-h-screen pb-24 relative">
@@ -139,14 +133,14 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Duration */}
+        {/* Avg Speed */}
         <div className="flex flex-col items-center gap-2">
           <div className="h-14 w-14 rounded-full bg-card flex items-center justify-center border border-border/30">
-            <Clock className="h-6 w-6 text-primary" />
+            <Zap className="h-6 w-6 text-primary" />
           </div>
           <div className="text-center">
-            <p className="text-xl font-bold text-foreground tabular-nums">{durationDisplay}</p>
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Active</p>
+            <p className="text-xl font-bold text-foreground tabular-nums">{avgSpeed.toFixed(1)}</p>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">km/h</p>
           </div>
         </div>
       </motion.div>
