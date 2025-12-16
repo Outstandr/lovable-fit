@@ -344,7 +344,7 @@ const ActiveSession = () => {
             <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
               Duration
             </span>
-            <div className="text-5xl font-bold tracking-tight text-foreground">
+            <div className="text-5xl font-bold tracking-tight text-foreground tabular-nums">
               {formatTime(duration)}
             </div>
           </div>
@@ -352,29 +352,26 @@ const ActiveSession = () => {
           {/* Main stats row */}
           <div className="grid grid-cols-4 gap-2 border-t border-border/50 pt-4">
             <div className="flex flex-col items-center gap-1">
-              <MapPin className={`h-4 w-4 ${usingGps ? 'text-primary' : 'text-muted-foreground'}`} />
-              <span className="text-lg font-bold text-foreground">{sessionData.distance}</span>
+              <MapPin className={`h-5 w-5 ${usingGps ? 'text-primary' : 'text-muted-foreground'}`} />
+              <span className="text-2xl font-bold text-foreground tabular-nums">{sessionData.distance}</span>
               <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
                 KM {usingGps ? '(GPS)' : '(est)'}
               </span>
             </div>
             <div className="flex flex-col items-center gap-1">
-              <Gauge className="h-4 w-4 text-primary" />
-              <span className="text-lg font-bold text-foreground">{sessionData.pace}</span>
+              <Gauge className="h-5 w-5 text-primary" />
+              <span className="text-2xl font-bold text-foreground tabular-nums">{sessionData.pace}</span>
               <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">Pace /km</span>
             </div>
             <div className="flex flex-col items-center gap-1">
-              <Zap className="h-4 w-4 text-primary" />
-              <span className="text-lg font-bold text-foreground">{sessionData.speed}</span>
+              <Zap className="h-5 w-5 text-primary" />
+              <span className="text-2xl font-bold text-foreground tabular-nums">{sessionData.speed}</span>
               <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">km/h</span>
             </div>
             <div className="flex flex-col items-center gap-1">
-              <Footprints className="h-4 w-4 text-primary" />
-              <span className="text-lg font-bold text-foreground">{sessionData.steps}</span>
-              <div className="flex items-center gap-1">
-                <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">Steps</span>
-                <DataSourceBadge dataSource={dataSource} compact />
-              </div>
+              <Footprints className="h-5 w-5 text-primary" />
+              <span className="text-2xl font-bold text-foreground tabular-nums">{sessionData.steps}</span>
+              <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">Steps</span>
             </div>
           </div>
         </div>
@@ -386,6 +383,7 @@ const ActiveSession = () => {
           variant="tacticalStop" 
           size="full"
           onClick={handleStop}
+          className="h-14 text-sm font-bold uppercase tracking-widest"
         >
           <Square className="mr-2 h-5 w-5 fill-current" />
           Stop / Finish

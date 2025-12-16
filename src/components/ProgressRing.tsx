@@ -70,7 +70,7 @@ export const ProgressRing = ({
       {/* Center content */}
       <div className="relative z-10 flex flex-col items-center justify-center text-center">
         <motion.span 
-          className={`text-6xl font-bold tracking-tight ${isComplete ? 'text-accent' : 'text-foreground'}`}
+          className={`text-7xl font-bold tracking-tight tabular-nums ${isComplete ? 'text-accent' : 'text-foreground'}`}
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.5 }}
@@ -79,16 +79,16 @@ export const ProgressRing = ({
         </motion.span>
         {isComplete ? (
           <motion.span 
-            className="text-lg font-semibold uppercase tracking-widest text-accent"
+            className="text-base font-semibold uppercase tracking-widest text-accent mt-1"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
           >
-            Target Hit
+            Target Hit!
           </motion.span>
         ) : (
-          <span className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-            / {target.toLocaleString()} Target
+          <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground mt-1">
+            Goal {target.toLocaleString()}
           </span>
         )}
       </div>
