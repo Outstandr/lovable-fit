@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { LocationPoint } from '@/hooks/useLocationTracking';
-import { Signal, SignalLow, SignalMedium, SignalHigh } from 'lucide-react';
+import { Signal, SignalLow, SignalMedium, SignalHigh, Loader2 } from 'lucide-react';
 
 // Fix Leaflet default marker icons issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -90,6 +90,17 @@ const GpsSignalIndicator = ({ accuracy }: { accuracy: number | null }) => {
 };
 
 const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy }: LiveMapProps) => {
+  const [isReady, setIsReady] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Delay rendering to ensure DOM is ready and prevent context errors
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsReady(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Convert route points to Leaflet format
   const routeLatLngs = routePoints.map(point => [point.latitude, point.longitude] as [number, number]);
 
@@ -98,9 +109,26 @@ const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy }: Live
     ? [currentPosition.latitude, currentPosition.longitude]
     : [52.52, 13.405]; // Berlin as fallback
 
+  // Show loading state while initializing
+  if (!isReady) {
+    return (
+      <div className="absolute inset-0 rounded-xl overflow-hidden bg-secondary/50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="text-xs text-muted-foreground">Loading map...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="absolute inset-0 rounded-xl overflow-hidden" style={{ height: '100%', width: '100%' }}>
+    <div 
+      ref={containerRef}
+      className="absolute inset-0 rounded-xl overflow-hidden" 
+      style={{ height: '100%', width: '100%' }}
+    >
       <MapContainer
+        key="live-map-container"
         center={defaultCenter}
         zoom={17}
         className="h-full w-full"
