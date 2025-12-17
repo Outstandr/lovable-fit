@@ -18,7 +18,7 @@ import { useAudiobook } from "@/hooks/useAudiobook";
 const ActiveSession = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { steps, activeCalories, avgSpeed: hcAvgSpeed, dataSource } = usePedometer();
+  const { steps, dataSource } = usePedometer();
   
   const { 
     currentPosition, 
