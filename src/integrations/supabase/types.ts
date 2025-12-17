@@ -230,6 +230,75 @@ export type Database = {
         }
         Relationships: []
       }
+      user_notification_preferences: {
+        Row: {
+          created_at: string
+          daily_reminders: boolean
+          evening_reminder_time: string
+          leaderboard_updates: boolean
+          morning_reminder_time: string
+          quiet_hours_end: string
+          quiet_hours_start: string
+          step_alerts: boolean
+          streak_notifications: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          daily_reminders?: boolean
+          evening_reminder_time?: string
+          leaderboard_updates?: boolean
+          morning_reminder_time?: string
+          quiet_hours_end?: string
+          quiet_hours_start?: string
+          step_alerts?: boolean
+          streak_notifications?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          daily_reminders?: boolean
+          evening_reminder_time?: string
+          leaderboard_updates?: boolean
+          morning_reminder_time?: string
+          quiet_hours_end?: string
+          quiet_hours_start?: string
+          step_alerts?: boolean
+          streak_notifications?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_push_tokens: {
+        Row: {
+          created_at: string
+          device_type: string
+          id: string
+          push_token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_type: string
+          id?: string
+          push_token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_type?: string
+          id?: string
+          push_token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
