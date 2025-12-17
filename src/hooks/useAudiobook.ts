@@ -77,11 +77,61 @@ export const useAudiobook = () => {
     }
   }, []);
 
-  // Save progress to localStorage
+  // Save progress to localStorage - use ref to get latest values
+  const currentTimeRef = useRef(state.currentTime);
+  const currentChapterRef = useRef(state.currentChapter);
+  const chapterProgressRef = useRef(state.chapterProgress);
+
+  // Keep refs updated
+  useEffect(() => {
+    currentTimeRef.current = state.currentTime;
+    currentChapterRef.current = state.currentChapter;
+    chapterProgressRef.current = state.chapterProgress;
+  }, [state.currentTime, state.currentChapter, state.chapterProgress]);
+
   const saveProgress = useCallback(() => {
-    const progressObj = Object.fromEntries(state.chapterProgress);
-    localStorage.setItem('audiobook_progress', JSON.stringify(progressObj));
-  }, [state.chapterProgress]);
+    const chapter = currentChapterRef.current;
+    const time = currentTimeRef.current;
+    const progress = chapterProgressRef.current;
+    
+    if (chapter && time > 0) {
+      const newProgress = new Map(progress);
+      newProgress.set(chapter.id, time);
+      const progressObj = Object.fromEntries(newProgress);
+      localStorage.setItem('audiobook_progress', JSON.stringify(progressObj));
+      console.log('[useAudiobook] Progress saved:', chapter.id, time);
+    }
+  }, []);
+
+  // Auto-save every 10 seconds while playing
+  useEffect(() => {
+    if (!state.isPlaying) return;
+    
+    const autoSaveInterval = setInterval(() => {
+      saveProgress();
+    }, 10000);
+    
+    return () => clearInterval(autoSaveInterval);
+  }, [state.isPlaying, saveProgress]);
+
+  // Save on visibility change (app backgrounded)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        saveProgress();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [saveProgress]);
+
+  // Save on component unmount
+  useEffect(() => {
+    return () => {
+      saveProgress();
+    };
+  }, [saveProgress]);
 
   // Setup audio event listeners
   useEffect(() => {
@@ -248,9 +298,10 @@ export const useAudiobook = () => {
   }, []);
 
   const stop = useCallback(() => {
+    saveProgress(); // Save before stopping
     audioService.stop();
     setState(prev => ({ ...prev, isPlaying: false, currentTime: 0 }));
-  }, []);
+  }, [saveProgress]);
 
   // Get remaining time for current chapter
   const getRemainingTime = useCallback(() => {
