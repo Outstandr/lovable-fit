@@ -4,24 +4,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
-// Placeholder audio for testing
-const PLACEHOLDER_AUDIO = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+const STORAGE_BUCKET = 'rbd-audiobook';
 
 export interface Chapter {
   id: number;
   title: string;
   subtitle: string;
-  audioUrl: string;
+  fileName: string; // File name in Supabase storage
   duration: number; // in seconds
 }
 
-// Mock chapters for Phase 1
-const mockChapters: Chapter[] = [
-  { id: 1, title: "Chapter 1", subtitle: "Introduction", audioUrl: PLACEHOLDER_AUDIO, duration: 600 },
-  { id: 2, title: "Chapter 2", subtitle: "The Foundation", audioUrl: PLACEHOLDER_AUDIO, duration: 900 },
-  { id: 3, title: "Chapter 3", subtitle: "Day 2: The Power of Momentum", audioUrl: PLACEHOLDER_AUDIO, duration: 990 },
-  { id: 4, title: "Chapter 4", subtitle: "Building Habits", audioUrl: PLACEHOLDER_AUDIO, duration: 840 },
-  { id: 5, title: "Chapter 5", subtitle: "The Mental Game", audioUrl: PLACEHOLDER_AUDIO, duration: 720 },
+// Chapters configuration - add more files as they're uploaded to the bucket
+const chapters: Chapter[] = [
+  { id: 1, title: "Chapter 1", subtitle: "Reset Body & Diet", fileName: "13-12-2025-RBD-ENG-MJV.mp3", duration: 1635 }, // ~27 mins based on 26MB file
 ];
 
 interface AudiobookState {
@@ -34,6 +29,24 @@ interface AudiobookState {
   allChaptersComplete: boolean;
   chapterProgress: Map<number, number>; // chapterId -> lastPosition
 }
+
+// Get signed URL for audio file from Supabase storage
+const getAudioUrl = async (fileName: string): Promise<string | null> => {
+  try {
+    const { data, error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .createSignedUrl(fileName, 3600); // 1 hour expiry
+    
+    if (error) {
+      console.error('[useAudiobook] Error getting signed URL:', error);
+      return null;
+    }
+    return data.signedUrl;
+  } catch (e) {
+    console.error('[useAudiobook] Failed to get audio URL:', e);
+    return null;
+  }
+};
 
 export const useAudiobook = () => {
   const { user } = useAuth();
@@ -89,7 +102,7 @@ export const useAudiobook = () => {
       setState(prev => ({ ...prev, isPlaying: false }));
       // Auto-advance to next chapter
       if (state.currentChapter) {
-        const nextChapter = mockChapters.find(c => c.id === state.currentChapter!.id + 1);
+        const nextChapter = chapters.find(c => c.id === state.currentChapter!.id + 1);
         if (nextChapter) {
           loadChapter(nextChapter.id);
           setTimeout(() => play(), 500);
@@ -165,15 +178,24 @@ export const useAudiobook = () => {
     }
   };
 
-  const loadChapter = useCallback((chapterId: number) => {
-    const chapter = mockChapters.find(c => c.id === chapterId);
+  const loadChapter = useCallback(async (chapterId: number) => {
+    const chapter = chapters.find(c => c.id === chapterId);
     if (!chapter) {
       setState(prev => ({ ...prev, error: 'Chapter not found' }));
       return;
     }
 
     setState(prev => ({ ...prev, isLoading: true, currentChapter: chapter, error: null }));
-    audioService.init(chapter.audioUrl);
+    
+    // Get signed URL from Supabase storage
+    const audioUrl = await getAudioUrl(chapter.fileName);
+    if (!audioUrl) {
+      setState(prev => ({ ...prev, error: 'Failed to load audio file', isLoading: false }));
+      toast.error('Failed to load audio file');
+      return;
+    }
+    
+    audioService.init(audioUrl);
     
     // Resume from saved position
     const savedPosition = state.chapterProgress.get(chapterId);
@@ -245,7 +267,7 @@ export const useAudiobook = () => {
     // Check for chapter in progress
     for (const [chapterId, position] of state.chapterProgress) {
       if (position > 0) {
-        const chapter = mockChapters.find(c => c.id === chapterId);
+        const chapter = chapters.find(c => c.id === chapterId);
         if (chapter) {
           const remaining = chapter.duration - position;
           const mins = Math.floor(remaining / 60);
@@ -272,7 +294,7 @@ export const useAudiobook = () => {
     isLoading: state.isLoading,
     error: state.error,
     allChaptersComplete: state.allChaptersComplete,
-    chapters: mockChapters,
+    chapters: chapters,
     play,
     pause,
     togglePlay,
