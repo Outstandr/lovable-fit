@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, MapPin, Clock, Gauge, Square, Zap, Footprints, Satellite, RefreshCw, Settings, X, Loader2 } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Gauge, Square, Zap, Footprints, Satellite, RefreshCw, Settings, X, Loader2, Headphones } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { usePedometer } from "@/hooks/usePedometer";
@@ -12,6 +12,8 @@ import LiveMap from "@/components/LiveMap";
 import MapPlaceholder from "@/components/MapPlaceholder";
 import { DataSourceBadge } from "@/components/DataSourceBadge";
 import { Capacitor } from "@capacitor/core";
+import AudiobookPlayer from "@/components/AudiobookPlayer";
+import { useAudiobook } from "@/hooks/useAudiobook";
 
 const ActiveSession = () => {
   const navigate = useNavigate();
@@ -34,6 +36,10 @@ const ActiveSession = () => {
     stopTracking,
     retryGPS
   } = useLocationTracking();
+
+  // Audiobook state
+  const { isPlaying: isAudioPlaying, getButtonText, togglePlay, allChaptersComplete, stop: stopAudio } = useAudiobook();
+  const [isPlayerOpen, setIsPlayerOpen] = useState(false);
   
   const [duration, setDuration] = useState(0);
   const [isRunning, setIsRunning] = useState(true);
@@ -104,6 +110,7 @@ const ActiveSession = () => {
   const handleStop = async () => {
     setIsRunning(false);
     stopTracking();
+    stopAudio(); // Stop audiobook when session ends
     
     if (!user) {
       toast.error("Not logged in");
@@ -377,6 +384,20 @@ const ActiveSession = () => {
         </div>
       </motion.div>
 
+      {/* Audiobook Button */}
+      <div className="px-4 pb-4">
+        <Button 
+          variant="tactical"
+          size="full"
+          onClick={() => isAudioPlaying ? togglePlay() : setIsPlayerOpen(true)}
+          disabled={allChaptersComplete}
+          className="h-14 text-sm font-bold uppercase tracking-widest"
+        >
+          <Headphones className="mr-2 h-5 w-5" />
+          {getButtonText()}
+        </Button>
+      </div>
+
       {/* Stop Button */}
       <div className="px-4 pb-8">
         <Button 
@@ -389,6 +410,12 @@ const ActiveSession = () => {
           Stop / Finish
         </Button>
       </div>
+
+      {/* Audiobook Mini Player */}
+      <AudiobookPlayer 
+        isOpen={isPlayerOpen}
+        onClose={() => setIsPlayerOpen(false)}
+      />
     </div>
   );
 };
