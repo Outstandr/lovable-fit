@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { User, Settings, Bell, Shield, LogOut, ChevronRight, Zap, Target, Calendar } from "lucide-react";
+import { User, Settings, Bell, Shield, LogOut, ChevronRight, Zap, Target, Calendar, Heart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 const menuItems = [
+  { icon: Heart, label: "Health Profile", action: "health-profile" },
   { icon: Bell, label: "Notifications", action: "notifications" },
   { icon: Target, label: "Goals & Targets", action: "goals" },
   { icon: Shield, label: "Privacy & Security", action: "privacy" },
@@ -157,6 +158,11 @@ const Profile = () => {
         {menuItems.map((item, index) => (
           <motion.button
             key={item.action}
+            onClick={() => {
+              if (item.action === 'health-profile') {
+                navigate('/health-profile');
+              }
+            }}
             className="w-full tactical-card flex items-center justify-between hover:border-primary/50 transition-colors"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}

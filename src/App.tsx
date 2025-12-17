@@ -11,6 +11,7 @@ import ActiveSession from "./pages/ActiveSession";
 import Leaderboard from "./pages/Leaderboard";
 import Protocol from "./pages/Protocol";
 import Profile from "./pages/Profile";
+import HealthProfileSetup from "./pages/HealthProfileSetup";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,11 @@ const App = () => (
               <Route path="/profile" element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              } />
+              <Route path="/health-profile" element={
+                <ProtectedRoute>
+                  <HealthProfileSetup />
                 </ProtectedRoute>
               } />
               <Route path="*" element={<NotFound />} />
