@@ -23,11 +23,13 @@ const AudiobookPlayer = ({ isOpen, onClose }: AudiobookPlayerProps) => {
     currentTime,
     duration,
     isLoading,
+    playbackSpeed,
     togglePlay,
     skipForward,
     skipBackward,
     seekTo,
     formatTime,
+    cyclePlaybackSpeed,
   } = useAudiobook();
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
@@ -118,6 +120,18 @@ const AudiobookPlayer = ({ isOpen, onClose }: AudiobookPlayerProps) => {
             >
               <SkipForward className="h-5 w-5" />
               <span className="sr-only">Skip forward 15 seconds</span>
+            </Button>
+          </div>
+
+          {/* Speed Control */}
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={cyclePlaybackSpeed}
+              className="px-4 py-1 text-sm font-semibold border-primary/30 hover:bg-primary/10"
+            >
+              {playbackSpeed}x Speed
             </Button>
           </div>
 

@@ -88,6 +88,16 @@ class AudioService {
     return this.audio?.duration || 0;
   }
 
+  setPlaybackRate(rate: number): void {
+    if (this.audio) {
+      this.audio.playbackRate = rate;
+    }
+  }
+
+  getPlaybackRate(): number {
+    return this.audio?.playbackRate || 1;
+  }
+
   isPlaying(): boolean {
     return this.audio ? !this.audio.paused : false;
   }

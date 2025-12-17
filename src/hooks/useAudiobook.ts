@@ -28,7 +28,10 @@ interface AudiobookState {
   error: string | null;
   allChaptersComplete: boolean;
   chapterProgress: Map<number, number>; // chapterId -> lastPosition
+  playbackSpeed: number;
 }
+
+const PLAYBACK_SPEEDS = [1, 1.5, 2] as const;
 
 // Get signed URL for audio file from Supabase storage
 const getAudioUrl = async (fileName: string): Promise<string | null> => {
@@ -59,6 +62,7 @@ export const useAudiobook = () => {
     error: null,
     allChaptersComplete: false,
     chapterProgress: new Map(),
+    playbackSpeed: 1,
   });
   
   const hasTriggeredCompletion = useRef<Set<number>>(new Set());
@@ -327,6 +331,14 @@ export const useAudiobook = () => {
     audioService.seekTo(time);
   }, []);
 
+  const cyclePlaybackSpeed = useCallback(() => {
+    const currentIndex = PLAYBACK_SPEEDS.indexOf(state.playbackSpeed as typeof PLAYBACK_SPEEDS[number]);
+    const nextIndex = (currentIndex + 1) % PLAYBACK_SPEEDS.length;
+    const newSpeed = PLAYBACK_SPEEDS[nextIndex];
+    audioService.setPlaybackRate(newSpeed);
+    setState(prev => ({ ...prev, playbackSpeed: newSpeed }));
+  }, [state.playbackSpeed]);
+
   const stop = useCallback(() => {
     saveProgress(); // Save before stopping
     audioService.stop();
@@ -375,6 +387,7 @@ export const useAudiobook = () => {
     isLoading: state.isLoading,
     error: state.error,
     allChaptersComplete: state.allChaptersComplete,
+    playbackSpeed: state.playbackSpeed,
     chapters: chapters,
     play,
     pause,
@@ -387,5 +400,6 @@ export const useAudiobook = () => {
     getRemainingTime,
     getButtonText,
     formatTime,
+    cyclePlaybackSpeed,
   };
 };
