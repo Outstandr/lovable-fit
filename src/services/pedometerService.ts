@@ -83,7 +83,17 @@ class PedometerService {
         return false;
       }
 
+      // Request ACTIVITY_RECOGNITION permission first (Android 10+)
+      const hasPermission = await this.requestActivityRecognitionPermission();
+      
+      if (!hasPermission) {
+        console.error(`${LOG_PREFIX} ACTIVITY_RECOGNITION permission denied`);
+        this.hasPermission = false;
+        return false;
+      }
+
       // Start counting steps
+      console.log(`${LOG_PREFIX} Starting pedometer with permission granted...`);
       await CapacitorPedometer.startCounting();
       this.isTracking = true;
       this.hasPermission = true;
@@ -101,6 +111,43 @@ class PedometerService {
     } catch (error) {
       console.error(`${LOG_PREFIX} Failed to start tracking:`, error);
       this.isTracking = false;
+      this.hasPermission = false;
+      return false;
+    }
+  }
+
+  private async requestActivityRecognitionPermission(): Promise<boolean> {
+    if (this.platform !== 'android') {
+      console.log(`${LOG_PREFIX} Not Android, skipping ACTIVITY_RECOGNITION request`);
+      return true; // iOS handles this differently
+    }
+
+    try {
+      console.log(`${LOG_PREFIX} Checking ACTIVITY_RECOGNITION permission...`);
+      
+      // Check current permission status
+      const checkResult = await CapacitorPedometer.checkPermissions();
+      console.log(`${LOG_PREFIX} Current permission status:`, checkResult);
+      
+      if (checkResult?.activityRecognition === 'granted') {
+        console.log(`${LOG_PREFIX} Permission already granted`);
+        return true;
+      }
+      
+      // Request permission
+      console.log(`${LOG_PREFIX} Requesting ACTIVITY_RECOGNITION permission...`);
+      const requestResult = await CapacitorPedometer.requestPermissions();
+      console.log(`${LOG_PREFIX} Permission request result:`, requestResult);
+      
+      if (requestResult?.activityRecognition === 'granted') {
+        console.log(`${LOG_PREFIX} Permission granted!`);
+        return true;
+      }
+      
+      console.log(`${LOG_PREFIX} Permission denied`);
+      return false;
+    } catch (error) {
+      console.error(`${LOG_PREFIX} Permission request error:`, error);
       return false;
     }
   }

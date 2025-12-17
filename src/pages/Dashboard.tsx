@@ -103,6 +103,7 @@ const Dashboard = () => {
       <HealthConnectPrompt 
         platform={platform}
         healthConnectAvailable={healthConnectAvailable}
+        dataSource={dataSource}
         onPermissionGranted={handleHealthConnectGranted}
         onPermissionDenied={handleHealthConnectDenied}
       />
