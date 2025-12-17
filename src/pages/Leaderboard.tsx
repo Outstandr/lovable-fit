@@ -1,19 +1,18 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Trophy, Crown, Medal } from "lucide-react";
+import { Trophy, Crown, Medal, Loader2 } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
-const mockLeaderboard = [
-  { rank: 1, name: "J. STEELE", steps: 45200, avatar: "JS" },
-  { rank: 2, name: "M. FROST", steps: 42100, avatar: "MF" },
-  { rank: 3, name: "K. DARK", steps: 39800, avatar: "KD" },
-  { rank: 4, name: "THE HOTSTEPPER", steps: 38500, avatar: "TH", isCurrentUser: true },
-  { rank: 5, name: "R. STORM", steps: 36200, avatar: "RS" },
-  { rank: 6, name: "D. BLAZE", steps: 34100, avatar: "DB" },
-  { rank: 7, name: "A. NOVA", steps: 31800, avatar: "AN" },
-  { rank: 8, name: "T. HAWK", steps: 29500, avatar: "TH" },
-  { rank: 9, name: "L. VIPER", steps: 27200, avatar: "LV" },
-  { rank: 10, name: "C. WOLF", steps: 25100, avatar: "CW" },
-];
+interface LeaderboardEntry {
+  rank: number;
+  name: string;
+  steps: number;
+  avatar: string;
+  userId: string;
+  isCurrentUser: boolean;
+}
 
 const getRankStyle = (rank: number) => {
   if (rank === 1) return { bg: "bg-yellow-500/20", border: "border-yellow-500/50", text: "text-yellow-400" };
@@ -23,7 +22,114 @@ const getRankStyle = (rank: number) => {
 };
 
 const Leaderboard = () => {
-  const currentUser = mockLeaderboard.find(e => e.isCurrentUser);
+  const { user } = useAuth();
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchLeaderboard = async () => {
+    try {
+      // Get today's date
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Fetch daily steps for today with profiles
+      const { data: stepsData, error: stepsError } = await supabase
+        .from('daily_steps')
+        .select('user_id, steps, date')
+        .eq('date', today)
+        .order('steps', { ascending: false });
+
+      if (stepsError) {
+        console.error('[Leaderboard] Error fetching steps:', stepsError);
+        return;
+      }
+
+      // Get all profiles
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_initials');
+
+      if (profilesError) {
+        console.error('[Leaderboard] Error fetching profiles:', profilesError);
+        return;
+      }
+
+      // Create a map of profiles
+      const profilesMap = new Map(
+        profilesData?.map(p => [p.id, { name: p.display_name, avatar: p.avatar_initials || 'NA' }]) || []
+      );
+
+      // Build leaderboard from steps data
+      const entries: LeaderboardEntry[] = (stepsData || []).map((step, index) => {
+        const profile = profilesMap.get(step.user_id);
+        return {
+          rank: index + 1,
+          name: profile?.name || 'Unknown',
+          steps: step.steps,
+          avatar: profile?.avatar || 'NA',
+          userId: step.user_id,
+          isCurrentUser: step.user_id === user?.id
+        };
+      });
+
+      // If current user has no steps today, add them at the end
+      if (user && !entries.find(e => e.userId === user.id)) {
+        const currentUserProfile = profilesMap.get(user.id);
+        if (currentUserProfile) {
+          entries.push({
+            rank: entries.length + 1,
+            name: currentUserProfile.name,
+            steps: 0,
+            avatar: currentUserProfile.avatar,
+            userId: user.id,
+            isCurrentUser: true
+          });
+        }
+      }
+
+      setLeaderboard(entries);
+    } catch (error) {
+      console.error('[Leaderboard] Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeaderboard();
+
+    // Set up real-time subscription for daily_steps changes
+    const channel = supabase
+      .channel('leaderboard-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'daily_steps'
+        },
+        () => {
+          console.log('[Leaderboard] Steps updated, refreshing...');
+          fetchLeaderboard();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  const currentUser = leaderboard.find(e => e.isCurrentUser);
+  const top3 = leaderboard.slice(0, 3);
+  const rest = leaderboard.slice(3);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pb-24">
@@ -40,64 +146,103 @@ const Leaderboard = () => {
           </h1>
         </div>
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mt-1">
-          Monthly Rankings • Top 50
+          Today's Rankings • {leaderboard.length} Participants
         </p>
       </motion.header>
 
+      {/* Empty State */}
+      {leaderboard.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-20 px-4">
+          <Trophy className="h-16 w-16 text-muted-foreground/30 mb-4" />
+          <p className="text-muted-foreground text-center">
+            No steps recorded today yet.<br />Start walking to climb the leaderboard!
+          </p>
+        </div>
+      )}
+
       {/* Top 3 Podium */}
-      <motion.div 
-        className="flex items-end justify-center gap-2 px-4 py-6"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.2 }}
-      >
-        {/* 2nd Place */}
-        <div className="flex flex-col items-center">
-          <div className="relative">
-            <div className="h-16 w-16 rounded-full border-2 border-gray-400/50 bg-secondary flex items-center justify-center">
-              <span className="text-lg font-bold text-gray-300">{mockLeaderboard[1].avatar}</span>
+      {top3.length >= 3 && (
+        <motion.div 
+          className="flex items-end justify-center gap-2 px-4 py-6"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          {/* 2nd Place */}
+          <div className="flex flex-col items-center">
+            <div className="relative">
+              <div className={`h-16 w-16 rounded-full border-2 border-gray-400/50 bg-secondary flex items-center justify-center ${top3[1].isCurrentUser ? 'ring-2 ring-primary' : ''}`}>
+                <span className="text-lg font-bold text-gray-300">{top3[1].avatar}</span>
+              </div>
+              <Medal className="absolute -bottom-1 -right-1 h-5 w-5 text-gray-300" />
             </div>
-            <Medal className="absolute -bottom-1 -right-1 h-5 w-5 text-gray-300" />
+            <span className="mt-2 text-sm font-semibold text-foreground truncate max-w-[80px]">{top3[1].name}</span>
+            <span className="text-xs font-medium text-primary">{top3[1].steps.toLocaleString()}</span>
+            <div className="mt-2 h-16 w-20 rounded-t-lg bg-gray-400/20 border-t border-x border-gray-400/30" />
           </div>
-          <span className="mt-2 text-sm font-semibold text-foreground">{mockLeaderboard[1].name}</span>
-          <span className="text-xs font-medium text-primary">{mockLeaderboard[1].steps.toLocaleString()}</span>
-          <div className="mt-2 h-16 w-20 rounded-t-lg bg-gray-400/20 border-t border-x border-gray-400/30" />
-        </div>
 
-        {/* 1st Place */}
-        <div className="flex flex-col items-center">
-          <div className="relative">
-            <Crown className="absolute -top-6 left-1/2 -translate-x-1/2 h-6 w-6 text-yellow-400" />
-            <div className="h-20 w-20 rounded-full border-2 border-yellow-500/50 bg-secondary flex items-center justify-center">
-              <span className="text-xl font-bold text-yellow-400">{mockLeaderboard[0].avatar}</span>
+          {/* 1st Place */}
+          <div className="flex flex-col items-center">
+            <div className="relative">
+              <Crown className="absolute -top-6 left-1/2 -translate-x-1/2 h-6 w-6 text-yellow-400" />
+              <div className={`h-20 w-20 rounded-full border-2 border-yellow-500/50 bg-secondary flex items-center justify-center ${top3[0].isCurrentUser ? 'ring-2 ring-primary' : ''}`}>
+                <span className="text-xl font-bold text-yellow-400">{top3[0].avatar}</span>
+              </div>
             </div>
+            <span className="mt-2 text-sm font-bold text-foreground truncate max-w-[96px]">{top3[0].name}</span>
+            <span className="text-xs font-bold text-yellow-400">{top3[0].steps.toLocaleString()}</span>
+            <div className="mt-2 h-24 w-24 rounded-t-lg bg-yellow-500/20 border-t border-x border-yellow-500/30" />
           </div>
-          <span className="mt-2 text-sm font-bold text-foreground">{mockLeaderboard[0].name}</span>
-          <span className="text-xs font-bold text-yellow-400">{mockLeaderboard[0].steps.toLocaleString()}</span>
-          <div className="mt-2 h-24 w-24 rounded-t-lg bg-yellow-500/20 border-t border-x border-yellow-500/30" />
-        </div>
 
-        {/* 3rd Place */}
-        <div className="flex flex-col items-center">
-          <div className="relative">
-            <div className="h-16 w-16 rounded-full border-2 border-amber-600/50 bg-secondary flex items-center justify-center">
-              <span className="text-lg font-bold text-amber-500">{mockLeaderboard[2].avatar}</span>
+          {/* 3rd Place */}
+          <div className="flex flex-col items-center">
+            <div className="relative">
+              <div className={`h-16 w-16 rounded-full border-2 border-amber-600/50 bg-secondary flex items-center justify-center ${top3[2].isCurrentUser ? 'ring-2 ring-primary' : ''}`}>
+                <span className="text-lg font-bold text-amber-500">{top3[2].avatar}</span>
+              </div>
+              <Medal className="absolute -bottom-1 -right-1 h-5 w-5 text-amber-500" />
             </div>
-            <Medal className="absolute -bottom-1 -right-1 h-5 w-5 text-amber-500" />
+            <span className="mt-2 text-sm font-semibold text-foreground truncate max-w-[80px]">{top3[2].name}</span>
+            <span className="text-xs font-medium text-primary">{top3[2].steps.toLocaleString()}</span>
+            <div className="mt-2 h-12 w-20 rounded-t-lg bg-amber-600/20 border-t border-x border-amber-600/30" />
           </div>
-          <span className="mt-2 text-sm font-semibold text-foreground">{mockLeaderboard[2].name}</span>
-          <span className="text-xs font-medium text-primary">{mockLeaderboard[2].steps.toLocaleString()}</span>
-          <div className="mt-2 h-12 w-20 rounded-t-lg bg-amber-600/20 border-t border-x border-amber-600/30" />
-        </div>
-      </motion.div>
+        </motion.div>
+      )}
+
+      {/* Partial Podium for less than 3 users */}
+      {top3.length > 0 && top3.length < 3 && (
+        <motion.div 
+          className="flex items-end justify-center gap-4 px-4 py-6"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          {top3.map((entry, index) => {
+            const style = getRankStyle(index + 1);
+            return (
+              <div key={entry.userId} className="flex flex-col items-center">
+                <div className="relative">
+                  {index === 0 && <Crown className="absolute -top-6 left-1/2 -translate-x-1/2 h-6 w-6 text-yellow-400" />}
+                  <div className={`h-16 w-16 rounded-full border-2 ${style.border} bg-secondary flex items-center justify-center ${entry.isCurrentUser ? 'ring-2 ring-primary' : ''}`}>
+                    <span className={`text-lg font-bold ${style.text}`}>{entry.avatar}</span>
+                  </div>
+                  {index > 0 && <Medal className={`absolute -bottom-1 -right-1 h-5 w-5 ${style.text}`} />}
+                </div>
+                <span className="mt-2 text-sm font-semibold text-foreground truncate max-w-[80px]">{entry.name}</span>
+                <span className="text-xs font-medium text-primary">{entry.steps.toLocaleString()}</span>
+              </div>
+            );
+          })}
+        </motion.div>
+      )}
 
       {/* Full List */}
       <div className="px-4 space-y-2">
-        {mockLeaderboard.slice(3).map((entry, index) => {
+        {rest.map((entry, index) => {
           const style = getRankStyle(entry.rank);
           return (
             <motion.div
-              key={entry.rank}
+              key={entry.userId}
               className={`flex items-center justify-between rounded-lg px-4 py-3 ${
                 entry.isCurrentUser 
                   ? 'bg-primary/10 border border-primary/30' 
@@ -127,7 +272,7 @@ const Leaderboard = () => {
       </div>
 
       {/* Pinned User Rank */}
-      {currentUser && (
+      {currentUser && currentUser.rank > 3 && (
         <motion.div 
           className="fixed bottom-20 left-0 right-0 px-4 z-40"
           initial={{ opacity: 0, y: 20 }}
