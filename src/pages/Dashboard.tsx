@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
 import { WeeklyChart } from "@/components/WeeklyChart";
 import { DataSourceBadge } from "@/components/DataSourceBadge";
+import { HealthConnectPrompt } from "@/components/HealthConnectPrompt";
 import { usePedometer } from "@/hooks/usePedometer";
 import { useStreak } from "@/hooks/useStreak";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const TARGET_STEPS = 10000;
 
@@ -19,10 +21,12 @@ const Dashboard = () => {
   const { user } = useAuth();
   const { 
     steps, distance, calories, avgSpeed,
-    dataSource,
+    dataSource, platform, healthConnectAvailable,
+    lastUpdate, requestHealthConnectPermission,
   } = usePedometer();
   const { streak, updateStreakOnTargetHit } = useStreak();
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
+  const [displayTime, setDisplayTime] = useState(new Date());
 
   // Fetch recent active sessions
   useEffect(() => {
@@ -57,8 +61,52 @@ const Dashboard = () => {
     }
   }, [steps, updateStreakOnTargetHit]);
 
+  // Update display time every 10 seconds for "last updated" display
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDisplayTime(new Date());
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Handle Health Connect permission granted
+  const handleHealthConnectGranted = useCallback(() => {
+    console.log('[Dashboard] Health Connect permission granted - refreshing data');
+    requestHealthConnectPermission();
+  }, [requestHealthConnectPermission]);
+
+  // Handle Health Connect permission denied
+  const handleHealthConnectDenied = useCallback(() => {
+    console.log('[Dashboard] Health Connect permission denied - using phone sensor');
+    toast.info('Using phone sensor for step tracking');
+  }, []);
+
+  // Format last update time
+  const formatLastUpdate = () => {
+    const now = displayTime;
+    const diffMs = now.getTime() - lastUpdate.getTime();
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    
+    if (diffSecs < 30) return 'just now';
+    if (diffMins < 1) return `${diffSecs}s ago`;
+    if (diffMins < 60) return `${diffMins}m ago`;
+    return lastUpdate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Display distance (use real or estimate from steps)
+  const displayDistance = distance > 0 ? distance : (steps * 0.762) / 1000;
+
   return (
     <div className="min-h-screen pb-24 relative">
+      {/* Auto-request Health Connect permission on first launch */}
+      <HealthConnectPrompt 
+        platform={platform}
+        healthConnectAvailable={healthConnectAvailable}
+        onPermissionGranted={handleHealthConnectGranted}
+        onPermissionDenied={handleHealthConnectDenied}
+      />
+
       {/* Subtle radial gradient overlay */}
       <div className="absolute inset-0 pointer-events-none" style={{
         background: 'radial-gradient(circle at top center, hsl(186, 100%, 50%, 0.05), transparent 60%)'
@@ -104,6 +152,18 @@ const Dashboard = () => {
         </div>
       </motion.div>
 
+      {/* Last Update Indicator */}
+      <motion.div 
+        className="text-center -mt-4 mb-2 relative z-10"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+      >
+        <p className="text-xs text-muted-foreground">
+          Updated {formatLastUpdate()}
+        </p>
+      </motion.div>
+
       {/* Quick Stats Row */}
       <motion.div 
         className="grid grid-cols-3 gap-3 px-4 relative z-10"
@@ -128,7 +188,7 @@ const Dashboard = () => {
             <MapPin className="h-6 w-6 text-primary" />
           </div>
           <div className="text-center">
-            <p className="text-xl font-bold text-foreground tabular-nums">{distance.toFixed(1)}</p>
+            <p className="text-xl font-bold text-foreground tabular-nums">{displayDistance.toFixed(1)}</p>
             <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">KM</p>
           </div>
         </div>
