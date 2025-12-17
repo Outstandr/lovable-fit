@@ -133,63 +133,6 @@ export const useAudiobook = () => {
     };
   }, [saveProgress]);
 
-  // Setup audio event listeners
-  useEffect(() => {
-    const handleTimeUpdate = ({ currentTime, duration }: { currentTime: number; duration: number }) => {
-      setState(prev => ({ ...prev, currentTime, duration }));
-      
-      // Check for 90% completion
-      if (state.currentChapter && duration > 0) {
-        const percentComplete = (currentTime / duration) * 100;
-        if (percentComplete >= 90 && !hasTriggeredCompletion.current.has(state.currentChapter.id)) {
-          hasTriggeredCompletion.current.add(state.currentChapter.id);
-          handleChapterComplete(state.currentChapter.id);
-        }
-      }
-    };
-
-    const handleEnded = () => {
-      setState(prev => ({ ...prev, isPlaying: false }));
-      // Auto-advance to next chapter
-      if (state.currentChapter) {
-        const nextChapter = chapters.find(c => c.id === state.currentChapter!.id + 1);
-        if (nextChapter) {
-          loadChapter(nextChapter.id);
-          setTimeout(() => play(), 500);
-        } else {
-          setState(prev => ({ ...prev, allChaptersComplete: true }));
-          toast.success("🎉 All chapters completed!");
-        }
-      }
-    };
-
-    const handlePlay = () => setState(prev => ({ ...prev, isPlaying: true }));
-    const handlePause = () => setState(prev => ({ ...prev, isPlaying: false }));
-    const handleError = ({ error }: { error: string }) => {
-      setState(prev => ({ ...prev, error, isLoading: false }));
-      toast.error(error);
-    };
-    const handleLoaded = ({ duration }: { duration: number }) => {
-      setState(prev => ({ ...prev, duration, isLoading: false }));
-    };
-
-    audioService.on('timeUpdate', handleTimeUpdate);
-    audioService.on('ended', handleEnded);
-    audioService.on('play', handlePlay);
-    audioService.on('pause', handlePause);
-    audioService.on('error', handleError);
-    audioService.on('loaded', handleLoaded);
-
-    return () => {
-      audioService.off('timeUpdate', handleTimeUpdate);
-      audioService.off('ended', handleEnded);
-      audioService.off('play', handlePlay);
-      audioService.off('pause', handlePause);
-      audioService.off('error', handleError);
-      audioService.off('loaded', handleLoaded);
-    };
-  }, [state.currentChapter]);
-
   const handleChapterComplete = async (chapterId: number) => {
     toast.success("✓ Chapter completed! Daily reading task complete");
     
@@ -228,11 +171,11 @@ export const useAudiobook = () => {
     }
   };
 
-  const loadChapter = useCallback(async (chapterId: number) => {
+  const loadChapter = useCallback(async (chapterId: number, autoPlay: boolean = false): Promise<boolean> => {
     const chapter = chapters.find(c => c.id === chapterId);
     if (!chapter) {
       setState(prev => ({ ...prev, error: 'Chapter not found' }));
-      return;
+      return false;
     }
 
     setState(prev => ({ ...prev, isLoading: true, currentChapter: chapter, error: null }));
@@ -242,26 +185,113 @@ export const useAudiobook = () => {
     if (!audioUrl) {
       setState(prev => ({ ...prev, error: 'Failed to load audio file', isLoading: false }));
       toast.error('Failed to load audio file');
-      return;
+      return false;
     }
     
     audioService.init(audioUrl);
     
-    // Resume from saved position
-    const savedPosition = state.chapterProgress.get(chapterId);
-    if (savedPosition && savedPosition > 0) {
-      setTimeout(() => audioService.seekTo(savedPosition), 100);
-    }
-  }, [state.chapterProgress]);
+    // Wait for audio to be ready before seeking/playing
+    return new Promise((resolve) => {
+      const handleCanPlay = () => {
+        audioService.off('loaded', handleCanPlay);
+        
+        // Resume from saved position
+        const savedPosition = chapterProgressRef.current.get(chapterId);
+        if (savedPosition && savedPosition > 0) {
+          console.log('[useAudiobook] Seeking to saved position:', savedPosition);
+          audioService.seekTo(savedPosition);
+        }
+        
+        if (autoPlay) {
+          console.log('[useAudiobook] Auto-playing after load');
+          audioService.play();
+        }
+        
+        resolve(true);
+      };
+      
+      audioService.on('loaded', handleCanPlay);
+      
+      // Timeout fallback in case loaded event doesn't fire
+      setTimeout(() => {
+        audioService.off('loaded', handleCanPlay);
+        const savedPosition = chapterProgressRef.current.get(chapterId);
+        if (savedPosition && savedPosition > 0) {
+          audioService.seekTo(savedPosition);
+        }
+        if (autoPlay) {
+          audioService.play();
+        }
+        resolve(true);
+      }, 3000);
+    });
+  }, []);
 
   const play = useCallback(async () => {
     if (!state.currentChapter) {
-      // Load first chapter if none selected
-      loadChapter(1);
-      setTimeout(() => audioService.play(), 200);
+      // Load first chapter and auto-play when ready
+      console.log('[useAudiobook] No chapter loaded, loading chapter 1');
+      await loadChapter(1, true);
       return;
     }
+    console.log('[useAudiobook] Playing current chapter');
     await audioService.play();
+  }, [state.currentChapter, loadChapter]);
+
+  // Setup audio event listeners (after loadChapter is defined)
+  useEffect(() => {
+    const handleTimeUpdate = ({ currentTime, duration }: { currentTime: number; duration: number }) => {
+      setState(prev => ({ ...prev, currentTime, duration }));
+      
+      // Check for 90% completion
+      if (state.currentChapter && duration > 0) {
+        const percentComplete = (currentTime / duration) * 100;
+        if (percentComplete >= 90 && !hasTriggeredCompletion.current.has(state.currentChapter.id)) {
+          hasTriggeredCompletion.current.add(state.currentChapter.id);
+          handleChapterComplete(state.currentChapter.id);
+        }
+      }
+    };
+
+    const handleEnded = () => {
+      setState(prev => ({ ...prev, isPlaying: false }));
+      // Auto-advance to next chapter
+      if (state.currentChapter) {
+        const nextChapter = chapters.find(c => c.id === state.currentChapter!.id + 1);
+        if (nextChapter) {
+          loadChapter(nextChapter.id, true); // Auto-play next chapter
+        } else {
+          setState(prev => ({ ...prev, allChaptersComplete: true }));
+          toast.success("🎉 All chapters completed!");
+        }
+      }
+    };
+
+    const handlePlay = () => setState(prev => ({ ...prev, isPlaying: true }));
+    const handlePause = () => setState(prev => ({ ...prev, isPlaying: false }));
+    const handleError = ({ error }: { error: string }) => {
+      setState(prev => ({ ...prev, error, isLoading: false }));
+      toast.error(error);
+    };
+    const handleLoaded = ({ duration }: { duration: number }) => {
+      setState(prev => ({ ...prev, duration, isLoading: false }));
+    };
+
+    audioService.on('timeUpdate', handleTimeUpdate);
+    audioService.on('ended', handleEnded);
+    audioService.on('play', handlePlay);
+    audioService.on('pause', handlePause);
+    audioService.on('error', handleError);
+    audioService.on('loaded', handleLoaded);
+
+    return () => {
+      audioService.off('timeUpdate', handleTimeUpdate);
+      audioService.off('ended', handleEnded);
+      audioService.off('play', handlePlay);
+      audioService.off('pause', handlePause);
+      audioService.off('error', handleError);
+      audioService.off('loaded', handleLoaded);
+    };
   }, [state.currentChapter, loadChapter]);
 
   const pause = useCallback(() => {
