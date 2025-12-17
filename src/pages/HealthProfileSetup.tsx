@@ -223,13 +223,17 @@ export default function HealthProfileSetup() {
       if (error) throw error;
       
       toast.success('Profile saved successfully');
-      navigate('/dashboard');
+      navigate('/');
     } catch (error) {
       console.error('Error saving profile:', error);
       toast.error('Failed to save profile');
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleSkip = () => {
+    navigate('/');
   };
 
   if (isLoading) {
@@ -453,7 +457,7 @@ export default function HealthProfileSetup() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="pt-4"
+          className="pt-4 space-y-3"
         >
           <Button
             onClick={handleSave}
@@ -462,6 +466,13 @@ export default function HealthProfileSetup() {
           >
             {isSaving ? 'SAVING...' : 'SAVE & CONTINUE'}
           </Button>
+          
+          <button
+            onClick={handleSkip}
+            className="w-full py-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Skip for Now
+          </button>
         </motion.div>
 
         {/* Last updated info */}

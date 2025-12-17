@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
 import { WeeklyChart } from "@/components/WeeklyChart";
 import { DataSourceBadge } from "@/components/DataSourceBadge";
+import { OnboardingPrompt } from "@/components/OnboardingPrompt";
 import { usePedometer } from "@/hooks/usePedometer";
 import { useStreak } from "@/hooks/useStreak";
 import { useEffect, useState } from "react";
@@ -13,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
 const TARGET_STEPS = 10000;
+const ONBOARDING_SKIP_KEY = 'hotstepper_onboarding_skipped';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -24,6 +26,7 @@ const Dashboard = () => {
   const { streak, updateStreakOnTargetHit } = useStreak();
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
   const [displayTime, setDisplayTime] = useState(new Date());
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Fetch recent active sessions
   useEffect(() => {
@@ -50,6 +53,37 @@ const Dashboard = () => {
       fetchRecentSessions();
     }
   }, [user, steps]);
+
+  // Check if profile is complete and show onboarding prompt
+  useEffect(() => {
+    const checkProfileCompletion = async () => {
+      if (!user) return;
+
+      // Check if user has skipped onboarding today
+      const skippedDate = localStorage.getItem(ONBOARDING_SKIP_KEY);
+      const today = new Date().toDateString();
+      if (skippedDate === today) return;
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('profile_completed')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('[Dashboard] Profile check error:', error);
+        return;
+      }
+
+      // Show onboarding if profile is not complete
+      if (!data?.profile_completed) {
+        // Delay to let the dashboard load first
+        setTimeout(() => setShowOnboarding(true), 2000);
+      }
+    };
+
+    checkProfileCompletion();
+  }, [user]);
 
   // Update streak when target is hit
   useEffect(() => {
@@ -84,6 +118,11 @@ const Dashboard = () => {
   
   // Estimate active time from steps (avg 120 steps/min)
   const activeMinutes = Math.floor(steps / 120);
+
+  const handleOnboardingSkip = () => {
+    // Save skip date so we don't show again today
+    localStorage.setItem(ONBOARDING_SKIP_KEY, new Date().toDateString());
+  };
 
   return (
     <div className="min-h-screen pb-24 relative">
@@ -287,6 +326,13 @@ const Dashboard = () => {
       </div>
 
       <BottomNav />
+
+      {/* Onboarding Prompt */}
+      <OnboardingPrompt 
+        isOpen={showOnboarding} 
+        onClose={() => setShowOnboarding(false)}
+        onSkip={handleOnboardingSkip}
+      />
     </div>
   );
 };
