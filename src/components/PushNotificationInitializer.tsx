@@ -1,16 +1,37 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { pushNotificationService } from '@/services/pushNotificationService';
+import { pedometerService } from '@/services/pedometerService';
 import { toast } from 'sonner';
 
 interface PushNotificationInitializerProps {
   children: React.ReactNode;
 }
 
+// Wait for pedometer permission flow to complete before requesting push permissions
+const waitForPedometerInit = async (maxWaitMs: number = 8000): Promise<void> => {
+  const startTime = Date.now();
+  
+  // Minimum 2s wait to let permission dialog appear
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  // Poll every 500ms to check if pedometer has resolved permission
+  while (Date.now() - startTime < maxWaitMs) {
+    // If pedometer has permission OR is already tracking, permission flow is complete
+    if (pedometerService.getHasPermission() || pedometerService.getIsTracking()) {
+      console.log('[PushNotifications] Pedometer init complete, proceeding...');
+      return;
+    }
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  
+  console.log('[PushNotifications] Pedometer init timeout, proceeding anyway...');
+};
+
 export function PushNotificationInitializer({ children }: PushNotificationInitializerProps) {
   const { user } = useAuth();
 
-  // Initialize push notifications after user login
+  // Initialize push notifications after user login AND pedometer init
   useEffect(() => {
     const initializePushNotifications = async () => {
       // Only initialize on native platforms (Android/iOS)
@@ -26,6 +47,9 @@ export function PushNotificationInitializer({ children }: PushNotificationInitia
       }
 
       try {
+        // Wait for pedometer permission flow to complete first
+        await waitForPedometerInit();
+        
         console.log('[PushNotifications] Initializing for user:', user.id);
         
         // Initialize push notifications (requests permission)
@@ -46,13 +70,8 @@ export function PushNotificationInitializer({ children }: PushNotificationInitia
       }
     };
 
-    // Delay initialization to let auth complete and UI load
     if (user) {
-      const timer = setTimeout(() => {
-        initializePushNotifications();
-      }, 5000); // 5 second delay to let physical activity permission complete first
-
-      return () => clearTimeout(timer);
+      initializePushNotifications();
     }
   }, [user]);
 
