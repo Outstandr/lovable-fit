@@ -50,7 +50,7 @@ export function PushNotificationInitializer({ children }: PushNotificationInitia
     if (user) {
       const timer = setTimeout(() => {
         initializePushNotifications();
-      }, 2000);
+      }, 5000); // 5 second delay to let physical activity permission complete first
 
       return () => clearTimeout(timer);
     }
