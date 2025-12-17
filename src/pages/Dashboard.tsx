@@ -1,18 +1,16 @@
 import { motion } from "framer-motion";
-import { MapPin, Flame, Zap, Play, Settings, Share2, PersonStanding } from "lucide-react";
+import { MapPin, Flame, Clock, Play, Settings, Share2, PersonStanding } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ProgressRing } from "@/components/ProgressRing";
 import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
 import { WeeklyChart } from "@/components/WeeklyChart";
 import { DataSourceBadge } from "@/components/DataSourceBadge";
-import { HealthConnectPrompt } from "@/components/HealthConnectPrompt";
 import { usePedometer } from "@/hooks/usePedometer";
 import { useStreak } from "@/hooks/useStreak";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
 
 const TARGET_STEPS = 10000;
 
@@ -20,9 +18,8 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { 
-    steps, distance, calories, avgSpeed,
-    dataSource, platform, healthConnectAvailable,
-    lastUpdate, requestHealthConnectPermission,
+    steps, distance, calories,
+    dataSource, lastUpdate,
   } = usePedometer();
   const { streak, updateStreakOnTargetHit } = useStreak();
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
@@ -69,18 +66,6 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Handle Health Connect permission granted
-  const handleHealthConnectGranted = useCallback(() => {
-    console.log('[Dashboard] Health Connect permission granted - refreshing data');
-    requestHealthConnectPermission();
-  }, [requestHealthConnectPermission]);
-
-  // Handle Health Connect permission denied
-  const handleHealthConnectDenied = useCallback(() => {
-    console.log('[Dashboard] Health Connect permission denied - using phone sensor');
-    toast.info('Using phone sensor for step tracking');
-  }, []);
-
   // Format last update time
   const formatLastUpdate = () => {
     const now = displayTime;
@@ -96,18 +81,12 @@ const Dashboard = () => {
 
   // Display distance (use real or estimate from steps)
   const displayDistance = distance > 0 ? distance : (steps * 0.762) / 1000;
+  
+  // Estimate active time from steps (avg 120 steps/min)
+  const activeMinutes = Math.floor(steps / 120);
 
   return (
     <div className="min-h-screen pb-24 relative">
-      {/* Auto-request Health Connect permission on first launch */}
-      <HealthConnectPrompt 
-        platform={platform}
-        healthConnectAvailable={healthConnectAvailable}
-        dataSource={dataSource}
-        onPermissionGranted={handleHealthConnectGranted}
-        onPermissionDenied={handleHealthConnectDenied}
-      />
-
       {/* Subtle radial gradient overlay */}
       <div className="absolute inset-0 pointer-events-none" style={{
         background: 'radial-gradient(circle at top center, hsl(186, 100%, 50%, 0.05), transparent 60%)'
@@ -194,14 +173,14 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Avg Speed */}
+        {/* Active Time (estimated from steps) */}
         <div className="flex flex-col items-center gap-2">
           <div className="h-14 w-14 rounded-full bg-card flex items-center justify-center border border-border/30">
-            <Zap className="h-6 w-6 text-primary" />
+            <Clock className="h-6 w-6 text-primary" />
           </div>
           <div className="text-center">
-            <p className="text-xl font-bold text-foreground tabular-nums">{avgSpeed.toFixed(1)}</p>
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">km/h</p>
+            <p className="text-xl font-bold text-foreground tabular-nums">{activeMinutes}</p>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">min</p>
           </div>
         </div>
       </motion.div>

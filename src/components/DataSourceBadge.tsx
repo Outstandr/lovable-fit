@@ -1,5 +1,6 @@
-import { Activity, Smartphone, AlertCircle } from "lucide-react";
-import type { DataSource } from '@/services/healthConnectService';
+import { Smartphone, AlertCircle } from "lucide-react";
+
+export type DataSource = 'pedometer' | 'unavailable';
 
 interface DataSourceBadgeProps {
   dataSource: DataSource;
@@ -17,26 +18,13 @@ export function DataSourceBadge({ dataSource, compact = false }: DataSourceBadge
     );
   }
   
-  if (dataSource === 'healthconnect') {
-    return (
-      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30">
-        <Activity className="h-3.5 w-3.5 text-primary" />
-        {!compact && <span className="text-xs font-semibold text-primary">Health Connect</span>}
-      </div>
-    );
-  }
-  
-  if (dataSource === 'pedometer') {
-    return (
-      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent/10 border border-accent/30">
-        <Smartphone className="h-3.5 w-3.5 text-accent" />
-        {!compact && <span className="text-xs font-semibold text-accent">Phone Sensor</span>}
-      </div>
-    );
-  }
-  
-  return null;
+  // Default: pedometer active
+  return (
+    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30">
+      <Smartphone className="h-3.5 w-3.5 text-primary" />
+      {!compact && <span className="text-xs font-semibold text-primary">Active</span>}
+    </div>
+  );
 }
 
-// Named export for backward compatibility
 export { DataSourceBadge as default };
