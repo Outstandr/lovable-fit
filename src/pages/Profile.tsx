@@ -161,6 +161,8 @@ const Profile = () => {
             onClick={() => {
               if (item.action === 'health-profile') {
                 navigate('/health-profile');
+              } else if (item.action === 'notifications') {
+                navigate('/notifications');
               }
             }}
             className="w-full tactical-card flex items-center justify-between hover:border-primary/50 transition-colors"

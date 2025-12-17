@@ -12,6 +12,7 @@ import Leaderboard from "./pages/Leaderboard";
 import Protocol from "./pages/Protocol";
 import Profile from "./pages/Profile";
 import HealthProfileSetup from "./pages/HealthProfileSetup";
+import NotificationSettings from "./pages/NotificationSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,11 @@ const App = () => (
               <Route path="/health-profile" element={
                 <ProtectedRoute>
                   <HealthProfileSetup />
+                </ProtectedRoute>
+              } />
+              <Route path="/notifications" element={
+                <ProtectedRoute>
+                  <NotificationSettings />
                 </ProtectedRoute>
               } />
               <Route path="*" element={<NotFound />} />
