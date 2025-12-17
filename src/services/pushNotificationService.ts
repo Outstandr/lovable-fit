@@ -139,22 +139,32 @@ class PushNotificationService {
       }
 
       const deviceType = Capacitor.getPlatform() as 'ios' | 'android' | 'web';
+      console.log('[PushNotification] Saving token for user:', user.id, 'device:', deviceType);
 
-      const { error } = await supabase
+      // First, delete any existing tokens for this user/device combo
+      const { error: deleteError } = await supabase
         .from('user_push_tokens')
-        .upsert({
+        .delete()
+        .eq('user_id', user.id)
+        .eq('device_type', deviceType);
+
+      if (deleteError) {
+        console.error('[PushNotification] Error deleting old token:', deleteError);
+      }
+
+      // Then insert the new token
+      const { error: insertError } = await supabase
+        .from('user_push_tokens')
+        .insert({
           user_id: user.id,
           push_token: token,
-          device_type: deviceType,
-          updated_at: new Date().toISOString()
-        }, { 
-          onConflict: 'user_id,push_token'
+          device_type: deviceType
         });
 
-      if (error) {
-        console.error('[PushNotification] Error saving token:', error);
+      if (insertError) {
+        console.error('[PushNotification] Error inserting token:', insertError);
       } else {
-        console.log('[PushNotification] Token saved successfully');
+        console.log('[PushNotification] Token saved successfully!');
       }
     } catch (error) {
       console.error('[PushNotification] Error in saveTokenToDatabase:', error);
