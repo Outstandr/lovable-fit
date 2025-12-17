@@ -85,18 +85,35 @@ export function usePedometer() {
       const started = await pedometerService.start();
       
       if (started) {
+        console.log(`${LOG_PREFIX} Pedometer started successfully`);
         setState(prev => ({
           ...prev,
           dataSource: 'pedometer',
           isTracking: true,
           hasPermission: true,
           lastUpdate: new Date(),
+          error: null,
         }));
         
         return true;
+      } else {
+        console.log(`${LOG_PREFIX} Pedometer failed to start - permission likely denied`);
+        setState(prev => ({
+          ...prev,
+          dataSource: 'unavailable',
+          isTracking: false,
+          hasPermission: false,
+          error: 'Physical Activity permission required for step tracking',
+        }));
       }
     } catch (error) {
       console.error(`${LOG_PREFIX} Pedometer start error:`, error);
+      setState(prev => ({
+        ...prev,
+        dataSource: 'unavailable',
+        isTracking: false,
+        error: 'Step tracking unavailable',
+      }));
     }
     
     return false;

@@ -1,9 +1,14 @@
 import { useEffect, useRef } from 'react';
-import { healthConnectService, HealthConnectStatus } from '@/services/healthConnectService';
+import { healthConnectService, HealthConnectStatus, DataSource } from '@/services/healthConnectService';
+import { AlertCircle, Settings } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { motion } from 'framer-motion';
 
 interface HealthConnectPromptProps {
   platform: 'android' | 'ios' | 'web';
   healthConnectAvailable: HealthConnectStatus;
+  dataSource?: DataSource;
   onPermissionGranted?: () => void;
   onPermissionDenied?: () => void;
 }
@@ -11,6 +16,7 @@ interface HealthConnectPromptProps {
 export function HealthConnectPrompt({ 
   platform, 
   healthConnectAvailable,
+  dataSource,
   onPermissionGranted,
   onPermissionDenied,
 }: HealthConnectPromptProps) {
@@ -67,7 +73,41 @@ export function HealthConnectPrompt({
     return () => clearTimeout(timer);
   }, [platform, healthConnectAvailable, onPermissionGranted, onPermissionDenied]);
   
-  // No visible UI - this component only handles automatic permission request
+  // Show manual permission prompt if tracking is unavailable
+  if (dataSource === 'unavailable' && platform === 'android') {
+    return (
+      <motion.div 
+        className="px-4 py-3 mx-4 mt-4 rounded-lg bg-destructive/10 border border-destructive/30 flex items-start gap-3"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <h3 className="text-sm font-semibold text-destructive mb-1">
+            Permission Required
+          </h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            Step tracking requires "Physical Activity" permission. Please grant this permission in your phone's Settings → Apps → HotStepper → Permissions.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              toast.info('Opening Settings...', { description: 'Navigate to Apps → HotStepper → Permissions → Physical Activity' });
+              // Try to open app settings if available
+              healthConnectService.openSettings?.();
+            }}
+            className="text-xs gap-2"
+          >
+            <Settings className="h-3 w-3" />
+            Open Settings
+          </Button>
+        </div>
+      </motion.div>
+    );
+  }
+  
+  // No visible UI when tracking is working
   return null;
 }
 
