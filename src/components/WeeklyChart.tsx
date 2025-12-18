@@ -22,23 +22,22 @@ export const WeeklyChart = () => {
       const today = new Date();
       const weekData: DayData[] = [];
 
-      // Get last 7 days
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
+      // Get last 7 days including today
+      const startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 6);
+      
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
         
         weekData.push({
           day: days[date.getDay()],
           steps: 0,
-          isToday: i === 0,
+          isToday: i === 6,
         });
       }
 
       // Fetch actual data
-      const startDate = new Date(today);
-      startDate.setDate(startDate.getDate() - 6);
-      
       const { data: stepsData } = await supabase
         .from('daily_steps')
         .select('date, steps')
@@ -48,8 +47,10 @@ export const WeeklyChart = () => {
 
       if (stepsData) {
         stepsData.forEach(record => {
-          const recordDate = new Date(record.date);
-          const dayIndex = Math.floor((recordDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+          const recordDate = new Date(record.date + 'T00:00:00');
+          const startDateTime = new Date(startDate.toISOString().split('T')[0] + 'T00:00:00');
+          const diffTime = recordDate.getTime() - startDateTime.getTime();
+          const dayIndex = Math.round(diffTime / (1000 * 60 * 60 * 24));
           if (dayIndex >= 0 && dayIndex < 7) {
             weekData[dayIndex].steps = record.steps;
           }
@@ -60,6 +61,10 @@ export const WeeklyChart = () => {
     };
 
     fetchWeeklyData();
+    
+    // Refresh every minute for real-time updates
+    const interval = setInterval(fetchWeeklyData, 60000);
+    return () => clearInterval(interval);
   }, [user]);
 
   const CustomTooltip = ({ active, payload }: any) => {

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { pushNotificationService } from '@/services/pushNotificationService';
 import { pedometerService } from '@/services/pedometerService';
@@ -30,10 +30,18 @@ const waitForPedometerInit = async (maxWaitMs: number = 8000): Promise<void> => 
 
 export function PushNotificationInitializer({ children }: PushNotificationInitializerProps) {
   const { user } = useAuth();
+  const hasInitialized = useRef(false);
+  const hasShownToast = useRef(false);
 
   // Initialize push notifications after user login AND pedometer init
   useEffect(() => {
     const initializePushNotifications = async () => {
+      // Prevent multiple initializations
+      if (hasInitialized.current) {
+        console.log('[PushNotifications] Already initialized, skipping');
+        return;
+      }
+
       // Only initialize on native platforms (Android/iOS)
       if (!pushNotificationService.isSupported()) {
         console.log('[PushNotifications] Not supported on this platform');
@@ -47,6 +55,8 @@ export function PushNotificationInitializer({ children }: PushNotificationInitia
       }
 
       try {
+        hasInitialized.current = true;
+        
         // Wait for pedometer permission flow to complete first
         await waitForPedometerInit();
         
@@ -58,10 +68,11 @@ export function PushNotificationInitializer({ children }: PushNotificationInitia
         // Check if permission was granted
         const hasPermission = await pushNotificationService.checkPermission();
         
-        if (hasPermission) {
+        if (hasPermission && !hasShownToast.current) {
           const token = pushNotificationService.getToken();
           console.log('[PushNotifications] Enabled, token:', token ? 'received' : 'pending');
           toast.success('🔔 Push notifications enabled!');
+          hasShownToast.current = true;
         } else {
           console.log('[PushNotifications] Permission denied by user');
         }
@@ -70,14 +81,16 @@ export function PushNotificationInitializer({ children }: PushNotificationInitia
       }
     };
 
-    if (user) {
+    if (user && !hasInitialized.current) {
       initializePushNotifications();
     }
   }, [user]);
 
   // Clean up push token on logout
   useEffect(() => {
-    if (!user) {
+    if (!user && hasInitialized.current) {
+      hasInitialized.current = false;
+      hasShownToast.current = false;
       pushNotificationService.removeToken().catch(err => {
         console.error('[PushNotifications] Error removing token:', err);
       });

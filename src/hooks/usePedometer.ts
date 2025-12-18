@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { pedometerService } from '@/services/pedometerService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useOfflineSync } from './useOfflineSync';
 
 const LOG_PREFIX = '[usePedometer]';
 
@@ -24,6 +25,7 @@ const PEDOMETER_POLL_INTERVAL = 3000; // 3 seconds
 
 export function usePedometer() {
   const { user } = useAuth();
+  const { isOnline, queueStepData } = useOfflineSync();
   const [state, setState] = useState<PedometerState>({
     steps: 0,
     distance: 0,
@@ -38,6 +40,37 @@ export function usePedometer() {
   });
 
   const lastSyncSteps = useRef(0);
+
+  // Load today's steps from database on login
+  useEffect(() => {
+    const loadTodaySteps = async () => {
+      if (!user) return;
+      
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { data, error } = await supabase
+        .from('daily_steps')
+        .select('steps, distance_km, calories')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .maybeSingle();
+      
+      if (data && !error) {
+        console.log(`${LOG_PREFIX} Loaded today steps from DB:`, data.steps);
+        setState(prev => ({
+          ...prev,
+          steps: data.steps || 0,
+          distance: data.distance_km || 0,
+          calories: data.calories || 0,
+        }));
+        lastSyncSteps.current = data.steps || 0;
+      }
+    };
+    
+    if (user) {
+      loadTodaySteps();
+    }
+  }, [user]);
 
   // AUTOMATIC INITIALIZATION - Start pedometer immediately on app launch
   useEffect(() => {
@@ -144,6 +177,14 @@ export function usePedometer() {
     const today = new Date().toISOString().split('T')[0];
     console.log(`${LOG_PREFIX} Syncing ${state.steps} steps to database`);
     
+    // If offline, queue for later sync
+    if (!isOnline) {
+      console.log(`${LOG_PREFIX} Offline, queuing step data`);
+      queueStepData(today, state.steps, state.distance, state.calories);
+      lastSyncSteps.current = state.steps;
+      return;
+    }
+    
     try {
       const { error } = await supabase
         .from('daily_steps')
@@ -158,11 +199,16 @@ export function usePedometer() {
       
       if (error) {
         console.error(`${LOG_PREFIX} Database sync error:`, error);
+        // Queue if sync fails
+        queueStepData(today, state.steps, state.distance, state.calories);
+      } else {
+        lastSyncSteps.current = state.steps;
       }
     } catch (error) {
       console.error(`${LOG_PREFIX} Database sync error:`, error);
+      queueStepData(today, state.steps, state.distance, state.calories);
     }
-  }, [user, state.steps, state.distance, state.calories]);
+  }, [user, state.steps, state.distance, state.calories, isOnline, queueStepData]);
 
   // For Active Session use
   const startTracking = useCallback(async (): Promise<boolean> => {
