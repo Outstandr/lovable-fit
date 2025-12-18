@@ -178,16 +178,16 @@ const ActiveSession = () => {
   const gpsUnavailable = useStepsOnly || (gpsInitialized && (!hasGpsPermission || !!gpsError));
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
+    <div className="min-h-screen-safe flex flex-col">
+      {/* Header with safe area */}
       <motion.header 
-        className="flex items-center gap-4 px-4 pt-6 pb-4"
+        className="flex items-center gap-4 px-4 pb-4 header-safe"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
         <button 
           onClick={() => navigate('/')}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-secondary/80 transition-colors"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-secondary/80 transition-smooth touch-target press-scale"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -231,7 +231,7 @@ const ActiveSession = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-md"
+              className="absolute inset-0 z-overlay flex flex-col items-center justify-center bg-background/95 backdrop-blur-md"
             >
               <motion.div
                 animate={{ 
@@ -273,7 +273,7 @@ const ActiveSession = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => navigate('/')}
-                className="mt-8 border-border/50"
+                className="mt-8 border-border/50 press-scale"
               >
                 <X className="h-4 w-4 mr-2" />
                 Cancel
@@ -289,7 +289,7 @@ const ActiveSession = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-md"
+              className="absolute inset-0 z-overlay flex flex-col items-center justify-center bg-background/95 backdrop-blur-md"
             >
               <div className="mb-6 p-4 rounded-full bg-destructive/20">
                 <Satellite className="h-12 w-12 text-destructive" />
@@ -307,7 +307,7 @@ const ActiveSession = () => {
                   variant="default"
                   size="sm"
                   onClick={handleRetryGPS}
-                  className="w-full"
+                  className="w-full press-scale"
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Try Again
@@ -317,7 +317,7 @@ const ActiveSession = () => {
                   variant="outline"
                   size="sm"
                   onClick={handleOpenSettings}
-                  className="w-full border-border/50"
+                  className="w-full border-border/50 press-scale"
                 >
                   <Settings className="h-4 w-4 mr-2" />
                   Open Settings
@@ -327,7 +327,7 @@ const ActiveSession = () => {
                   variant="ghost"
                   size="sm"
                   onClick={handleUseStepsOnly}
-                  className="w-full text-muted-foreground"
+                  className="w-full text-muted-foreground press-scale"
                 >
                   <Footprints className="h-4 w-4 mr-2" />
                   Use Steps Only
@@ -384,27 +384,26 @@ const ActiveSession = () => {
         </div>
       </motion.div>
 
-      {/* Audiobook Button */}
-      <div className="px-4 pb-4">
+      {/* Bottom Buttons with safe area */}
+      <div className="px-4 safe-area-pb space-y-3 pb-4">
+        {/* Audiobook Button */}
         <Button 
           variant="tactical"
           size="full"
           onClick={() => isAudioPlaying ? togglePlay() : setIsPlayerOpen(true)}
           disabled={allChaptersComplete}
-          className="h-14 text-sm font-bold uppercase tracking-widest"
+          className="h-14 text-sm font-bold uppercase tracking-widest press-scale"
         >
           <Headphones className="mr-2 h-5 w-5" />
           {getButtonText()}
         </Button>
-      </div>
 
-      {/* Stop Button */}
-      <div className="px-4 pb-8">
+        {/* Stop Button */}
         <Button 
           variant="tacticalStop" 
           size="full"
           onClick={handleStop}
-          className="h-14 text-sm font-bold uppercase tracking-widest"
+          className="h-14 text-sm font-bold uppercase tracking-widest press-scale"
         >
           <Square className="mr-2 h-5 w-5 fill-current" />
           Stop / Finish

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { MapPin, Flame, Clock, Play, Settings, Share2, PersonStanding } from "lucide-react";
+import { MapPin, Flame, Clock, Play, Share2, PersonStanding } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ProgressRing } from "@/components/ProgressRing";
 import { Button } from "@/components/ui/button";
@@ -125,31 +125,29 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen pb-24 relative">
+    <div className="min-h-screen-safe page-with-bottom-nav relative">
       {/* Subtle radial gradient overlay */}
       <div className="absolute inset-0 pointer-events-none" style={{
         background: 'radial-gradient(circle at top center, hsl(186, 100%, 50%, 0.05), transparent 60%)'
       }} />
 
-      {/* Header */}
+      {/* Header with safe area */}
       <motion.header 
-        className="flex items-center justify-between px-4 pt-6 pb-2 relative z-10"
+        className="flex items-center justify-between px-4 pb-2 relative z-content header-safe"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <button 
-          onClick={() => navigate('/profile')}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
-        >
-          <Settings className="h-5 w-5" />
-        </button>
+        {/* Empty spacer for symmetry */}
+        <div className="w-10" />
+        
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-bold text-foreground">Today</h1>
           <DataSourceBadge dataSource={dataSource} compact />
         </div>
+        
         <button 
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth touch-target press-scale"
         >
           <Share2 className="h-5 w-5" />
         </button>
@@ -157,7 +155,7 @@ const Dashboard = () => {
 
       {/* Main Progress Ring */}
       <motion.div 
-        className="flex justify-center px-4 py-8 relative z-10"
+        className="flex justify-center px-4 py-8 relative z-content"
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.6, delay: 0.1 }}
@@ -173,7 +171,7 @@ const Dashboard = () => {
 
       {/* Last Update Indicator */}
       <motion.div 
-        className="text-center -mt-4 mb-2 relative z-10"
+        className="text-center -mt-4 mb-2 relative z-content"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.3 }}
@@ -185,7 +183,7 @@ const Dashboard = () => {
 
       {/* Quick Stats Row */}
       <motion.div 
-        className="grid grid-cols-3 gap-3 px-4 relative z-10"
+        className="grid grid-cols-3 gap-3 px-4 relative z-content"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.3 }}
@@ -225,13 +223,13 @@ const Dashboard = () => {
       </motion.div>
 
       {/* Weekly Chart */}
-      <div className="px-4 pt-6 relative z-10">
+      <div className="px-4 pt-6 relative z-content">
         <WeeklyChart />
       </div>
 
       {/* Recent Sessions */}
       {recentSessions.length > 0 && (
-        <div className="px-4 pt-6 relative z-10">
+        <div className="px-4 pt-6 relative z-content">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -288,7 +286,7 @@ const Dashboard = () => {
 
       {/* Empty state for sessions */}
       {recentSessions.length === 0 && (
-        <div className="px-4 pt-6 relative z-10">
+        <div className="px-4 pt-6 pb-8 relative z-content">
           <motion.div
             className="tactical-card text-center py-8"
             initial={{ opacity: 0, y: 20 }}
@@ -303,8 +301,8 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Action Button */}
-      <div className="fixed bottom-20 left-4 right-4 z-40">
+      {/* Action Button - Fixed above bottom nav */}
+      <div className="fixed left-4 right-4 z-fixed fixed-above-nav" style={{ marginBottom: '1rem' }}>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -314,7 +312,7 @@ const Dashboard = () => {
             variant="tactical" 
             size="full"
             onClick={() => navigate('/active')}
-            className="h-14 text-sm font-bold uppercase tracking-widest shadow-lg"
+            className="h-14 text-sm font-bold uppercase tracking-widest shadow-lg press-scale"
             style={{
               boxShadow: '0 8px 24px hsl(186, 100%, 50%, 0.35)'
             }}
