@@ -149,6 +149,11 @@
     min-width: 44px;
     min-height: 44px;
   }
+
+  /* Fixed above bottom nav */
+  .fixed-above-nav {
+    bottom: calc(4rem + env(safe-area-inset-bottom, 0px) + 1rem);
+  }
 }
 
 @layer utilities {

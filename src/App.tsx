@@ -12,6 +12,7 @@ import ActiveSession from "./pages/ActiveSession";
 import Leaderboard from "./pages/Leaderboard";
 import Protocol from "./pages/Protocol";
 import Profile from "./pages/Profile";
+import Audiobook from "./pages/Audiobook";
 import HealthProfileSetup from "./pages/HealthProfileSetup";
 import NotificationSettings from "./pages/NotificationSettings";
 import NotFound from "./pages/NotFound";
@@ -52,6 +53,11 @@ const App = () => (
                 <Route path="/profile" element={
                   <ProtectedRoute>
                     <Profile />
+                  </ProtectedRoute>
+                } />
+                <Route path="/audiobook" element={
+                  <ProtectedRoute>
+                    <Audiobook />
                   </ProtectedRoute>
                 } />
                 <Route path="/health-profile" element={

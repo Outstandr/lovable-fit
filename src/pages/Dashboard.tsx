@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { MapPin, Flame, Clock, Play, Share2, PersonStanding, User, AlertCircle, RefreshCw } from "lucide-react";
+import { MapPin, Flame, Clock, Play, Pause, Share2, PersonStanding, User, AlertCircle, RefreshCw, Headphones } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ProgressRing } from "@/components/ProgressRing";
 import { Button } from "@/components/ui/button";
@@ -9,11 +9,13 @@ import { DataSourceBadge } from "@/components/DataSourceBadge";
 import { OnboardingPrompt } from "@/components/OnboardingPrompt";
 import { usePedometer } from "@/hooks/usePedometer";
 import { useStreak } from "@/hooks/useStreak";
+import { useAudiobook } from "@/hooks/useAudiobook";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from 'sonner';
 import { haptics } from '@/utils/haptics';
+import { Progress } from "@/components/ui/progress";
 
 const TARGET_STEPS = 10000;
 
@@ -25,6 +27,10 @@ const Dashboard = () => {
     dataSource, lastUpdate, syncToDatabase,
   } = usePedometer();
   const { streak, updateStreakOnTargetHit } = useStreak();
+  const { 
+    isPlaying, currentChapter, currentTime, duration, 
+    togglePlay, formatTime, isLoading: audiobookLoading 
+  } = useAudiobook();
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
   const [displayTime, setDisplayTime] = useState(new Date());
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -287,41 +293,109 @@ const Dashboard = () => {
 
         {/* Quick Stats Row */}
         <motion.div 
-          className="grid grid-cols-3 gap-3 px-4 relative z-content"
+          className="grid grid-cols-4 gap-2 px-4 relative z-content"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.3 }}
         >
           {/* Calories */}
           <div className="flex flex-col items-center gap-2">
-            <div className="h-14 w-14 rounded-full bg-card flex items-center justify-center border border-border/30">
-              <Flame className="h-6 w-6 text-primary" />
+            <div className="h-12 w-12 rounded-full bg-card flex items-center justify-center border border-border/30">
+              <Flame className="h-5 w-5 text-primary" />
             </div>
             <div className="text-center">
-              <p className="text-xl font-bold text-foreground tabular-nums">{calories}</p>
-              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Calories</p>
+              <p className="text-lg font-bold text-foreground tabular-nums">{calories}</p>
+              <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">Cals</p>
             </div>
           </div>
 
           {/* Distance */}
           <div className="flex flex-col items-center gap-2">
-            <div className="h-14 w-14 rounded-full bg-card flex items-center justify-center border border-border/30">
-              <MapPin className="h-6 w-6 text-primary" />
+            <div className="h-12 w-12 rounded-full bg-card flex items-center justify-center border border-border/30">
+              <MapPin className="h-5 w-5 text-primary" />
             </div>
             <div className="text-center">
-              <p className="text-xl font-bold text-foreground tabular-nums">{displayDistance.toFixed(1)}</p>
-              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">KM</p>
+              <p className="text-lg font-bold text-foreground tabular-nums">{displayDistance.toFixed(1)}</p>
+              <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">KM</p>
             </div>
           </div>
 
-          {/* Active Time (estimated from steps) */}
+          {/* Active Time */}
           <div className="flex flex-col items-center gap-2">
-            <div className="h-14 w-14 rounded-full bg-card flex items-center justify-center border border-border/30">
-              <Clock className="h-6 w-6 text-primary" />
+            <div className="h-12 w-12 rounded-full bg-card flex items-center justify-center border border-border/30">
+              <Clock className="h-5 w-5 text-primary" />
             </div>
             <div className="text-center">
-              <p className="text-xl font-bold text-foreground tabular-nums">{activeMinutes}</p>
-              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">min</p>
+              <p className="text-lg font-bold text-foreground tabular-nums">{activeMinutes}</p>
+              <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">Min</p>
+            </div>
+          </div>
+
+          {/* Streak */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="h-12 w-12 rounded-full bg-card flex items-center justify-center border border-orange-500/30">
+              <Flame className="h-5 w-5 text-orange-500" />
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-orange-400 tabular-nums">{streak.currentStreak}</p>
+              <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">Streak</p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Audiobook Mini Player */}
+        <motion.div
+          className="px-4 pt-6 relative z-content"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <div 
+            className="tactical-card cursor-pointer"
+            onClick={() => navigate('/audiobook')}
+          >
+            <div className="flex items-center gap-3">
+              {/* Album Art */}
+              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20 flex-shrink-0">
+                <Headphones className="h-6 w-6 text-primary" />
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {currentChapter ? 'Now Playing' : 'Audiobook'}
+                </p>
+                <p className="text-sm font-semibold text-foreground truncate">
+                  {currentChapter?.title || 'Reset Body & Diet'}
+                </p>
+                {duration > 0 && (
+                  <div className="mt-1.5">
+                    <Progress value={(currentTime / duration) * 100} className="h-1" />
+                    <p className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+                      {formatTime(currentTime)} / {formatTime(duration)}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Play/Pause Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  haptics.medium();
+                  togglePlay();
+                }}
+                disabled={audiobookLoading}
+                className="h-10 w-10 rounded-full flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-smooth flex-shrink-0"
+              >
+                {audiobookLoading ? (
+                  <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                ) : isPlaying ? (
+                  <Pause className="h-4 w-4" />
+                ) : (
+                  <Play className="h-4 w-4 ml-0.5" />
+                )}
+              </button>
             </div>
           </div>
         </motion.div>
