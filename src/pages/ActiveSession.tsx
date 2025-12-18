@@ -213,14 +213,40 @@ const ActiveSession = () => {
             directory: Directory.Cache,
           });
           
-          // Step 2: Save to gallery using Media plugin
+          // Step 2: Get or create Hotstepper album
           const { Media } = await import('@capacitor-community/media');
+          let albumIdentifier: string | undefined;
+          
+          try {
+            const { albums } = await Media.getAlbums();
+            console.log('[Save] Available albums:', albums);
+            const hotstepperAlbum = albums.find(a => a.name === 'Hotstepper');
+            
+            if (hotstepperAlbum) {
+              albumIdentifier = hotstepperAlbum.identifier;
+              console.log('[Save] Found existing Hotstepper album:', albumIdentifier);
+            } else {
+              // Create the album if it doesn't exist
+              console.log('[Save] Creating Hotstepper album...');
+              await Media.createAlbum({ name: 'Hotstepper' });
+              
+              // Fetch albums again to get the identifier
+              const { albums: updatedAlbums } = await Media.getAlbums();
+              const newAlbum = updatedAlbums.find(a => a.name === 'Hotstepper');
+              albumIdentifier = newAlbum?.identifier;
+              console.log('[Save] Created Hotstepper album:', albumIdentifier);
+            }
+          } catch (albumErr) {
+            console.log('[Save] Album handling failed, saving to default:', albumErr);
+          }
+          
+          // Step 3: Save to gallery using proper album identifier
           await Media.savePhoto({
             path: tempFile.uri,
-            albumIdentifier: 'Hotstepper',
+            albumIdentifier: albumIdentifier,
           });
           
-          // Step 3: Clean up temp file
+          // Step 4: Clean up temp file
           try {
             await Filesystem.deleteFile({
               path: fileName,
