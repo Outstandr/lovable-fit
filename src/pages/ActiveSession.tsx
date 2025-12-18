@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, MapPin, Clock, Gauge, Square, Zap, Footprints, Satellite, RefreshCw, Settings, X, Loader2, Headphones } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +14,7 @@ import { DataSourceBadge } from "@/components/DataSourceBadge";
 import { Capacitor } from "@capacitor/core";
 import AudiobookPlayer from "@/components/AudiobookPlayer";
 import { useAudiobook } from "@/hooks/useAudiobook";
+import SessionSummary from "@/components/SessionSummary";
 
 const ActiveSession = () => {
   const navigate = useNavigate();
@@ -47,6 +48,8 @@ const ActiveSession = () => {
   const [sessionStartTime] = useState<Date>(new Date());
   const [gpsInitialized, setGpsInitialized] = useState(false);
   const [useStepsOnly, setUseStepsOnly] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [sessionEndTime, setSessionEndTime] = useState<Date | null>(null);
 
   // Start GPS tracking when component mounts
   useEffect(() => {
@@ -111,6 +114,7 @@ const ActiveSession = () => {
     setIsRunning(false);
     stopTracking();
     stopAudio(); // Stop audiobook when session ends
+    setSessionEndTime(new Date());
     
     if (!user) {
       toast.error("Not logged in");
@@ -143,13 +147,17 @@ const ActiveSession = () => {
       if (error) {
         console.error('[ActiveSession] Save error:', error);
         toast.error("Failed to save session");
-      } else {
-        toast.success(`Session saved! ${sessionDistance.toFixed(2)} km`);
       }
     } catch (error) {
       console.error('[ActiveSession] Error:', error);
     }
 
+    // Show summary screen instead of navigating home
+    setShowSummary(true);
+  };
+
+  const handleSummaryClose = () => {
+    setShowSummary(false);
     navigate('/');
   };
 
@@ -414,6 +422,22 @@ const ActiveSession = () => {
       <AudiobookPlayer 
         isOpen={isPlayerOpen}
         onClose={() => setIsPlayerOpen(false)}
+      />
+
+      {/* Session Summary Screen */}
+      <SessionSummary
+        isOpen={showSummary}
+        onClose={handleSummaryClose}
+        sessionData={{
+          distance: sessionData.distance,
+          duration: formatTime(duration),
+          pace: sessionData.pace,
+          steps: sessionSteps,
+          speed: sessionData.speed,
+        }}
+        routePoints={routePoints}
+        currentPosition={currentPosition}
+        sessionDate={sessionEndTime || new Date()}
       />
     </div>
   );
