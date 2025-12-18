@@ -133,12 +133,15 @@ export type Database = {
           age: number | null
           avatar_initials: string | null
           created_at: string
+          daily_step_goal: number | null
           data_source: string | null
           display_name: string
           gender: string | null
           height_cm: number | null
           id: string
           profile_completed: boolean | null
+          show_on_leaderboard: boolean | null
+          unit_preference: string | null
           updated_at: string
           weight_kg: number | null
         }
@@ -146,12 +149,15 @@ export type Database = {
           age?: number | null
           avatar_initials?: string | null
           created_at?: string
+          daily_step_goal?: number | null
           data_source?: string | null
           display_name: string
           gender?: string | null
           height_cm?: number | null
           id: string
           profile_completed?: boolean | null
+          show_on_leaderboard?: boolean | null
+          unit_preference?: string | null
           updated_at?: string
           weight_kg?: number | null
         }
@@ -159,12 +165,15 @@ export type Database = {
           age?: number | null
           avatar_initials?: string | null
           created_at?: string
+          daily_step_goal?: number | null
           data_source?: string | null
           display_name?: string
           gender?: string | null
           height_cm?: number | null
           id?: string
           profile_completed?: boolean | null
+          show_on_leaderboard?: boolean | null
+          unit_preference?: string | null
           updated_at?: string
           weight_kg?: number | null
         }
