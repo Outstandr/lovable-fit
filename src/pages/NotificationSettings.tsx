@@ -139,21 +139,19 @@ const NotificationSettings = () => {
     <div className="min-h-screen bg-background pb-8">
       {/* Header */}
       <motion.header 
-        className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border/50"
+        className="flex items-center gap-4 p-4 border-b border-border header-safe"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="flex items-center justify-between px-4 py-4">
-          <button 
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            <span className="text-sm font-medium">Back</span>
-          </button>
-          <h1 className="text-lg font-bold uppercase tracking-wider">Notifications</h1>
-          <div className="w-16" />
-        </div>
+        <button 
+          onClick={() => navigate("/profile")}
+          className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-smooth"
+        >
+          <ArrowLeft className="h-5 w-5 text-foreground" />
+        </button>
+        <h1 className="text-lg font-bold uppercase tracking-wider text-foreground">
+          Notifications
+        </h1>
       </motion.header>
 
       <div className="px-4 pt-6 space-y-6">
