@@ -202,16 +202,14 @@ const ActiveSession = () => {
       const fileName = `hotstepper-route-${Date.now()}.png`;
 
       if (Capacitor.isNativePlatform()) {
-        // Dynamic import Filesystem to avoid compiler crash
-        const { Filesystem, Directory } = await import('@capacitor/filesystem');
-        const base64Data = imageBase64.replace(/^data:image\/png;base64,/, '');
+        // Dynamic import Media plugin to save to gallery
+        const { Media } = await import('@capacitor-community/media');
         
-        await Filesystem.writeFile({
-          path: fileName,
-          data: base64Data,
-          directory: Directory.Documents,
+        await Media.savePhoto({
+          path: imageBase64,
+          albumIdentifier: 'Hotstepper',
         });
-        toast.success("Route saved to Documents! 📸");
+        toast.success("Route saved to Gallery! 📸");
       } else {
         // Web fallback - download
         const link = document.createElement('a');
