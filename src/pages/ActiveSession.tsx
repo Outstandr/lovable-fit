@@ -270,6 +270,32 @@ const ActiveSession = () => {
         backgroundColor: '#0A1128',
         scale: 2,
       });
+      
+      // Add HOTSTEPPER watermark to the canvas
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const watermarkText = 'HOTSTEPPER';
+        const fontSize = Math.round(canvas.width * 0.04); // 4% of width
+        ctx.font = `bold ${fontSize}px Rajdhani, sans-serif`;
+        ctx.letterSpacing = '0.2em';
+        
+        // Position at bottom right with padding
+        const padding = Math.round(canvas.width * 0.03);
+        const textMetrics = ctx.measureText(watermarkText);
+        const x = canvas.width - textMetrics.width - padding;
+        const y = canvas.height - padding;
+        
+        // Add subtle shadow for visibility
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+        
+        // Draw text with cyan primary color
+        ctx.fillStyle = 'rgba(0, 212, 255, 0.8)';
+        ctx.fillText(watermarkText, x, y);
+      }
+      
       const imageBase64 = canvas.toDataURL('image/png');
       const fileName = `hotstepper-session-${Date.now()}.png`;
 
