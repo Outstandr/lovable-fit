@@ -50,7 +50,7 @@ const Protocol = () => {
   const progress = (completedCount / tasks.length) * 100;
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-24 overflow-y-auto safe-area-pt">
       {/* Header */}
       <motion.header 
         className="px-4 pt-6 pb-4"
