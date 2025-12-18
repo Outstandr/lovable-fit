@@ -202,14 +202,31 @@ const ActiveSession = () => {
       const fileName = `hotstepper-route-${Date.now()}.png`;
 
       if (Capacitor.isNativePlatform()) {
-        // Dynamic import Media plugin to save to gallery
-        const { Media } = await import('@capacitor-community/media');
-        
-        await Media.savePhoto({
-          path: imageBase64,
-          albumIdentifier: 'Hotstepper',
-        });
-        toast.success("Route saved to Gallery! 📸");
+        try {
+          // Try Media plugin first (saves to gallery)
+          const { Media } = await import('@capacitor-community/media');
+          await Media.savePhoto({
+            path: imageBase64,
+            albumIdentifier: 'Hotstepper',
+          });
+          toast.success("Route saved to Gallery! 📸");
+        } catch (mediaErr) {
+          console.warn('[Save] Media plugin failed, falling back to Filesystem:', mediaErr);
+          try {
+            // Fallback to Filesystem (saves to Documents)
+            const { Filesystem, Directory } = await import('@capacitor/filesystem');
+            const base64Data = imageBase64.replace(/^data:image\/png;base64,/, '');
+            await Filesystem.writeFile({
+              path: fileName,
+              data: base64Data,
+              directory: Directory.Documents,
+            });
+            toast.success("Route saved to Documents! 📸");
+          } catch (fsErr) {
+            console.error('[Save] Filesystem fallback also failed:', fsErr);
+            toast.error("Could not save to device");
+          }
+        }
       } else {
         // Web fallback - download
         const link = document.createElement('a');
