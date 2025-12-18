@@ -16,9 +16,6 @@ import AudiobookPlayer from "@/components/AudiobookPlayer";
 import { useAudiobook } from "@/hooks/useAudiobook";
 import { haptics } from "@/utils/haptics";
 import { format } from "date-fns";
-import html2canvas from "html2canvas";
-import { Share } from "@capacitor/share";
-import { Filesystem, Directory } from "@capacitor/filesystem";
 
 const ActiveSession = () => {
   const navigate = useNavigate();
@@ -183,77 +180,28 @@ const ActiveSession = () => {
     }
   };
 
-  // Capture screenshot of map element
-  const captureMapScreenshot = async (): Promise<string | null> => {
-    const mapElement = document.getElementById('session-summary-map');
-    if (!mapElement) {
-      console.error('[Screenshot] Map element not found');
-      return null;
-    }
-    try {
-      const canvas = await html2canvas(mapElement, {
-        useCORS: true,
-        backgroundColor: '#0A1128',
-        scale: 2,
-        logging: false,
-      });
-      return canvas.toDataURL('image/png');
-    } catch (err) {
-      console.error('[Screenshot] Capture error:', err);
-      return null;
-    }
-  };
-
-  // Save screenshot to device gallery/downloads
-  const saveToGallery = async (imageBase64: string) => {
-    const fileName = `hotstepper-route-${Date.now()}.png`;
-    const base64Data = imageBase64.replace(/^data:image\/png;base64,/, '');
-
-    if (Capacitor.isNativePlatform()) {
-      try {
-        await Filesystem.writeFile({
-          path: `Pictures/${fileName}`,
-          data: base64Data,
-          directory: Directory.Documents,
-          recursive: true,
-        });
-        toast.success("Route saved to Photos! 📸");
-      } catch (err) {
-        console.error('[Save] Filesystem error:', err);
-        // Fallback: try Documents folder
-        try {
-          await Filesystem.writeFile({
-            path: fileName,
-            data: base64Data,
-            directory: Directory.Documents,
-          });
-          toast.success("Route saved to Documents! 📸");
-        } catch (err2) {
-          console.error('[Save] Documents fallback error:', err2);
-          toast.error("Failed to save image");
-        }
-      }
-    } else {
-      // Web fallback - download as file
-      const link = document.createElement('a');
-      link.href = imageBase64;
-      link.download = fileName;
-      link.click();
-      toast.success("Route downloaded! 📸");
-    }
-  };
-
-  // Handle save button click
+  // Handle save button click - simplified web-only approach
   const handleSaveScreenshot = async () => {
     setIsSaving(true);
     haptics.medium();
     try {
-      const screenshot = await captureMapScreenshot();
-      if (screenshot) {
-        await saveToGallery(screenshot);
-      } else {
+      const mapElement = document.getElementById('session-summary-map');
+      if (!mapElement) {
         toast.error("Could not capture route");
+        return;
       }
+      // Dynamic import to avoid compiler issues
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(mapElement, {
+        useCORS: true,
+        backgroundColor: '#0A1128',
+        scale: 2,
+      });
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = `hotstepper-route-${Date.now()}.png`;
+      link.click();
+      toast.success("Route saved! 📸");
     } catch (err) {
       console.error('[Save] Error:', err);
       toast.error("Failed to save screenshot");
@@ -262,20 +210,14 @@ const ActiveSession = () => {
     }
   };
 
-  // Handle share button click
+  // Handle share button click - simplified approach
   const handleShareSession = async () => {
     setIsSharing(true);
     haptics.light();
     try {
       const statsText = `🏃 Just completed a ${sessionData.distance}km walk!\n⏱ Duration: ${formatTime(duration)}\n📍 Pace: ${sessionData.pace}/km\n👟 Steps: ${sessionSteps.toLocaleString()}\n\n#Hotstepper`;
 
-      if (Capacitor.isNativePlatform()) {
-        await Share.share({
-          title: 'My Walking Route',
-          text: statsText,
-          dialogTitle: 'Share your route',
-        });
-      } else if (navigator.share) {
+      if (navigator.share) {
         await navigator.share({ title: 'My Walking Route', text: statsText });
       } else {
         await navigator.clipboard.writeText(statsText);
