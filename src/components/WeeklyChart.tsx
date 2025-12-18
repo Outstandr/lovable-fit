@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -80,6 +80,9 @@ export const WeeklyChart = () => {
     return null;
   };
 
+  // Calculate max value for better chart scaling
+  const maxSteps = Math.max(...data.map(d => d.steps), 10000);
+
   return (
     <motion.div
       className="tactical-card"
@@ -111,6 +114,19 @@ export const WeeklyChart = () => {
               dy={10}
             />
             <Tooltip content={<CustomTooltip />} />
+            <ReferenceLine 
+              y={10000} 
+              stroke="hsl(142, 76%, 36%)" 
+              strokeDasharray="4 4" 
+              strokeWidth={1.5}
+              label={{ 
+                value: "10K", 
+                position: "right", 
+                fill: "hsl(142, 76%, 36%)", 
+                fontSize: 10,
+                fontWeight: 600 
+              }}
+            />
             <Area
               type="monotone"
               dataKey="steps"

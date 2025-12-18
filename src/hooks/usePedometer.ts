@@ -3,6 +3,8 @@ import { pedometerService } from '@/services/pedometerService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useOfflineSync } from './useOfflineSync';
+import { toast } from 'sonner';
+import { haptics } from '@/utils/haptics';
 
 const LOG_PREFIX = '[usePedometer]';
 
@@ -40,6 +42,32 @@ export function usePedometer() {
   });
 
   const lastSyncSteps = useRef(0);
+  const hasHit10K = useRef(false);
+  const lastCelebrationDay = useRef('');
+
+  // 10K Milestone Celebration
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Reset celebration flag for new day
+    if (lastCelebrationDay.current !== today) {
+      hasHit10K.current = false;
+      lastCelebrationDay.current = today;
+    }
+    
+    // Celebrate 10K milestone once per day
+    if (state.steps >= 10000 && !hasHit10K.current) {
+      hasHit10K.current = true;
+      haptics.success();
+      
+      toast.success('🎉 MILESTONE ACHIEVED!', {
+        description: '10,000 steps completed! Outstanding work!',
+        duration: 5000,
+      });
+      
+      console.log(`${LOG_PREFIX} 🎉 10K milestone reached!`);
+    }
+  }, [state.steps]);
 
   // Load today's steps from database on login
   useEffect(() => {
@@ -64,6 +92,12 @@ export function usePedometer() {
           calories: data.calories || 0,
         }));
         lastSyncSteps.current = data.steps || 0;
+        
+        // Check if already hit 10K today
+        if (data.steps >= 10000) {
+          hasHit10K.current = true;
+          lastCelebrationDay.current = today;
+        }
       }
     };
     
