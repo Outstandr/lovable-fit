@@ -185,21 +185,44 @@ const ActiveSession = () => {
     setIsSaving(true);
     haptics.medium();
     try {
-      const mapElement = document.getElementById('session-summary-map');
-      if (!mapElement) {
-        toast.error("Could not capture route");
+      // Capture the full session summary content (map + stats)
+      const summaryElement = document.getElementById('session-summary-content');
+      if (!summaryElement) {
+        toast.error("Could not capture session");
         return;
       }
       
       // Dynamic import html2canvas
       const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(mapElement, {
+      const canvas = await html2canvas(summaryElement, {
         useCORS: true,
         backgroundColor: '#0A1128',
         scale: 2,
       });
+      
+      // Add HOTSTEPPER watermark to the canvas
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const watermarkText = 'HOTSTEPPER';
+        const fontSize = Math.round(canvas.width * 0.04);
+        ctx.font = `bold ${fontSize}px Rajdhani, sans-serif`;
+        
+        const padding = Math.round(canvas.width * 0.03);
+        const textMetrics = ctx.measureText(watermarkText);
+        const x = canvas.width - textMetrics.width - padding;
+        const y = canvas.height - padding;
+        
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+        
+        ctx.fillStyle = 'rgba(0, 212, 255, 0.8)';
+        ctx.fillText(watermarkText, x, y);
+      }
+      
       const imageBase64 = canvas.toDataURL('image/png');
-      const fileName = `hotstepper-route-${Date.now()}.png`;
+      const fileName = `hotstepper-session-${Date.now()}.png`;
 
       if (Capacitor.isNativePlatform()) {
         try {
@@ -256,7 +279,7 @@ const ActiveSession = () => {
             // Ignore cleanup errors
           }
           
-          toast.success("Route saved to Gallery! 📸");
+          toast.success("Session saved to Gallery! 📸");
         } catch (err) {
           console.error('[Save] Gallery save failed:', err);
           toast.error("Could not save to gallery");
@@ -267,7 +290,7 @@ const ActiveSession = () => {
         link.href = imageBase64;
         link.download = fileName;
         link.click();
-        toast.success("Route downloaded! 📸");
+        toast.success("Session downloaded! 📸");
       }
     } catch (err) {
       console.error('[Save] Error:', err);
