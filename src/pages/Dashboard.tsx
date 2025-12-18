@@ -246,25 +246,33 @@ const Dashboard = () => {
 
       {/* Header */}
       <motion.header 
-        className="flex items-center justify-between px-4 pb-2 header-safe relative z-content"
+        className="px-4 pb-2 header-safe relative z-content"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <button 
-          onClick={() => { haptics.light(); navigate('/profile'); }}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
-        >
-          <Settings className="h-5 w-5" />
-        </button>
+        {/* App Title */}
+        <h1 className="text-xl font-bold uppercase tracking-[0.2em] text-primary text-center mb-3">
+          HOTSTEPPER
+        </h1>
         
-        <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
-        
-        <button 
-          onClick={() => toast.info('More options coming soon!')}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
-        >
-          <MoreHorizontal className="h-5 w-5" />
-        </button>
+        {/* Controls Row */}
+        <div className="flex items-center justify-between">
+          <button 
+            onClick={() => { haptics.light(); navigate('/profile'); }}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
+          >
+            <Settings className="h-5 w-5" />
+          </button>
+          
+          <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
+          
+          <button 
+            onClick={() => toast.info('More options coming soon!')}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
+          >
+            <MoreHorizontal className="h-5 w-5" />
+          </button>
+        </div>
       </motion.header>
 
       {/* Permission Alert */}

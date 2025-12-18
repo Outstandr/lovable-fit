@@ -293,7 +293,7 @@ const Leaderboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen pb-20 flex items-center justify-center">
+      <div className="min-h-screen-safe page-with-bottom-nav flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">Loading leaderboard...</p>
@@ -306,7 +306,7 @@ const Leaderboard = () => {
   return (
     <div 
       ref={scrollContainerRef}
-      className="min-h-screen pb-20 overflow-y-auto safe-area-pt"
+      className="min-h-screen-safe page-with-bottom-nav overflow-y-auto"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -353,7 +353,7 @@ const Leaderboard = () => {
       )}
 
       {/* Header */}
-      <header className="px-4 pt-4 pb-3">
+      <header className="px-4 pb-2 header-safe">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Trophy className="h-6 w-6 text-primary" />
