@@ -527,17 +527,19 @@ const ActiveSession = () => {
 
       {/* Session Summary Screen - Inline Implementation */}
       {showSummary && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-modal bg-background">
-          <div className="min-h-screen-safe flex flex-col">
-            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-center py-6 safe-area-pt">
-              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring', stiffness: 200 }} className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-primary/20 mb-4">
-                <Trophy className="h-8 w-8 text-primary" />
-              </motion.div>
-              <h1 className="text-2xl font-bold uppercase tracking-widest text-foreground">Session Complete</h1>
-              <p className="text-sm text-muted-foreground mt-1">Great work! 🔥</p>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-modal bg-background flex flex-col">
+          {/* Fixed Header */}
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-center py-4 safe-area-pt flex-shrink-0">
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring', stiffness: 200 }} className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-primary/20 mb-3">
+              <Trophy className="h-7 w-7 text-primary" />
             </motion.div>
+            <h1 className="text-xl font-bold uppercase tracking-widest text-foreground">Session Complete</h1>
+            <p className="text-sm text-muted-foreground mt-1">Great work! 🔥</p>
+          </motion.div>
 
-            <motion.div id="session-summary-map" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="mx-4 rounded-xl overflow-hidden bg-secondary/50 relative aspect-video max-h-[250px]">
+          {/* Scrollable Content Area */}
+          <div className="flex-1 overflow-y-auto px-4">
+            <motion.div id="session-summary-map" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="rounded-xl overflow-hidden bg-secondary/50 relative aspect-video max-h-[200px]">
               {routePoints.length > 1 && currentPosition ? (
                 <LiveMap currentPosition={currentPosition} routePoints={routePoints} isTracking={false} gpsAccuracy={null} />
               ) : (
@@ -546,58 +548,59 @@ const ActiveSession = () => {
               <div className="absolute inset-0 bg-gradient-to-t from-background/50 to-transparent pointer-events-none" />
             </motion.div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="px-4 py-6">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="py-4">
               <div className="tactical-card">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20"><Clock className="h-5 w-5 text-primary" /></div>
-                    <div><span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Duration</span><p className="text-xl font-bold text-foreground tabular-nums">{formatTime(duration)}</p></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20"><Clock className="h-4 w-4 text-primary" /></div>
+                    <div><span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Duration</span><p className="text-lg font-bold text-foreground tabular-nums">{formatTime(duration)}</p></div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20"><MapPin className="h-5 w-5 text-primary" /></div>
-                    <div><span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Distance</span><p className="text-xl font-bold text-foreground tabular-nums">{sessionData.distance} km</p></div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20"><MapPin className="h-4 w-4 text-primary" /></div>
+                    <div><span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Distance</span><p className="text-lg font-bold text-foreground tabular-nums">{sessionData.distance} km</p></div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20"><Gauge className="h-5 w-5 text-primary" /></div>
-                    <div><span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Pace</span><p className="text-xl font-bold text-foreground tabular-nums">{sessionData.pace}/km</p></div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20"><Gauge className="h-4 w-4 text-primary" /></div>
+                    <div><span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Pace</span><p className="text-lg font-bold text-foreground tabular-nums">{sessionData.pace}/km</p></div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20"><Footprints className="h-5 w-5 text-primary" /></div>
-                    <div><span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Steps</span><p className="text-xl font-bold text-foreground tabular-nums">{sessionSteps.toLocaleString()}</p></div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20"><Footprints className="h-4 w-4 text-primary" /></div>
+                    <div><span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Steps</span><p className="text-lg font-bold text-foreground tabular-nums">{sessionSteps.toLocaleString()}</p></div>
                   </div>
                 </div>
-                <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-center gap-2 text-muted-foreground">
-                  <Calendar className="h-4 w-4" /><span className="text-sm">{format(sessionEndTime || new Date(), 'MMM d, yyyy')} at {format(sessionEndTime || new Date(), 'h:mm a')}</span>
+                <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-center gap-2 text-muted-foreground">
+                  <Calendar className="h-4 w-4" /><span className="text-xs">{format(sessionEndTime || new Date(), 'MMM d, yyyy')} at {format(sessionEndTime || new Date(), 'h:mm a')}</span>
                 </div>
               </div>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="px-4 mt-auto safe-area-pb pb-4">
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                <Button 
-                  variant="tactical" 
-                  disabled={isSaving} 
-                  className="h-14 press-scale" 
-                  onClick={handleSaveScreenshot}
-                >
-                  {isSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Camera className="h-5 w-5 mr-2" />}
-                  <span className="text-sm font-bold uppercase tracking-wider">{isSaving ? 'Saving...' : 'Save'}</span>
-                </Button>
-                <Button 
-                  variant="tactical" 
-                  disabled={isSharing} 
-                  className="h-14 press-scale" 
-                  onClick={handleShareSession}
-                >
-                  {isSharing ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Share2 className="h-5 w-5 mr-2" />}
-                  <span className="text-sm font-bold uppercase tracking-wider">{isSharing ? 'Sharing...' : 'Share'}</span>
-                </Button>
-              </div>
-              <Button variant="default" size="full" onClick={handleSummaryClose} className="h-14 text-sm font-bold uppercase tracking-widest press-scale">
-                <Check className="h-5 w-5 mr-2" />Done - Go Home
-              </Button>
             </motion.div>
           </div>
+
+          {/* Fixed Bottom Buttons */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="px-4 safe-area-pb pb-4 flex-shrink-0 bg-background">
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <Button 
+                variant="tactical" 
+                disabled={isSaving} 
+                className="h-12 press-scale" 
+                onClick={handleSaveScreenshot}
+              >
+                {isSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Camera className="h-5 w-5 mr-2" />}
+                <span className="text-sm font-bold uppercase tracking-wider">{isSaving ? 'Saving...' : 'Save'}</span>
+              </Button>
+              <Button 
+                variant="tactical" 
+                disabled={isSharing} 
+                className="h-12 press-scale" 
+                onClick={handleShareSession}
+              >
+                {isSharing ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Share2 className="h-5 w-5 mr-2" />}
+                <span className="text-sm font-bold uppercase tracking-wider">{isSharing ? 'Sharing...' : 'Share'}</span>
+              </Button>
+            </div>
+            <Button variant="default" size="full" onClick={handleSummaryClose} className="h-12 text-sm font-bold uppercase tracking-widest press-scale">
+              <Check className="h-5 w-5 mr-2" />Done - Go Home
+            </Button>
+          </motion.div>
         </motion.div>
       )}
     </div>
