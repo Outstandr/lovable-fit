@@ -8,7 +8,7 @@ interface SetupCompleteStepProps {
 
 export function SetupCompleteStep({ onComplete }: SetupCompleteStepProps) {
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
       {/* Main content */}
       <div className="flex-1 flex flex-col items-center justify-center px-6">
         {/* Success animation */}

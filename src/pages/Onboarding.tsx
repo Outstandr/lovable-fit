@@ -76,7 +76,7 @@ const Onboarding = () => {
   }
 
   return (
-    <div className="min-h-screen-safe bg-background safe-area-y">
+    <div className="min-h-screen bg-background">
       <AnimatePresence mode="wait">
         {currentStep === 'activity' && (
           <motion.div
@@ -85,7 +85,7 @@ const Onboarding = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
-            className="h-full"
+            className="min-h-screen"
           >
             <ActivityPermissionStep onNext={() => handleNext('body')} />
           </motion.div>
@@ -98,7 +98,7 @@ const Onboarding = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
-            className="h-full"
+            className="min-h-screen"
           >
             <BodyMeasurementsStep onNext={() => handleNext('battery')} />
           </motion.div>
@@ -111,7 +111,7 @@ const Onboarding = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
-            className="h-full"
+            className="min-h-screen"
           >
             <BatteryOptimizationStep onNext={() => handleNext('notification')} />
           </motion.div>
@@ -124,7 +124,7 @@ const Onboarding = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
-            className="h-full"
+            className="min-h-screen"
           >
             <NotificationStep onNext={() => handleNext('goal')} />
           </motion.div>
@@ -137,7 +137,7 @@ const Onboarding = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
-            className="h-full"
+            className="min-h-screen"
           >
             <GoalStep onNext={() => handleNext('complete')} />
           </motion.div>
@@ -150,7 +150,7 @@ const Onboarding = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
-            className="h-full"
+            className="min-h-screen"
           >
             <SetupCompleteStep onComplete={handleComplete} />
           </motion.div>

@@ -31,7 +31,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <PushNotificationInitializer>
-            <div className="mx-auto max-w-lg">
+            <div className="w-full">
               <Routes>
               <Route path="/auth" element={<Auth />} />
                 <Route path="/onboarding" element={
