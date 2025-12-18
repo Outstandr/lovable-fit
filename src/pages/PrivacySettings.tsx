@@ -106,7 +106,7 @@ const PrivacySettings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen-safe bg-background">
       {/* Header */}
       <motion.header 
         className="flex items-center gap-4 p-4 border-b border-border header-safe"
