@@ -46,8 +46,7 @@ export const BottomNav = () => {
                 {/* Active Indicator - centered above icon */}
                 {isActive && (
                   <motion.div 
-                    className="absolute top-0 h-0.5 w-8 rounded-full bg-primary"
-                    style={{ left: '50%', transform: 'translateX(-50%)' }}
+                    className="absolute top-0 left-0 right-0 mx-auto h-0.5 w-8 rounded-full bg-primary"
                     layoutId="activeTab"
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   />
