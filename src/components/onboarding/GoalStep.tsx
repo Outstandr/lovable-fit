@@ -1,0 +1,166 @@
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { ChevronRight, Target } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Input } from '@/components/ui/input';
+
+interface GoalStepProps {
+  onNext: () => void;
+}
+
+const PRESET_GOALS = [
+  { label: '4,000 Steps', value: 4000 },
+  { label: '6,000 Steps', value: 6000 },
+  { label: '10,000 Steps', value: 10000 },
+];
+
+export function GoalStep({ onNext }: GoalStepProps) {
+  const { user } = useAuth();
+  const [selectedGoal, setSelectedGoal] = useState<number | null>(10000);
+  const [customGoal, setCustomGoal] = useState<string>('');
+  const [showCustom, setShowCustom] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSelectGoal = (value: number) => {
+    setSelectedGoal(value);
+    setShowCustom(false);
+    setCustomGoal('');
+  };
+
+  const handleCustomGoal = () => {
+    setShowCustom(true);
+    setSelectedGoal(null);
+  };
+
+  const handleContinue = async () => {
+    if (!user) return;
+    
+    const goal = showCustom ? parseInt(customGoal) : selectedGoal;
+    if (!goal || goal < 1000 || goal > 50000) return;
+
+    setIsSaving(true);
+
+    await supabase
+      .from('profiles')
+      .update({ daily_step_goal: goal })
+      .eq('id', user.id);
+
+    setIsSaving(false);
+    onNext();
+  };
+
+  const isValid = showCustom 
+    ? customGoal && parseInt(customGoal) >= 1000 && parseInt(customGoal) <= 50000
+    : selectedGoal !== null;
+
+  return (
+    <div className="min-h-screen-safe flex flex-col px-6 py-8">
+      {/* Header */}
+      <div className="pt-8 mb-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-center gap-3 mb-2"
+        >
+          <Target className="w-8 h-8 text-primary" />
+        </motion.div>
+        <motion.h1
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="text-2xl font-bold text-foreground text-center"
+        >
+          Set Your Daily Steps Goal
+        </motion.h1>
+      </div>
+
+      {/* Goal Options */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="flex-1 space-y-4"
+      >
+        {PRESET_GOALS.map((goal, index) => (
+          <motion.button
+            key={goal.value}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 + index * 0.1 }}
+            onClick={() => handleSelectGoal(goal.value)}
+            className={`w-full p-5 rounded-2xl border-2 text-left transition-all ${
+              selectedGoal === goal.value
+                ? 'border-primary bg-primary/10'
+                : 'border-border bg-secondary/50 hover:border-primary/50'
+            }`}
+          >
+            <span className="text-lg font-semibold text-foreground">
+              {goal.label}
+            </span>
+          </motion.button>
+        ))}
+
+        {/* Custom Goal */}
+        <motion.button
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.5 }}
+          onClick={handleCustomGoal}
+          className={`w-full p-5 rounded-2xl border-2 text-left transition-all flex items-center justify-between ${
+            showCustom
+              ? 'border-primary bg-primary/10'
+              : 'border-border bg-secondary/50 hover:border-primary/50'
+          }`}
+        >
+          <span className="text-lg font-semibold text-foreground">
+            Custom Goal
+          </span>
+          <ChevronRight className="w-5 h-5 text-muted-foreground" />
+        </motion.button>
+
+        {/* Custom Input */}
+        {showCustom && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="px-2"
+          >
+            <div className="flex items-center gap-3">
+              <Input
+                type="number"
+                placeholder="Enter steps"
+                value={customGoal}
+                onChange={(e) => setCustomGoal(e.target.value)}
+                className="flex-1 h-14 text-lg bg-secondary border-border text-foreground"
+                min={1000}
+                max={50000}
+              />
+              <span className="text-muted-foreground">steps</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Enter a goal between 1,000 and 50,000 steps
+            </p>
+          </motion.div>
+        )}
+      </motion.div>
+
+      {/* Continue Button */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
+        className="safe-area-pb mt-6"
+      >
+        <Button
+          onClick={handleContinue}
+          disabled={!isValid || isSaving}
+          className="w-full h-14 rounded-full bg-primary text-primary-foreground font-semibold text-base disabled:opacity-50"
+        >
+          {isSaving ? 'Saving...' : 'Continue'}
+        </Button>
+      </motion.div>
+    </div>
+  );
+}

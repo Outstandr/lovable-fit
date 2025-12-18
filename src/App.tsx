@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PushNotificationInitializer } from "@/components/PushNotificationInitializer";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Onboarding from "./pages/Onboarding";
 import ActiveSession from "./pages/ActiveSession";
 import Leaderboard from "./pages/Leaderboard";
 import Protocol from "./pages/Protocol";
@@ -32,7 +33,12 @@ const App = () => (
           <PushNotificationInitializer>
             <div className="mx-auto max-w-lg">
               <Routes>
-                <Route path="/auth" element={<Auth />} />
+              <Route path="/auth" element={<Auth />} />
+                <Route path="/onboarding" element={
+                  <ProtectedRoute skipOnboardingCheck>
+                    <Onboarding />
+                  </ProtectedRoute>
+                } />
                 <Route path="/" element={
                   <ProtectedRoute>
                     <Index />
