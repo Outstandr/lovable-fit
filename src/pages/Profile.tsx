@@ -180,23 +180,22 @@ const Profile = () => {
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </motion.button>
         ))}
-      </div>
 
-      {/* Logout */}
-      <motion.div 
-        className="px-4 mt-8 pb-4"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.9 }}
-      >
-        <button 
+        {/* Logout Button - styled like other menu items */}
+        <motion.button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 py-3 text-destructive hover:bg-destructive/20 transition-smooth touch-target press-scale"
+          className="w-full tactical-card flex items-center justify-between hover:border-destructive/50 transition-smooth touch-target press-scale"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.5 + menuItems.length * 0.1 }}
         >
-          <LogOut className="h-5 w-5" />
-          <span className="text-sm font-semibold uppercase tracking-wider">Log Out</span>
-        </button>
-      </motion.div>
+          <div className="flex items-center gap-3">
+            <LogOut className="h-5 w-5 text-destructive" />
+            <span className="text-sm font-semibold text-destructive">Log Out</span>
+          </div>
+          <ChevronRight className="h-4 w-4 text-destructive/50" />
+        </motion.button>
+      </div>
 
       <BottomNav />
     </div>
