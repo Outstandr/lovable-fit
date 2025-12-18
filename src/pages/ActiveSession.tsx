@@ -251,29 +251,63 @@ const ActiveSession = () => {
     }
   };
 
-  // Handle share button click - native support via dynamic imports
+  // Handle share button click - captures screenshot of summary and shares as image
   const handleShareSession = async () => {
     setIsSharing(true);
     haptics.light();
     try {
-      const statsText = `🏃 Just completed a ${sessionData.distance}km walk!\n⏱ Duration: ${formatTime(duration)}\n📍 Pace: ${sessionData.pace}/km\n👟 Steps: ${sessionSteps.toLocaleString()}\n\n#Hotstepper`;
+      // Capture the entire summary content
+      const summaryElement = document.getElementById('session-summary-content');
+      if (!summaryElement) {
+        toast.error("Could not capture session");
+        setIsSharing(false);
+        return;
+      }
+      
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(summaryElement, {
+        useCORS: true,
+        backgroundColor: '#0A1128',
+        scale: 2,
+      });
+      const imageBase64 = canvas.toDataURL('image/png');
+      const fileName = `hotstepper-session-${Date.now()}.png`;
 
       if (Capacitor.isNativePlatform()) {
-        // Dynamic import Share to avoid compiler crash
+        // Save to temp file and share the image
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        const base64Data = imageBase64.replace(/^data:image\/png;base64,/, '');
+        
+        const tempFile = await Filesystem.writeFile({
+          path: fileName,
+          data: base64Data,
+          directory: Directory.Cache,
+        });
+        
         const { Share } = await import('@capacitor/share');
         await Share.share({
-          title: 'My Walking Route',
-          text: statsText,
-          dialogTitle: 'Share your route',
+          title: 'My Hotstepper Session',
+          url: tempFile.uri,
+          dialogTitle: 'Share your session',
         });
-      } else if (navigator.share) {
-        await navigator.share({ title: 'My Walking Route', text: statsText });
+        
+        // Cleanup temp file after share
+        try {
+          await Filesystem.deleteFile({ path: fileName, directory: Directory.Cache });
+        } catch (e) {
+          // Ignore cleanup errors
+        }
       } else {
-        await navigator.clipboard.writeText(statsText);
-        toast.success('Stats copied to clipboard! 📋');
+        // Web fallback - download
+        const link = document.createElement('a');
+        link.href = imageBase64;
+        link.download = fileName;
+        link.click();
+        toast.success('Session screenshot downloaded!');
       }
     } catch (err) {
       console.error('[Share] Error:', err);
+      toast.error("Failed to share session");
     } finally {
       setIsSharing(false);
     }
@@ -538,10 +572,15 @@ const ActiveSession = () => {
           </motion.div>
 
           {/* Scrollable Content Area */}
-          <div className="flex-1 overflow-y-auto px-4">
+          <div id="session-summary-content" className="flex-1 overflow-y-auto px-4 bg-background">
             <motion.div id="session-summary-map" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="rounded-xl overflow-hidden bg-secondary/50 relative aspect-video max-h-[200px]">
-              {routePoints.length > 1 && currentPosition ? (
-                <LiveMap currentPosition={currentPosition} routePoints={routePoints} isTracking={false} gpsAccuracy={null} />
+              {currentPosition ? (
+                <LiveMap 
+                  currentPosition={currentPosition} 
+                  routePoints={routePoints.length > 1 ? routePoints : [{ latitude: currentPosition.latitude, longitude: currentPosition.longitude, timestamp: Date.now(), accuracy: gpsAccuracy || undefined }]} 
+                  isTracking={false} 
+                  gpsAccuracy={null} 
+                />
               ) : (
                 <MapPlaceholder message="Steps-only session" sessionSteps={sessionSteps} sessionDistance={parseFloat(sessionData.distance)} showStepsFallback />
               )}
