@@ -1,10 +1,14 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Trophy, Crown, Medal, Loader2, WifiOff } from "lucide-react";
+import { Trophy, Crown, Medal, Loader2, WifiOff, RefreshCw, Footprints } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { useNavigate } from "react-router-dom";
+import { toast } from 'sonner';
+import { haptics } from '@/utils/haptics';
 
 interface LeaderboardEntry {
   rank: number;
@@ -25,8 +29,10 @@ const getRankStyle = (rank: number) => {
 const Leaderboard = () => {
   const { user } = useAuth();
   const { isOnline } = useOfflineSync();
+  const navigate = useNavigate();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const fetchLeaderboard = async () => {
     try {
@@ -96,6 +102,14 @@ const Leaderboard = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    haptics.light();
+    await fetchLeaderboard();
+    toast.success('✓ Leaderboard updated');
+    setTimeout(() => setIsRefreshing(false), 500);
+  };
+
   useEffect(() => {
     fetchLeaderboard();
 
@@ -141,7 +155,42 @@ const Leaderboard = () => {
   }
 
   return (
-    <div className="min-h-screen-safe page-with-bottom-nav">
+    <div 
+      className="min-h-screen-safe page-with-bottom-nav"
+      onTouchStart={(e) => {
+        const touch = e.touches[0];
+        const startY = touch.clientY;
+        
+        const handleTouchMove = (moveEvent: TouchEvent) => {
+          const currentY = moveEvent.touches[0].clientY;
+          const pullDistance = currentY - startY;
+          
+          if (pullDistance > 100 && window.scrollY === 0 && !isRefreshing) {
+            handleRefresh();
+            document.removeEventListener('touchmove', handleTouchMove);
+          }
+        };
+        
+        document.addEventListener('touchmove', handleTouchMove);
+        document.addEventListener('touchend', () => {
+          document.removeEventListener('touchmove', handleTouchMove);
+        }, { once: true });
+      }}
+    >
+      {/* Refresh Indicator */}
+      {isRefreshing && (
+        <motion.div 
+          className="absolute top-0 left-0 right-0 z-50 flex items-center justify-center py-4 safe-area-pt"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/20 backdrop-blur-sm">
+            <RefreshCw className="h-4 w-4 text-primary animate-spin" />
+            <span className="text-xs font-medium text-primary">Refreshing Leaderboard...</span>
+          </div>
+        </motion.div>
+      )}
+
       {/* Offline Banner with safe area */}
       {!isOnline && (
         <div className="bg-yellow-500/20 border-b border-yellow-500/30 px-4 py-2 safe-area-pt">
@@ -171,17 +220,30 @@ const Leaderboard = () => {
         </p>
       </motion.header>
 
-      {/* Empty State */}
+      {/* Empty State - Improved */}
       {leaderboard.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 px-4">
-          <Trophy className="h-16 w-16 text-muted-foreground/30 mb-4" />
-          <p className="text-muted-foreground text-center">
-            No steps recorded today yet.<br />Start walking to climb the leaderboard!
+          <Footprints className="h-16 w-16 text-primary/50 mb-4" />
+          <p className="text-lg font-semibold text-foreground text-center">
+            Be the First!
           </p>
+          <p className="text-muted-foreground text-center mt-2">
+            No one has logged steps today yet.<br />Start walking to top the leaderboard!
+          </p>
+          <Button 
+            variant="outline"
+            onClick={() => {
+              haptics.medium();
+              navigate('/');
+            }}
+            className="mt-6"
+          >
+            View Dashboard
+          </Button>
         </div>
       )}
 
-      {/* Top 3 Podium */}
+      {/* Top 3 Podium - Only show if exactly 3+ users */}
       {top3.length >= 3 && (
         <motion.div 
           className="flex items-end justify-center gap-2 px-4 py-6"
@@ -230,27 +292,40 @@ const Leaderboard = () => {
         </motion.div>
       )}
 
-      {/* Partial Podium for less than 3 users */}
-      {top3.length > 0 && top3.length < 3 && (
+      {/* Simplified Cards for 1-2 users */}
+      {leaderboard.length > 0 && leaderboard.length < 3 && (
         <motion.div 
-          className="flex items-end justify-center gap-4 px-4 py-6"
+          className="px-4 py-6 space-y-3"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2 }}
         >
-          {top3.map((entry, index) => {
+          {leaderboard.map((entry, index) => {
             const style = getRankStyle(index + 1);
             return (
-              <div key={entry.userId} className="flex flex-col items-center">
-                <div className="relative">
-                  {index === 0 && <Crown className="absolute -top-6 left-1/2 -translate-x-1/2 h-6 w-6 text-yellow-400" />}
-                  <div className={`h-16 w-16 rounded-full border-2 ${style.border} bg-secondary flex items-center justify-center ${entry.isCurrentUser ? 'ring-2 ring-primary' : ''}`}>
-                    <span className={`text-lg font-bold ${style.text}`}>{entry.avatar}</span>
+              <div 
+                key={entry.userId}
+                className={`p-4 rounded-xl ${style.bg} border ${style.border} ${entry.isCurrentUser ? 'ring-2 ring-primary' : ''}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={`h-14 w-14 rounded-full bg-secondary flex items-center justify-center border-2 ${style.border}`}>
+                      <span className={`text-xl font-bold ${style.text}`}>{entry.avatar}</span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        {index === 0 && <Crown className="h-5 w-5 text-yellow-400" />}
+                        {index === 1 && <Medal className="h-5 w-5 text-gray-300" />}
+                        <span className={`font-bold ${style.text}`}>#{entry.rank}</span>
+                      </div>
+                      <span className="text-foreground font-semibold">{entry.name}</span>
+                    </div>
                   </div>
-                  {index > 0 && <Medal className={`absolute -bottom-1 -right-1 h-5 w-5 ${style.text}`} />}
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-primary">{entry.steps.toLocaleString()}</p>
+                    <span className="text-xs text-muted-foreground">steps</span>
+                  </div>
                 </div>
-                <span className="mt-2 text-sm font-semibold text-foreground truncate max-w-[80px]">{entry.name}</span>
-                <span className="text-xs font-medium text-primary">{entry.steps.toLocaleString()}</span>
               </div>
             );
           })}
