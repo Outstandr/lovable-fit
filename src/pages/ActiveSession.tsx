@@ -202,13 +202,39 @@ const ActiveSession = () => {
       const fileName = `hotstepper-route-${Date.now()}.png`;
 
       if (Capacitor.isNativePlatform()) {
-        // Save to gallery using Media plugin
-        const { Media } = await import('@capacitor-community/media');
-        await Media.savePhoto({
-          path: imageBase64,
-          albumIdentifier: 'Hotstepper',
-        });
-        toast.success("Route saved to Gallery! 📸");
+        try {
+          // Step 1: Save base64 to temp file first
+          const { Filesystem, Directory } = await import('@capacitor/filesystem');
+          const base64Data = imageBase64.replace(/^data:image\/png;base64,/, '');
+          
+          const tempFile = await Filesystem.writeFile({
+            path: fileName,
+            data: base64Data,
+            directory: Directory.Cache,
+          });
+          
+          // Step 2: Save to gallery using Media plugin
+          const { Media } = await import('@capacitor-community/media');
+          await Media.savePhoto({
+            path: tempFile.uri,
+            albumIdentifier: 'Hotstepper',
+          });
+          
+          // Step 3: Clean up temp file
+          try {
+            await Filesystem.deleteFile({
+              path: fileName,
+              directory: Directory.Cache,
+            });
+          } catch (cleanupErr) {
+            // Ignore cleanup errors
+          }
+          
+          toast.success("Route saved to Gallery! 📸");
+        } catch (err) {
+          console.error('[Save] Gallery save failed:', err);
+          toast.error("Could not save to gallery");
+        }
       } else {
         // Web fallback - download
         const link = document.createElement('a');
