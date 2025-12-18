@@ -11,27 +11,38 @@ const navItems = [
 
 export const BottomNav = () => {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-lg safe-area-pb">
-      <div className="mx-auto flex h-16 max-w-lg items-center justify-around">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) =>
-              cn(
-                "flex flex-1 flex-col items-center justify-center gap-1 py-2 transition-all duration-200",
-                isActive 
-                  ? "text-primary border-t-2 border-primary -mt-[2px]" 
-                  : "text-muted-foreground hover:text-foreground"
-              )
-            }
-          >
-            <item.icon className="h-5 w-5" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider">
-              {item.label}
-            </span>
-          </NavLink>
-        ))}
+    <nav className="bottom-nav">
+      <div className="bottom-nav-inner">
+        <div className="bottom-nav-content">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) =>
+                cn(
+                  "flex flex-1 flex-col items-center justify-center gap-1 py-2 transition-smooth touch-target press-scale",
+                  isActive 
+                    ? "text-primary" 
+                    : "text-muted-foreground hover:text-foreground"
+                )
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <div className={cn(
+                    "relative flex items-center justify-center",
+                    isActive && "after:absolute after:-bottom-1 after:h-0.5 after:w-5 after:rounded-full after:bg-primary"
+                  )}>
+                    <item.icon className="h-5 w-5" />
+                  </div>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider">
+                    {item.label}
+                  </span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
       </div>
     </nav>
   );

@@ -122,7 +122,7 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center px-4 py-12">
+    <div className="min-h-screen-safe flex flex-col justify-center px-4 safe-area-y">
       {/* Header */}
       <motion.div 
         className="text-center mb-8"
@@ -149,7 +149,7 @@ const Auth = () => {
           <button
             type="button"
             onClick={() => setIsSignUp(false)}
-            className={`flex-1 py-2 text-sm font-semibold uppercase tracking-wider rounded-md transition-all ${
+            className={`flex-1 py-2 text-sm font-semibold uppercase tracking-wider rounded-md transition-smooth touch-target ${
               !isSignUp ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -158,7 +158,7 @@ const Auth = () => {
           <button
             type="button"
             onClick={() => setIsSignUp(true)}
-            className={`flex-1 py-2 text-sm font-semibold uppercase tracking-wider rounded-md transition-all ${
+            className={`flex-1 py-2 text-sm font-semibold uppercase tracking-wider rounded-md transition-smooth touch-target ${
               isSignUp ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -230,7 +230,7 @@ const Auth = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground touch-target"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -275,7 +275,7 @@ const Auth = () => {
             variant="tactical"
             size="full"
             disabled={loading}
-            className="mt-6"
+            className="mt-6 press-scale"
           >
             {loading ? (
               <span className="animate-pulse">Processing...</span>

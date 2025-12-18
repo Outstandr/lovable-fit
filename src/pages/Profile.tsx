@@ -84,10 +84,10 @@ const Profile = () => {
   const avatarInitials = profile?.avatar_initials || displayName.slice(0, 2).toUpperCase();
 
   return (
-    <div className="min-h-screen pb-24">
-      {/* Header */}
+    <div className="min-h-screen-safe page-with-bottom-nav">
+      {/* Header with safe area */}
       <motion.header 
-        className="px-4 pt-6 pb-4 text-center"
+        className="px-4 pb-4 text-center header-safe"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
@@ -165,7 +165,7 @@ const Profile = () => {
                 navigate('/notifications');
               }
             }}
-            className="w-full tactical-card flex items-center justify-between hover:border-primary/50 transition-colors"
+            className="w-full tactical-card flex items-center justify-between hover:border-primary/50 transition-smooth touch-target press-scale"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.5 + index * 0.1 }}
@@ -181,14 +181,14 @@ const Profile = () => {
 
       {/* Logout */}
       <motion.div 
-        className="px-4 mt-8"
+        className="px-4 mt-8 pb-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.9 }}
       >
         <button 
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 py-3 text-destructive hover:bg-destructive/20 transition-colors"
+          className="w-full flex items-center justify-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 py-3 text-destructive hover:bg-destructive/20 transition-smooth touch-target press-scale"
         >
           <LogOut className="h-5 w-5" />
           <span className="text-sm font-semibold uppercase tracking-wider">Log Out</span>

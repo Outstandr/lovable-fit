@@ -134,17 +134,17 @@ const Leaderboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen-safe flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-24">
-      {/* Offline Banner */}
+    <div className="min-h-screen-safe page-with-bottom-nav">
+      {/* Offline Banner with safe area */}
       {!isOnline && (
-        <div className="bg-yellow-500/20 border-b border-yellow-500/30 px-4 py-2">
+        <div className="bg-yellow-500/20 border-b border-yellow-500/30 px-4 py-2 safe-area-pt">
           <div className="flex items-center gap-2 text-yellow-400">
             <WifiOff className="h-4 w-4" />
             <span className="text-xs font-medium uppercase tracking-wider">
@@ -154,9 +154,9 @@ const Leaderboard = () => {
         </div>
       )}
 
-      {/* Header */}
+      {/* Header with safe area */}
       <motion.header 
-        className="px-4 pt-6 pb-4"
+        className={`px-4 pb-4 ${isOnline ? 'header-safe' : 'pt-4'}`}
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
@@ -258,7 +258,7 @@ const Leaderboard = () => {
       )}
 
       {/* Full List */}
-      <div className="px-4 space-y-2">
+      <div className="px-4 space-y-2 pb-4">
         {rest.map((entry, index) => {
           const style = getRankStyle(entry.rank);
           return (
@@ -292,15 +292,16 @@ const Leaderboard = () => {
         })}
       </div>
 
-      {/* Pinned User Rank */}
+      {/* Pinned User Rank - Fixed above bottom nav */}
       {currentUser && currentUser.rank > 3 && (
         <motion.div 
-          className="fixed bottom-20 left-0 right-0 px-4 z-40"
+          className="fixed left-4 right-4 z-fixed fixed-above-nav"
+          style={{ marginBottom: '0.5rem' }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
         >
-          <div className="flex items-center justify-between rounded-lg bg-primary/20 border border-primary/40 px-4 py-3 backdrop-blur-lg">
+          <div className="flex items-center justify-between rounded-lg bg-primary/20 border border-primary/40 px-4 py-3 glass-strong">
             <div className="flex items-center gap-4">
               <span className="text-lg font-bold text-primary">
                 #{currentUser.rank}
