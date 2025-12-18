@@ -180,7 +180,7 @@ const ActiveSession = () => {
     }
   };
 
-  // Handle save button click - simplified web-only approach
+  // Handle save button click - native support via dynamic imports
   const handleSaveScreenshot = async () => {
     setIsSaving(true);
     haptics.medium();
@@ -190,18 +190,36 @@ const ActiveSession = () => {
         toast.error("Could not capture route");
         return;
       }
-      // Dynamic import to avoid compiler issues
+      
+      // Dynamic import html2canvas
       const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(mapElement, {
         useCORS: true,
         backgroundColor: '#0A1128',
         scale: 2,
       });
-      const link = document.createElement('a');
-      link.href = canvas.toDataURL('image/png');
-      link.download = `hotstepper-route-${Date.now()}.png`;
-      link.click();
-      toast.success("Route saved! 📸");
+      const imageBase64 = canvas.toDataURL('image/png');
+      const fileName = `hotstepper-route-${Date.now()}.png`;
+
+      if (Capacitor.isNativePlatform()) {
+        // Dynamic import Filesystem to avoid compiler crash
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        const base64Data = imageBase64.replace(/^data:image\/png;base64,/, '');
+        
+        await Filesystem.writeFile({
+          path: fileName,
+          data: base64Data,
+          directory: Directory.Documents,
+        });
+        toast.success("Route saved to Documents! 📸");
+      } else {
+        // Web fallback - download
+        const link = document.createElement('a');
+        link.href = imageBase64;
+        link.download = fileName;
+        link.click();
+        toast.success("Route downloaded! 📸");
+      }
     } catch (err) {
       console.error('[Save] Error:', err);
       toast.error("Failed to save screenshot");
@@ -210,18 +228,26 @@ const ActiveSession = () => {
     }
   };
 
-  // Handle share button click - simplified approach
+  // Handle share button click - native support via dynamic imports
   const handleShareSession = async () => {
     setIsSharing(true);
     haptics.light();
     try {
       const statsText = `🏃 Just completed a ${sessionData.distance}km walk!\n⏱ Duration: ${formatTime(duration)}\n📍 Pace: ${sessionData.pace}/km\n👟 Steps: ${sessionSteps.toLocaleString()}\n\n#Hotstepper`;
 
-      if (navigator.share) {
+      if (Capacitor.isNativePlatform()) {
+        // Dynamic import Share to avoid compiler crash
+        const { Share } = await import('@capacitor/share');
+        await Share.share({
+          title: 'My Walking Route',
+          text: statsText,
+          dialogTitle: 'Share your route',
+        });
+      } else if (navigator.share) {
         await navigator.share({ title: 'My Walking Route', text: statsText });
       } else {
         await navigator.clipboard.writeText(statsText);
-        toast.success('Stats copied!');
+        toast.success('Stats copied to clipboard! 📋');
       }
     } catch (err) {
       console.error('[Share] Error:', err);
