@@ -244,7 +244,7 @@ const Leaderboard = () => {
     setIsRefreshing(true);
     haptics.light();
     await fetchLeaderboard();
-    toast.success('✓ Leaderboard updated');
+    console.log('[Leaderboard] Refreshed successfully');
     setTimeout(() => setIsRefreshing(false), 500);
   };
 
