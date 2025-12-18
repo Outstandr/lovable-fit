@@ -137,7 +137,7 @@
   }
 
   .bottom-nav-inner {
-    @apply w-full max-w-lg mx-auto;
+    @apply w-full;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 

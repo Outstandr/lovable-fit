@@ -77,7 +77,7 @@ export function BodyMeasurementsStep({ onNext }: BodyMeasurementsStepProps) {
   };
 
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
       {/* Progress indicator */}
       <div className="px-6 pt-4 pb-2">
         <div className="flex items-center gap-2">
