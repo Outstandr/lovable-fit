@@ -33,13 +33,49 @@ const Leaderboard = () => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
 
   const fetchLeaderboard = async () => {
     try {
-      // Get today's date
+      console.log('[Leaderboard] Fetching from RPC function...');
+      
+      // Use the new RPC function for efficient querying
+      const { data, error } = await supabase.rpc('get_today_leaderboard');
+
+      if (error) {
+        console.error('[Leaderboard] RPC error:', error);
+        // Fallback to direct query if RPC fails
+        return fetchLeaderboardFallback();
+      }
+
+      console.log('[Leaderboard] RPC data:', data);
+
+      // Transform RPC data to LeaderboardEntry format
+      const entries: LeaderboardEntry[] = (data || []).map((row: any) => ({
+        rank: Number(row.rank),
+        name: row.display_name || 'Unknown',
+        steps: row.steps || 0,
+        avatar: row.avatar_initials || 'NA',
+        userId: row.user_id,
+        isCurrentUser: row.user_id === user?.id
+      }));
+
+      setLeaderboard(entries);
+      setLastUpdate(new Date());
+    } catch (error) {
+      console.error('[Leaderboard] Error:', error);
+      fetchLeaderboardFallback();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fallback to direct query if RPC is not available
+  const fetchLeaderboardFallback = async () => {
+    try {
+      console.log('[Leaderboard] Using fallback query...');
       const today = new Date().toISOString().split('T')[0];
       
-      // Fetch daily steps for today with profiles
       const { data: stepsData, error: stepsError } = await supabase
         .from('daily_steps')
         .select('user_id, steps, date')
@@ -51,7 +87,6 @@ const Leaderboard = () => {
         return;
       }
 
-      // Get all profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, display_name, avatar_initials');
@@ -61,12 +96,10 @@ const Leaderboard = () => {
         return;
       }
 
-      // Create a map of profiles
       const profilesMap = new Map(
         profilesData?.map(p => [p.id, { name: p.display_name, avatar: p.avatar_initials || 'NA' }]) || []
       );
 
-      // Build leaderboard from steps data
       const entries: LeaderboardEntry[] = (stepsData || []).map((step, index) => {
         const profile = profilesMap.get(step.user_id);
         return {
@@ -79,7 +112,7 @@ const Leaderboard = () => {
         };
       });
 
-      // If current user has no steps today, add them at the end
+      // Add current user if not in list
       if (user && !entries.find(e => e.userId === user.id)) {
         const currentUserProfile = profilesMap.get(user.id);
         if (currentUserProfile) {
@@ -95,8 +128,9 @@ const Leaderboard = () => {
       }
 
       setLeaderboard(entries);
+      setLastUpdate(new Date());
     } catch (error) {
-      console.error('[Leaderboard] Error:', error);
+      console.error('[Leaderboard] Fallback error:', error);
     } finally {
       setLoading(false);
     }
@@ -113,9 +147,9 @@ const Leaderboard = () => {
   useEffect(() => {
     fetchLeaderboard();
 
-    // Set up real-time subscription for daily_steps changes
+    // Set up real-time subscription for daily_steps changes (COD-style updates!)
     const channel = supabase
-      .channel('leaderboard-changes')
+      .channel('leaderboard-realtime')
       .on(
         'postgres_changes',
         {
@@ -123,15 +157,21 @@ const Leaderboard = () => {
           schema: 'public',
           table: 'daily_steps'
         },
-        () => {
-          console.log('[Leaderboard] Steps updated, refreshing...');
+        (payload) => {
+          console.log('[Leaderboard] Real-time update received:', payload);
           fetchLeaderboard();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[Leaderboard] Real-time subscription status:', status);
+      });
+
+    // Auto-refresh every 30 seconds
+    const refreshInterval = setInterval(fetchLeaderboard, 30000);
 
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(refreshInterval);
     };
   }, [user]);
 
@@ -149,7 +189,10 @@ const Leaderboard = () => {
   if (loading) {
     return (
       <div className="min-h-screen-safe flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading leaderboard...</p>
+        </div>
       </div>
     );
   }
@@ -197,7 +240,7 @@ const Leaderboard = () => {
           <div className="flex items-center gap-2 text-yellow-400">
             <WifiOff className="h-4 w-4" />
             <span className="text-xs font-medium uppercase tracking-wider">
-              Offline Mode - Leaderboard will update when online
+              Offline Mode - Showing cached data
             </span>
           </div>
         </div>
@@ -209,14 +252,24 @@ const Leaderboard = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="flex items-center gap-2">
-          <Trophy className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-bold uppercase tracking-[0.2em] text-foreground">
-            Leaderboard
-          </h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Trophy className="h-6 w-6 text-primary" />
+            <h1 className="text-xl font-bold uppercase tracking-[0.2em] text-foreground">
+              Leaderboard
+            </h1>
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="p-2 rounded-full hover:bg-secondary/50 transition-colors"
+            aria-label="Refresh leaderboard"
+          >
+            <RefreshCw className={`h-5 w-5 text-muted-foreground ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
         </div>
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mt-1">
-          Today's Rankings • {leaderboard.length} Participants
+          Today's Rankings • {leaderboard.length} Participants • Updated {lastUpdate.toLocaleTimeString()}
         </p>
       </motion.header>
 
