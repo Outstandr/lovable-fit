@@ -224,7 +224,7 @@ const Dashboard = () => {
   const today = new Date();
 
   return (
-    <div className="min-h-screen-safe page-with-bottom-nav relative">
+    <div className="min-h-screen-safe page-with-bottom-nav relative flex flex-col">
       {/* Refresh Indicator */}
       {isRefreshing && (
         <motion.div 
@@ -280,8 +280,8 @@ const Dashboard = () => {
         </motion.div>
       )}
 
-      {/* Main Content */}
-      <main className="px-4 relative z-content">
+      {/* Main Content - Scrollable */}
+      <main className="flex-1 overflow-y-auto px-4 relative z-content">
         {activeTab === "day" && (
           <DayView
             steps={steps}
@@ -374,6 +374,9 @@ const Dashboard = () => {
             </div>
           </div>
         </motion.div>
+
+        {/* Spacer for fixed button */}
+        <div className="h-28" />
       </main>
 
       {/* Action Button */}

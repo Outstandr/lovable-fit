@@ -101,8 +101,8 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
     const accuracy = position.coords.accuracy;
     const speed = position.coords.speed;
     
-    // Filter: Skip if accuracy > 50 meters
-    if (accuracy && accuracy > 50) {
+    // Filter: Skip if accuracy > 30 meters (stricter for better route accuracy)
+    if (accuracy && accuracy > 30) {
       console.log(`${LOG_PREFIX} Skipping low accuracy point: ${accuracy}m`);
       return;
     }
@@ -147,8 +147,8 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
         return;
       }
       
-      // Only add point if moved more than 5 meters (0.005 km)
-      if (distance > 0.005) {
+      // Only add point if moved more than 3 meters (0.003 km) - reduced for better accuracy
+      if (distance > 0.003) {
         setRoutePoints(prev => [...prev, newPoint]);
         totalDistanceRef.current += distance;
         setGpsDistance(totalDistanceRef.current);

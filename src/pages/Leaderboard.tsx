@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Trophy, Crown, Medal, Loader2, WifiOff, RefreshCw, Footprints, Calendar, CalendarDays, CalendarRange } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
@@ -37,6 +37,40 @@ const Leaderboard = () => {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  
+  // Pull-to-refresh state
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const touchStartY = useRef(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const PULL_THRESHOLD = 80;
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (scrollContainerRef.current?.scrollTop === 0) {
+      touchStartY.current = e.touches[0].clientY;
+      setIsPulling(true);
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isPulling) return;
+    
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY.current;
+    
+    if (diff > 0 && scrollContainerRef.current?.scrollTop === 0) {
+      setPullDistance(Math.min(diff * 0.5, 120)); // Apply resistance
+    }
+  }, [isPulling]);
+
+  const handleTouchEnd = useCallback(async () => {
+    if (pullDistance > PULL_THRESHOLD) {
+      haptics.medium();
+      await handleRefresh();
+    }
+    setPullDistance(0);
+    setIsPulling(false);
+  }, [pullDistance]);
 
   const fetchDailyLeaderboard = async () => {
     try {
@@ -270,7 +304,30 @@ const Leaderboard = () => {
   }
 
   return (
-    <div className="min-h-screen pb-20 overflow-y-auto">
+    <div 
+      ref={scrollContainerRef}
+      className="min-h-screen pb-20 overflow-y-auto safe-area-pt"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Pull-to-refresh indicator */}
+      {pullDistance > 0 && (
+        <motion.div 
+          className="flex items-center justify-center py-4"
+          style={{ height: pullDistance }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: pullDistance > PULL_THRESHOLD ? 1 : 0.5 }}
+        >
+          <RefreshCw 
+            className={`h-6 w-6 text-primary ${pullDistance > PULL_THRESHOLD ? 'animate-spin' : ''}`}
+            style={{ transform: `rotate(${pullDistance * 2}deg)` }}
+          />
+          <span className="ml-2 text-xs text-muted-foreground">
+            {pullDistance > PULL_THRESHOLD ? 'Release to refresh' : 'Pull to refresh'}
+          </span>
+        </motion.div>
+      )}
       {/* Refresh Indicator */}
       {isRefreshing && (
         <motion.div 

@@ -229,35 +229,7 @@ export function usePedometer() {
     return () => clearInterval(interval);
   }, [state.dataSource, state.isInitializing, state.platform]);
 
-  // Catch-up animation for smoothed steps
-  useEffect(() => {
-    if (smoothedSteps.current === lastRawSteps.current) return;
-    
-    const catchUp = () => {
-      const diff = lastRawSteps.current - smoothedSteps.current;
-      if (Math.abs(diff) <= 1) {
-        smoothedSteps.current = lastRawSteps.current;
-        return;
-      }
-      
-      const step = Math.ceil(Math.abs(diff) * SMOOTHING_FACTOR);
-      smoothedSteps.current += diff > 0 ? step : -step;
-      
-      const distance = (smoothedSteps.current * 0.762) / 1000;
-      const calories = Math.round(smoothedSteps.current * 0.04);
-      
-      setState(prev => ({
-        ...prev,
-        steps: smoothedSteps.current,
-        distance,
-        calories,
-      }));
-      
-      requestAnimationFrame(catchUp);
-    };
-    
-    requestAnimationFrame(catchUp);
-  }, [state.lastUpdate]);
+  // Removed: Catch-up animation was causing infinite loop
 
   // AUTOMATIC DATABASE SYNC - Every 50 steps
   useEffect(() => {
