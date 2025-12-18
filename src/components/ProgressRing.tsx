@@ -5,13 +5,17 @@ interface ProgressRingProps {
   target: number;
   size?: number;
   strokeWidth?: number;
+  label?: string;
+  showGoalText?: boolean;
 }
 
 export const ProgressRing = ({ 
   current, 
   target, 
   size = 280, 
-  strokeWidth = 16 
+  strokeWidth = 16,
+  label,
+  showGoalText = true
 }: ProgressRingProps) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
@@ -69,26 +73,39 @@ export const ProgressRing = ({
 
       {/* Center content */}
       <div className="relative z-10 flex flex-col items-center justify-center text-center">
+        {/* Optional label */}
+        {label && (
+          <motion.span 
+            className="text-sm font-semibold text-primary mb-1"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            {label}
+          </motion.span>
+        )}
+        
         <motion.span 
-          className={`text-7xl font-bold tracking-tight tabular-nums ${isComplete ? 'text-accent' : 'text-foreground'}`}
+          className={`text-5xl font-bold tracking-tight tabular-nums ${isComplete ? 'text-accent' : 'text-foreground'}`}
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.5 }}
         >
           {current.toLocaleString()}
         </motion.span>
+        
         {isComplete ? (
           <motion.span 
-            className="text-base font-semibold uppercase tracking-widest text-accent mt-1"
+            className="text-sm font-semibold uppercase tracking-widest text-accent mt-1"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
           >
             Target Hit!
           </motion.span>
-        ) : (
-          <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground mt-1">
-            Goal {target.toLocaleString()}
+        ) : showGoalText && (
+          <span className="text-xs font-medium text-muted-foreground mt-1">
+            of {target.toLocaleString()} steps
           </span>
         )}
       </div>
