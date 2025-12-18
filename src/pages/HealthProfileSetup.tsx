@@ -250,7 +250,7 @@ export default function HealthProfileSetup() {
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border/30">
         <div className="flex items-center justify-between px-4 py-3">
           <button 
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/')}
             className="p-2 -ml-2 text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
