@@ -159,11 +159,14 @@ const Profile = () => {
           <motion.button
             key={item.action}
             onClick={() => {
-              if (item.action === 'health-profile') {
-                navigate('/health-profile');
-              } else if (item.action === 'notifications') {
-                navigate('/notifications');
-              }
+              const routes: Record<string, string> = {
+                'health-profile': '/health-profile',
+                'notifications': '/notifications',
+                'goals': '/goals',
+                'privacy': '/privacy',
+                'settings': '/settings',
+              };
+              navigate(routes[item.action]);
             }}
             className="w-full tactical-card flex items-center justify-between hover:border-primary/50 transition-smooth touch-target press-scale"
             initial={{ opacity: 0, x: -20 }}

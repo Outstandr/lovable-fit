@@ -15,6 +15,9 @@ import Profile from "./pages/Profile";
 import Audiobook from "./pages/Audiobook";
 import HealthProfileSetup from "./pages/HealthProfileSetup";
 import NotificationSettings from "./pages/NotificationSettings";
+import GoalsSettings from "./pages/GoalsSettings";
+import PrivacySettings from "./pages/PrivacySettings";
+import AppSettings from "./pages/AppSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -68,6 +71,21 @@ const App = () => (
                 <Route path="/notifications" element={
                   <ProtectedRoute>
                     <NotificationSettings />
+                  </ProtectedRoute>
+                } />
+                <Route path="/goals" element={
+                  <ProtectedRoute>
+                    <GoalsSettings />
+                  </ProtectedRoute>
+                } />
+                <Route path="/privacy" element={
+                  <ProtectedRoute>
+                    <PrivacySettings />
+                  </ProtectedRoute>
+                } />
+                <Route path="/settings" element={
+                  <ProtectedRoute>
+                    <AppSettings />
                   </ProtectedRoute>
                 } />
                 <Route path="*" element={<NotFound />} />
