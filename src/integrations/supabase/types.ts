@@ -322,6 +322,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_monthly_leaderboard: {
+        Args: never
+        Returns: {
+          avatar_initials: string
+          display_name: string
+          rank: number
+          total_steps: number
+          user_id: string
+        }[]
+      }
+      get_today_leaderboard: {
+        Args: never
+        Returns: {
+          avatar_initials: string
+          calories: number
+          display_name: string
+          distance_km: number
+          rank: number
+          steps: number
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
