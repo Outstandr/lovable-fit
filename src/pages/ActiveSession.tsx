@@ -16,6 +16,9 @@ import AudiobookPlayer from "@/components/AudiobookPlayer";
 import { useAudiobook } from "@/hooks/useAudiobook";
 import { haptics } from "@/utils/haptics";
 import { format } from "date-fns";
+import html2canvas from "html2canvas";
+import { Share } from "@capacitor/share";
+import { Filesystem, Directory } from "@capacitor/filesystem";
 
 const ActiveSession = () => {
   const navigate = useNavigate();
@@ -51,6 +54,8 @@ const ActiveSession = () => {
   const [useStepsOnly, setUseStepsOnly] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [sessionEndTime, setSessionEndTime] = useState<Date | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   // Start GPS tracking when component mounts
   useEffect(() => {
@@ -174,8 +179,112 @@ const ActiveSession = () => {
 
   const handleOpenSettings = () => {
     if (Capacitor.isNativePlatform()) {
-      // On native, we can't directly open settings, but we can show a toast
       toast.info("Please open your device Settings > Location to enable GPS");
+    }
+  };
+
+  // Capture screenshot of map element
+  const captureMapScreenshot = async (): Promise<string | null> => {
+    const mapElement = document.getElementById('session-summary-map');
+    if (!mapElement) {
+      console.error('[Screenshot] Map element not found');
+      return null;
+    }
+    try {
+      const canvas = await html2canvas(mapElement, {
+        useCORS: true,
+        backgroundColor: '#0A1128',
+        scale: 2,
+        logging: false,
+      });
+      return canvas.toDataURL('image/png');
+    } catch (err) {
+      console.error('[Screenshot] Capture error:', err);
+      return null;
+    }
+  };
+
+  // Save screenshot to device gallery/downloads
+  const saveToGallery = async (imageBase64: string) => {
+    const fileName = `hotstepper-route-${Date.now()}.png`;
+    const base64Data = imageBase64.replace(/^data:image\/png;base64,/, '');
+
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await Filesystem.writeFile({
+          path: `Pictures/${fileName}`,
+          data: base64Data,
+          directory: Directory.Documents,
+          recursive: true,
+        });
+        toast.success("Route saved to Photos! 📸");
+      } catch (err) {
+        console.error('[Save] Filesystem error:', err);
+        // Fallback: try Documents folder
+        try {
+          await Filesystem.writeFile({
+            path: fileName,
+            data: base64Data,
+            directory: Directory.Documents,
+          });
+          toast.success("Route saved to Documents! 📸");
+        } catch (err2) {
+          console.error('[Save] Documents fallback error:', err2);
+          toast.error("Failed to save image");
+        }
+      }
+    } else {
+      // Web fallback - download as file
+      const link = document.createElement('a');
+      link.href = imageBase64;
+      link.download = fileName;
+      link.click();
+      toast.success("Route downloaded! 📸");
+    }
+  };
+
+  // Handle save button click
+  const handleSaveScreenshot = async () => {
+    setIsSaving(true);
+    haptics.medium();
+    try {
+      const screenshot = await captureMapScreenshot();
+      if (screenshot) {
+        await saveToGallery(screenshot);
+      } else {
+        toast.error("Could not capture route");
+      }
+    } catch (err) {
+      console.error('[Save] Error:', err);
+      toast.error("Failed to save screenshot");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle share button click
+  const handleShareSession = async () => {
+    setIsSharing(true);
+    haptics.light();
+    try {
+      const statsText = `🏃 Just completed a ${sessionData.distance}km walk!\n⏱ Duration: ${formatTime(duration)}\n📍 Pace: ${sessionData.pace}/km\n👟 Steps: ${sessionSteps.toLocaleString()}\n\n#Hotstepper`;
+
+      if (Capacitor.isNativePlatform()) {
+        await Share.share({
+          title: 'My Walking Route',
+          text: statsText,
+          dialogTitle: 'Share your route',
+        });
+      } else if (navigator.share) {
+        await navigator.share({ title: 'My Walking Route', text: statsText });
+      } else {
+        await navigator.clipboard.writeText(statsText);
+        toast.success('Stats copied!');
+      }
+    } catch (err) {
+      console.error('[Share] Error:', err);
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -437,7 +546,7 @@ const ActiveSession = () => {
               <p className="text-sm text-muted-foreground mt-1">Great work! 🔥</p>
             </motion.div>
 
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="mx-4 rounded-xl overflow-hidden bg-secondary/50 relative aspect-video max-h-[250px]">
+            <motion.div id="session-summary-map" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="mx-4 rounded-xl overflow-hidden bg-secondary/50 relative aspect-video max-h-[250px]">
               {routePoints.length > 1 && currentPosition ? (
                 <LiveMap currentPosition={currentPosition} routePoints={routePoints} isTracking={false} gpsAccuracy={null} />
               ) : (
@@ -472,20 +581,28 @@ const ActiveSession = () => {
               </div>
             </motion.div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="px-4 mt-auto">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="px-4 mt-auto safe-area-pb pb-4">
               <div className="grid grid-cols-2 gap-3 mb-3">
-                <Button variant="tactical" disabled={routePoints.length <= 1} className="h-14 press-scale" onClick={() => toast.info('Screenshot feature coming soon')}>
-                  <Camera className="h-5 w-5 mr-2" /><span className="text-sm font-bold uppercase tracking-wider">Save</span>
+                <Button 
+                  variant="tactical" 
+                  disabled={isSaving || routePoints.length <= 1} 
+                  className="h-14 press-scale" 
+                  onClick={handleSaveScreenshot}
+                >
+                  {isSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Camera className="h-5 w-5 mr-2" />}
+                  <span className="text-sm font-bold uppercase tracking-wider">{isSaving ? 'Saving...' : 'Save'}</span>
                 </Button>
-                <Button variant="tactical" className="h-14 press-scale" onClick={async () => {
-                  const msg = `🏃 Just completed a ${sessionData.distance}km walk!\n⏱ Duration: ${formatTime(duration)}\n📍 Pace: ${sessionData.pace}/km\n👟 Steps: ${sessionSteps.toLocaleString()}\n\n#Hotstepper`;
-                  if (navigator.share) { try { await navigator.share({ title: 'My Walking Route', text: msg }); } catch {} }
-                  else { await navigator.clipboard.writeText(msg); toast.success('Stats copied!'); }
-                }}>
-                  <Share2 className="h-5 w-5 mr-2" /><span className="text-sm font-bold uppercase tracking-wider">Share</span>
+                <Button 
+                  variant="tactical" 
+                  disabled={isSharing} 
+                  className="h-14 press-scale" 
+                  onClick={handleShareSession}
+                >
+                  {isSharing ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Share2 className="h-5 w-5 mr-2" />}
+                  <span className="text-sm font-bold uppercase tracking-wider">{isSharing ? 'Sharing...' : 'Share'}</span>
                 </Button>
               </div>
-              <Button variant="default" size="full" onClick={handleSummaryClose} className="h-14 text-sm font-bold uppercase tracking-widest press-scale mb-4 safe-area-pb">
+              <Button variant="default" size="full" onClick={handleSummaryClose} className="h-14 text-sm font-bold uppercase tracking-widest press-scale">
                 <Check className="h-5 w-5 mr-2" />Done - Go Home
               </Button>
             </motion.div>
