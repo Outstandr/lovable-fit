@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Trophy, Crown, Medal, Loader2 } from "lucide-react";
+import { Trophy, Crown, Medal, Loader2, WifiOff } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
 
 interface LeaderboardEntry {
   rank: number;
@@ -23,6 +24,7 @@ const getRankStyle = (rank: number) => {
 
 const Leaderboard = () => {
   const { user } = useAuth();
+  const { isOnline } = useOfflineSync();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -119,6 +121,13 @@ const Leaderboard = () => {
     };
   }, [user]);
 
+  // Refetch when coming back online
+  useEffect(() => {
+    if (isOnline) {
+      fetchLeaderboard();
+    }
+  }, [isOnline]);
+
   const currentUser = leaderboard.find(e => e.isCurrentUser);
   const top3 = leaderboard.slice(0, 3);
   const rest = leaderboard.slice(3);
@@ -133,6 +142,18 @@ const Leaderboard = () => {
 
   return (
     <div className="min-h-screen pb-24">
+      {/* Offline Banner */}
+      {!isOnline && (
+        <div className="bg-yellow-500/20 border-b border-yellow-500/30 px-4 py-2">
+          <div className="flex items-center gap-2 text-yellow-400">
+            <WifiOff className="h-4 w-4" />
+            <span className="text-xs font-medium uppercase tracking-wider">
+              Offline Mode - Leaderboard will update when online
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <motion.header 
         className="px-4 pt-6 pb-4"
