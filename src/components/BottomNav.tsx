@@ -34,7 +34,7 @@ export const BottomNav = () => {
                   haptics.light();
                   navigate(item.path);
                 }}
-                className="flex flex-col items-center justify-center gap-1 flex-1 h-full relative touch-target"
+                className="flex flex-col items-center justify-center flex-1 h-full relative touch-target py-2"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
@@ -43,24 +43,23 @@ export const BottomNav = () => {
                 aria-current={isActive ? 'page' : undefined}
                 role="tab"
               >
-                {/* Active Indicator */}
+                {/* Active Indicator - centered above icon */}
                 {isActive && (
                   <motion.div 
-                    className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-primary"
+                    className="absolute top-0 h-0.5 w-8 rounded-full bg-primary"
+                    style={{ left: '50%', transform: 'translateX(-50%)' }}
                     layoutId="activeTab"
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   />
                 )}
                 
-                {/* Icon - Perfectly Centered */}
-                <div className={`flex items-center justify-center h-6 w-6 transition-colors duration-200 ${
+                {/* Icon */}
+                <Icon className={`h-5 w-5 transition-colors duration-200 ${
                   isActive ? 'text-primary' : 'text-muted-foreground'
-                }`}>
-                  <Icon className="h-5 w-5" />
-                </div>
+                }`} />
                 
                 {/* Label */}
-                <span className={`text-[10px] font-semibold uppercase tracking-wider transition-colors duration-200 ${
+                <span className={`text-[10px] font-semibold uppercase tracking-wider mt-1 transition-colors duration-200 ${
                   isActive ? 'text-primary' : 'text-muted-foreground'
                 }`}>
                   {item.label}
