@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { GoogleMap, useLoadScript, Polyline, Circle } from '@react-google-maps/api';
 import { LocationPoint } from '@/hooks/useLocationTracking';
-import { Signal, SignalLow, SignalMedium, SignalHigh, Loader2, AlertTriangle } from 'lucide-react';
+import { Signal, SignalLow, SignalMedium, SignalHigh, Loader2, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import MapPlaceholder from './MapPlaceholder';
 
 interface LiveMapProps {
   currentPosition: LocationPoint | null;
   routePoints: LocationPoint[];
   isTracking: boolean;
   gpsAccuracy?: number | null;
+  sessionSteps?: number;
+  sessionDistance?: number;
 }
 
 // Dark theme map styles matching Midnight Ops aesthetic
@@ -73,33 +76,60 @@ const GpsSignalIndicator = ({ accuracy }: { accuracy: number | null }) => {
   );
 };
 
-const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy }: LiveMapProps) => {
+const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy, sessionSteps = 0, sessionDistance = 0 }: LiveMapProps) => {
   const mapRef = useRef<google.maps.Map | null>(null);
   const hasInitialCenter = useRef(false);
 
+  // Online/Offline detection
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [apiKeyFailed, setApiKeyFailed] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   // Google Maps API key (publishable) loaded at runtime from backend config.
-  // This avoids relying on client-side .env injection.
   const [apiKey, setApiKey] = useState<string>(import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '');
 
   useEffect(() => {
-    if (apiKey) return;
+    if (apiKey || !isOnline) return;
 
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase.functions.invoke('public-config');
-      if (!cancelled && !error && data?.googleMapsApiKey) {
-        setApiKey(String(data.googleMapsApiKey));
+      try {
+        const { data, error } = await supabase.functions.invoke('public-config');
+        if (!cancelled && !error && data?.googleMapsApiKey) {
+          setApiKey(String(data.googleMapsApiKey));
+          setApiKeyFailed(false);
+        } else if (!cancelled) {
+          setApiKeyFailed(true);
+        }
+      } catch {
+        if (!cancelled) setApiKeyFailed(true);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [apiKey]);
+  }, [apiKey, isOnline, retryCount]);
 
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: apiKey,
   });
+
+  const handleRetry = () => {
+    setApiKeyFailed(false);
+    setRetryCount(c => c + 1);
+  };
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
@@ -134,15 +164,41 @@ const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy }: Live
     ? { lat: currentPosition.latitude, lng: currentPosition.longitude }
     : defaultCenter;
 
-  // Missing key state
-  if (!apiKey) {
+  // Offline fallback - show placeholder with session stats
+  if (!isOnline) {
     return (
-      <div className="absolute inset-0 rounded-xl overflow-hidden bg-secondary/50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-center px-4">
-          <AlertTriangle className="h-8 w-8 text-destructive" />
-          <span className="text-sm font-medium text-foreground">Google Maps not configured</span>
-          <span className="text-xs text-muted-foreground">Add a Google Maps API key to continue</span>
+      <div className="absolute inset-0 rounded-xl overflow-hidden">
+        <MapPlaceholder 
+          message="Offline - Using step tracking"
+          sessionSteps={sessionSteps}
+          sessionDistance={sessionDistance}
+          showStepsFallback={true}
+        />
+        <div className="absolute top-4 left-4 z-10 rounded-lg bg-destructive/20 backdrop-blur-sm px-3 py-1.5 border border-destructive/30 flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-destructive">Offline</span>
         </div>
+      </div>
+    );
+  }
+
+  // API key failed or missing - show placeholder with retry
+  if (!apiKey || apiKeyFailed) {
+    return (
+      <div className="absolute inset-0 rounded-xl overflow-hidden">
+        <MapPlaceholder 
+          message="Map unavailable - Using step tracking"
+          sessionSteps={sessionSteps}
+          sessionDistance={sessionDistance}
+          showStepsFallback={true}
+        />
+        <button
+          onClick={handleRetry}
+          className="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-lg bg-primary/20 backdrop-blur-sm px-3 py-2 border border-primary/30 hover:bg-primary/30 transition-colors"
+        >
+          <RefreshCw className="h-4 w-4 text-primary" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-primary">Retry</span>
+        </button>
       </div>
     );
   }
@@ -159,15 +215,23 @@ const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy }: Live
     );
   }
 
-  // Error state
+  // Map load error - show placeholder with retry
   if (loadError) {
     return (
-      <div className="absolute inset-0 rounded-xl overflow-hidden bg-secondary/50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-center px-4">
-          <AlertTriangle className="h-8 w-8 text-destructive" />
-          <span className="text-sm font-medium text-foreground">Map Load Error</span>
-          <span className="text-xs text-muted-foreground">Check your Google Maps API key</span>
-        </div>
+      <div className="absolute inset-0 rounded-xl overflow-hidden">
+        <MapPlaceholder 
+          message="Map failed to load"
+          sessionSteps={sessionSteps}
+          sessionDistance={sessionDistance}
+          showStepsFallback={true}
+        />
+        <button
+          onClick={handleRetry}
+          className="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-lg bg-primary/20 backdrop-blur-sm px-3 py-2 border border-primary/30 hover:bg-primary/30 transition-colors"
+        >
+          <RefreshCw className="h-4 w-4 text-primary" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-primary">Retry</span>
+        </button>
       </div>
     );
   }
