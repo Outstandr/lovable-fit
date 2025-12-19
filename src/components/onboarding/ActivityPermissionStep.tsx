@@ -17,12 +17,19 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
     
     try {
       if (Capacitor.isNativePlatform()) {
-        // Request health permission (HealthKit on iOS, Health Connect on Android)
-        await healthService.requestPermission();
+        // Request health permission with timeout protection
+        await Promise.race([
+          healthService.requestPermission(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+        ]);
       }
     } catch (error) {
-      console.log('[Onboarding] Activity permission error:', error);
+      console.log('[Onboarding] Activity permission error (safe):', error);
+      // Continue anyway - don't crash
     }
+    
+    // Small delay before navigating to next step to let native side stabilize
+    await new Promise(resolve => setTimeout(resolve, 300));
     
     setIsRequesting(false);
     onNext();

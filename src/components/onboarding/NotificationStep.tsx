@@ -17,12 +17,19 @@ export function NotificationStep({ onNext }: NotificationStepProps) {
     
     try {
       if (Capacitor.isNativePlatform() && pushNotificationService.isSupported()) {
-        // Only request permission - initialization handled by PushNotificationInitializer
-        await pushNotificationService.requestPermission();
+        // Request permission with timeout protection
+        await Promise.race([
+          pushNotificationService.requestPermission(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+        ]);
       }
     } catch (error) {
-      console.log('[Onboarding] Notification permission error:', error);
+      console.log('[Onboarding] Notification permission error (safe):', error);
+      // Continue anyway - don't crash
     }
+    
+    // Delay to let native side stabilize before proceeding
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     setIsRequesting(false);
     onNext();
