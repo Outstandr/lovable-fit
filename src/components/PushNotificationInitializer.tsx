@@ -62,8 +62,15 @@ export function PushNotificationInitializer({ children }: PushNotificationInitia
         
         console.log('[PushNotifications] Initializing for user:', user.id);
         
-        // Initialize push notifications (requests permission)
-        await pushNotificationService.initialize();
+        // Initialize with timeout protection to prevent hanging
+        const timeoutPromise = new Promise<void>((_, reject) => 
+          setTimeout(() => reject(new Error('Push notification init timeout')), 15000)
+        );
+        
+        await Promise.race([
+          pushNotificationService.initialize(),
+          timeoutPromise
+        ]);
         
         // Check if permission was granted
         const hasPermission = await pushNotificationService.checkPermission();
@@ -76,7 +83,8 @@ export function PushNotificationInitializer({ children }: PushNotificationInitia
           console.log('[PushNotifications] Permission denied by user');
         }
       } catch (error) {
-        console.error('[PushNotifications] Error initializing:', error);
+        console.error('[PushNotifications] Error initializing (safe catch):', error);
+        // Don't rethrow - just log and continue to prevent app crash
       }
     };
 

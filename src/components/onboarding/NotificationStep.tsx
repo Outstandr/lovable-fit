@@ -17,8 +17,8 @@ export function NotificationStep({ onNext }: NotificationStepProps) {
     
     try {
       if (Capacitor.isNativePlatform() && pushNotificationService.isSupported()) {
+        // Only request permission - initialization handled by PushNotificationInitializer
         await pushNotificationService.requestPermission();
-        await pushNotificationService.initialize();
       }
     } catch (error) {
       console.log('[Onboarding] Notification permission error:', error);

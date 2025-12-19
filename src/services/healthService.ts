@@ -28,6 +28,7 @@ class HealthService {
     platform: 'web',
     lastChecked: null,
   };
+  private startPromise: Promise<boolean> | null = null;
 
   constructor() {
     this.state.platform = Capacitor.getPlatform() as Platform;
@@ -218,6 +219,21 @@ class HealthService {
       return false;
     }
 
+    // If already starting, wait for that to complete
+    if (this.startPromise) {
+      console.log(`${LOG_PREFIX} Already starting, waiting...`);
+      return this.startPromise;
+    }
+
+    this.startPromise = this._doStart();
+    try {
+      return await this.startPromise;
+    } finally {
+      this.startPromise = null;
+    }
+  }
+
+  private async _doStart(): Promise<boolean> {
     try {
       const isAvailable = await this.checkAvailability();
       if (!isAvailable) {
