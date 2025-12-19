@@ -1,14 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Trophy, Crown, Medal, Loader2, WifiOff, RefreshCw, Footprints } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useNavigate } from "react-router-dom";
 import { toast } from 'sonner';
-import { haptics } from '@/utils/haptics';
 
 interface LeaderboardEntry {
   rank: number;
@@ -32,7 +32,6 @@ const Leaderboard = () => {
   const navigate = useNavigate();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
   const fetchLeaderboard = async () => {
@@ -136,13 +135,10 @@ const Leaderboard = () => {
     }
   };
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    haptics.light();
+  const handleRefresh = useCallback(async () => {
     await fetchLeaderboard();
     toast.success('✓ Leaderboard updated');
-    setTimeout(() => setIsRefreshing(false), 500);
-  };
+  }, []);
 
   useEffect(() => {
     fetchLeaderboard();
@@ -198,41 +194,8 @@ const Leaderboard = () => {
   }
 
   return (
-    <div 
-      className="min-h-screen-safe page-with-bottom-nav"
-      onTouchStart={(e) => {
-        const touch = e.touches[0];
-        const startY = touch.clientY;
-        
-        const handleTouchMove = (moveEvent: TouchEvent) => {
-          const currentY = moveEvent.touches[0].clientY;
-          const pullDistance = currentY - startY;
-          
-          if (pullDistance > 100 && window.scrollY === 0 && !isRefreshing) {
-            handleRefresh();
-            document.removeEventListener('touchmove', handleTouchMove);
-          }
-        };
-        
-        document.addEventListener('touchmove', handleTouchMove);
-        document.addEventListener('touchend', () => {
-          document.removeEventListener('touchmove', handleTouchMove);
-        }, { once: true });
-      }}
-    >
-      {/* Refresh Indicator */}
-      {isRefreshing && (
-        <motion.div 
-          className="absolute top-0 left-0 right-0 z-50 flex items-center justify-center py-4 safe-area-pt"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/20 backdrop-blur-sm">
-            <RefreshCw className="h-4 w-4 text-primary animate-spin" />
-            <span className="text-xs font-medium text-primary">Refreshing Leaderboard...</span>
-          </div>
-        </motion.div>
-      )}
+    <div className="min-h-screen-safe page-with-bottom-nav relative">
+      <PullToRefresh onRefresh={handleRefresh} className="h-full">
 
       {/* Offline Banner with safe area */}
       {!isOnline && (
@@ -261,11 +224,10 @@ const Leaderboard = () => {
           </div>
           <button
             onClick={handleRefresh}
-            disabled={isRefreshing}
             className="p-2 rounded-full hover:bg-secondary/50 transition-colors"
             aria-label="Refresh leaderboard"
           >
-            <RefreshCw className={`h-5 w-5 text-muted-foreground ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className="h-5 w-5 text-muted-foreground" />
           </button>
         </div>
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mt-1">
@@ -285,10 +247,7 @@ const Leaderboard = () => {
           </p>
           <Button 
             variant="outline"
-            onClick={() => {
-              haptics.medium();
-              navigate('/');
-            }}
+            onClick={() => navigate('/')}
             className="mt-6"
           >
             View Dashboard
@@ -419,6 +378,7 @@ const Leaderboard = () => {
           );
         })}
       </div>
+      </PullToRefresh>
 
       {/* Pinned User Rank - Fixed above bottom nav */}
       {currentUser && currentUser.rank > 3 && (
