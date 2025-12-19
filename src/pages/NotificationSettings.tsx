@@ -136,7 +136,7 @@ const NotificationSettings = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background pb-8">
+    <div className="min-h-screen-safe bg-background safe-area-pb pb-8">
       {/* Header */}
       <motion.header 
         className="flex items-center gap-4 p-4 border-b border-border header-safe"

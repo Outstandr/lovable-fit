@@ -84,7 +84,7 @@ const Profile = () => {
   const avatarInitials = profile?.avatar_initials || displayName.slice(0, 2).toUpperCase();
 
   return (
-    <div className="min-h-screen pb-24 overflow-y-auto">
+    <div className="min-h-screen-safe page-with-bottom-nav overflow-y-auto">
       {/* Header with safe area */}
       <motion.header 
         className="px-4 pb-4 text-center header-safe"

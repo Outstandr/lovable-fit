@@ -55,7 +55,7 @@ const AppSettings = () => {
   const currentUnit = profile?.unit_preference || "metric";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen-safe bg-background safe-area-pb">
       {/* Header */}
       <motion.header 
         className="flex items-center gap-4 p-4 border-b border-border header-safe"
