@@ -15,6 +15,8 @@ export const BottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const activeIndex = navItems.findIndex(item => location.pathname === item.path);
+
   return (
     <nav 
       className="bottom-nav"
@@ -22,7 +24,19 @@ export const BottomNav = () => {
       aria-label="Main navigation"
     >
       <div className="bottom-nav-inner">
-        <div className="bottom-nav-content">
+        <div className="bottom-nav-content relative">
+          {/* Active Indicator Line - positioned at top of nav */}
+          {activeIndex >= 0 && (
+            <motion.div 
+              className="absolute top-0 h-0.5 w-8 rounded-full bg-primary"
+              initial={false}
+              animate={{ 
+                left: `calc(${(activeIndex + 0.5) * (100 / navItems.length)}% - 1rem)` 
+              }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            />
+          )}
+          
           {navItems.map((item, index) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
@@ -34,7 +48,7 @@ export const BottomNav = () => {
                   haptics.light();
                   navigate(item.path);
                 }}
-                className="flex flex-col items-center justify-center gap-1 flex-1 h-full relative touch-target"
+                className="flex flex-col items-center justify-center gap-1 flex-1 h-full touch-target"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
@@ -43,16 +57,7 @@ export const BottomNav = () => {
                 aria-current={isActive ? 'page' : undefined}
                 role="tab"
               >
-                {/* Active Indicator - Centered above icon */}
-                {isActive && (
-                  <motion.div 
-                    className="absolute -top-1 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-primary"
-                    layoutId="activeTab"
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  />
-                )}
-                
-                {/* Icon - Perfectly Centered */}
+                {/* Icon */}
                 <div className={`flex items-center justify-center h-6 w-6 transition-colors duration-200 ${
                   isActive ? 'text-primary' : 'text-muted-foreground'
                 }`}>
