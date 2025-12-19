@@ -1,31 +1,32 @@
 import { useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { pushNotificationService } from '@/services/pushNotificationService';
-import { pedometerService } from '@/services/pedometerService';
+import { healthService } from '@/services/healthService';
 import { toast } from 'sonner';
 
 interface PushNotificationInitializerProps {
   children: React.ReactNode;
 }
 
-// Wait for pedometer permission flow to complete before requesting push permissions
-const waitForPedometerInit = async (maxWaitMs: number = 8000): Promise<void> => {
+// Wait for health permission flow to complete before requesting push permissions
+const waitForHealthInit = async (maxWaitMs: number = 8000): Promise<void> => {
   const startTime = Date.now();
   
   // Minimum 2s wait to let permission dialog appear
   await new Promise(resolve => setTimeout(resolve, 2000));
   
-  // Poll every 500ms to check if pedometer has resolved permission
+  // Poll every 500ms to check if health service has resolved permission
   while (Date.now() - startTime < maxWaitMs) {
-    // If pedometer has permission OR is already tracking, permission flow is complete
-    if (pedometerService.getHasPermission() || pedometerService.getIsTracking()) {
-      console.log('[PushNotifications] Pedometer init complete, proceeding...');
+    // If health has permission, permission flow is complete
+    const state = healthService.getState();
+    if (state.hasPermission) {
+      console.log('[PushNotifications] Health init complete, proceeding...');
       return;
     }
     await new Promise(resolve => setTimeout(resolve, 500));
   }
   
-  console.log('[PushNotifications] Pedometer init timeout, proceeding anyway...');
+  console.log('[PushNotifications] Health init timeout, proceeding anyway...');
 };
 
 export function PushNotificationInitializer({ children }: PushNotificationInitializerProps) {
@@ -33,7 +34,7 @@ export function PushNotificationInitializer({ children }: PushNotificationInitia
   const hasInitialized = useRef(false);
   const hasShownToast = useRef(false);
 
-  // Initialize push notifications after user login AND pedometer init
+  // Initialize push notifications after user login AND health init
   useEffect(() => {
     const initializePushNotifications = async () => {
       // Prevent multiple initializations
@@ -57,8 +58,8 @@ export function PushNotificationInitializer({ children }: PushNotificationInitia
       try {
         hasInitialized.current = true;
         
-        // Wait for pedometer permission flow to complete first
-        await waitForPedometerInit();
+        // Wait for health permission flow to complete first
+        await waitForHealthInit();
         
         console.log('[PushNotifications] Initializing for user:', user.id);
         

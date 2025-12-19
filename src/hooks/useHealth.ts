@@ -1,41 +1,39 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { pedometerService } from '@/services/pedometerService';
+import { healthService, DataSource, Platform } from '@/services/healthService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useOfflineSync } from './useOfflineSync';
 import { toast } from 'sonner';
 import { haptics } from '@/utils/haptics';
 
-const LOG_PREFIX = '[usePedometer]';
+const LOG_PREFIX = '[useHealth]';
 
-export type DataSource = 'pedometer' | 'unavailable';
-
-interface PedometerState {
+interface HealthState {
   steps: number;
   distance: number;
   calories: number;
   hasPermission: boolean;
   isTracking: boolean;
   error: string | null;
-  platform: 'android' | 'ios' | 'web';
+  platform: Platform;
   dataSource: DataSource;
   isInitializing: boolean;
   lastUpdate: Date;
 }
 
-const PEDOMETER_POLL_INTERVAL = 3000; // 3 seconds
+const HEALTH_POLL_INTERVAL = 30000; // 30 seconds (health data doesn't update as frequently)
 
-export function usePedometer() {
+export function useHealth() {
   const { user } = useAuth();
   const { isOnline, queueStepData } = useOfflineSync();
-  const [state, setState] = useState<PedometerState>({
+  const [state, setState] = useState<HealthState>({
     steps: 0,
     distance: 0,
     calories: 0,
     hasPermission: false,
     isTracking: false,
     error: null,
-    platform: pedometerService.getPlatform(),
+    platform: healthService.getPlatform(),
     dataSource: 'unavailable',
     isInitializing: true,
     lastUpdate: new Date(),
@@ -106,9 +104,9 @@ export function usePedometer() {
     }
   }, [user]);
 
-  // AUTOMATIC INITIALIZATION - Start pedometer immediately on app launch
+  // AUTOMATIC INITIALIZATION - Start health service on app launch
   useEffect(() => {
-    const platform = pedometerService.getPlatform();
+    const platform = healthService.getPlatform();
     
     if (platform === 'web') {
       console.log(`${LOG_PREFIX} Web platform, skipping initialization`);
@@ -117,24 +115,30 @@ export function usePedometer() {
     }
 
     const init = async () => {
-      console.log(`${LOG_PREFIX} === STARTING PEDOMETER TRACKING ===`);
+      console.log(`${LOG_PREFIX} === STARTING HEALTH TRACKING ===`);
       
       try {
-        // Start pedometer (automatically requests ACTIVITY_RECOGNITION permission)
-        const started = await pedometerService.start();
+        const started = await healthService.start();
         
         if (started) {
-          console.log(`${LOG_PREFIX} ✅ Pedometer started successfully`);
+          console.log(`${LOG_PREFIX} ✅ Health service started successfully`);
+          
+          // Fetch initial data
+          const data = await healthService.readTodayData();
+          
           setState(prev => ({
             ...prev,
-            dataSource: 'pedometer',
+            dataSource: 'health',
             isTracking: true,
             hasPermission: true,
             isInitializing: false,
             lastUpdate: new Date(),
+            steps: data?.steps || prev.steps,
+            distance: data?.distance || prev.distance,
+            calories: data?.calories || prev.calories,
           }));
         } else {
-          console.log(`${LOG_PREFIX} ⚠️ Pedometer failed to start (permission denied or no sensor)`);
+          console.log(`${LOG_PREFIX} ⚠️ Health service failed to start`);
           setState(prev => ({
             ...prev,
             dataSource: 'unavailable',
@@ -153,35 +157,35 @@ export function usePedometer() {
       }
     };
 
-    // Start immediately (no delay)
     init();
   }, []);
 
-  // AUTOMATIC POLLING - Update steps every 3 seconds
+  // AUTOMATIC POLLING - Update health data periodically
   useEffect(() => {
     if (state.platform === 'web' || state.isInitializing) {
       return;
     }
 
-    if (state.dataSource !== 'pedometer') {
-      console.log(`${LOG_PREFIX} Pedometer not active, skipping poll`);
+    if (state.dataSource !== 'health') {
+      console.log(`${LOG_PREFIX} Health not active, skipping poll`);
       return;
     }
 
-    console.log(`${LOG_PREFIX} Starting pedometer poll every 3 seconds`);
+    console.log(`${LOG_PREFIX} Starting health poll every 30 seconds`);
 
     const poll = async () => {
       try {
-        await pedometerService.fetchSteps();
-        const serviceState = pedometerService.getState();
+        const data = await healthService.readTodayData();
         
-        setState(prev => ({
-          ...prev,
-          steps: serviceState.steps,
-          distance: serviceState.distance,
-          calories: serviceState.calories,
-          lastUpdate: new Date(),
-        }));
+        if (data) {
+          setState(prev => ({
+            ...prev,
+            steps: data.steps,
+            distance: data.distance,
+            calories: data.calories,
+            lastUpdate: new Date(),
+          }));
+        }
       } catch (error) {
         console.error(`${LOG_PREFIX} Poll error:`, error);
       }
@@ -191,7 +195,7 @@ export function usePedometer() {
     poll();
 
     // Set up interval
-    const interval = setInterval(poll, PEDOMETER_POLL_INTERVAL);
+    const interval = setInterval(poll, HEALTH_POLL_INTERVAL);
     return () => clearInterval(interval);
   }, [state.dataSource, state.isInitializing, state.platform]);
 
@@ -233,7 +237,6 @@ export function usePedometer() {
       
       if (error) {
         console.error(`${LOG_PREFIX} Database sync error:`, error);
-        // Queue if sync fails
         queueStepData(today, state.steps, state.distance, state.calories);
       } else {
         lastSyncSteps.current = state.steps;
@@ -244,21 +247,27 @@ export function usePedometer() {
     }
   }, [user, state.steps, state.distance, state.calories, isOnline, queueStepData]);
 
-  // For Active Session use
+  const requestPermission = useCallback(async (): Promise<boolean> => {
+    const granted = await healthService.requestPermission();
+    if (granted) {
+      setState(prev => ({ ...prev, hasPermission: true }));
+    }
+    return granted;
+  }, []);
+
   const startTracking = useCallback(async (): Promise<boolean> => {
-    if (state.dataSource === 'pedometer') {
+    if (state.dataSource === 'health') {
       return true; // Already tracking
     }
     
-    const started = await pedometerService.start();
+    const started = await healthService.start();
     if (started) {
-      setState(prev => ({ ...prev, isTracking: true, dataSource: 'pedometer' }));
+      setState(prev => ({ ...prev, isTracking: true, dataSource: 'health', hasPermission: true }));
     }
     return started;
   }, [state.dataSource]);
 
-  const stopTracking = useCallback(async (): Promise<void> => {
-    await pedometerService.stop();
+  const stopTracking = useCallback((): void => {
     setState(prev => ({ ...prev, isTracking: false }));
   }, []);
 
@@ -276,6 +285,7 @@ export function usePedometer() {
     isInitializing: state.isInitializing,
     
     // Actions
+    requestPermission,
     startTracking,
     stopTracking,
     syncToDatabase,
