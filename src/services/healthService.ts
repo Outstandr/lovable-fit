@@ -241,12 +241,20 @@ class HealthService {
         return false;
       }
 
-      const hasPermission = await this.requestPermission();
+      // Check if already has permission (granted during onboarding)
+      let hasPermission = await this.checkPermission();
+      
+      if (!hasPermission) {
+        // Only request if not already granted
+        hasPermission = await this.requestPermission();
+      }
+      
       if (!hasPermission) {
         console.log(`${LOG_PREFIX} Permission not granted`);
         return false;
       }
 
+      this.state.hasPermission = true;
       console.log(`${LOG_PREFIX} ✅ Health service started successfully`);
       return true;
     } catch (error) {

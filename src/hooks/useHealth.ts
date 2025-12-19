@@ -105,6 +105,7 @@ export function useHealth() {
   }, [user]);
 
   // AUTOMATIC INITIALIZATION - Start health service on app launch
+  // Delayed to avoid conflict with onboarding permission flow
   useEffect(() => {
     const platform = healthService.getPlatform();
     
@@ -114,7 +115,8 @@ export function useHealth() {
       return;
     }
 
-    const init = async () => {
+    // Delay initialization to avoid conflict with onboarding permission flow
+    const timer = setTimeout(async () => {
       console.log(`${LOG_PREFIX} === STARTING HEALTH TRACKING ===`);
       
       try {
@@ -155,9 +157,9 @@ export function useHealth() {
           isInitializing: false,
         }));
       }
-    };
+    }, 1500); // 1.5 second delay to let onboarding complete first
 
-    init();
+    return () => clearTimeout(timer);
   }, []);
 
   // AUTOMATIC POLLING - Update health data periodically

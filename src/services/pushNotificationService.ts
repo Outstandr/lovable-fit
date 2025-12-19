@@ -12,6 +12,7 @@ class PushNotificationService {
   private token: string | null = null;
   private initialized = false;
   private initializationPromise: Promise<void> | null = null;
+  private listenersRegistered = false;
 
   /**
    * Check if push notifications are supported on this platform
@@ -95,8 +96,14 @@ class PushNotificationService {
 
   private async _doInitialize(): Promise<void> {
     try {
-      // Request permission first
-      const hasPermission = await this.requestPermission();
+      // Check if already has permission (granted during onboarding)
+      let hasPermission = await this.checkPermission();
+      
+      if (!hasPermission) {
+        // Only request if not already granted
+        hasPermission = await this.requestPermission();
+      }
+      
       if (!hasPermission) {
         console.log('[PushNotification] Permission denied, skipping registration');
         return;
@@ -119,6 +126,13 @@ class PushNotificationService {
    * Set up push notification event listeners
    */
   private setupListeners(): void {
+    // Prevent duplicate listener registration
+    if (this.listenersRegistered) {
+      console.log('[PushNotification] Listeners already registered, skipping');
+      return;
+    }
+    this.listenersRegistered = true;
+
     // Registration success
     PushNotifications.addListener('registration', async (token) => {
       console.log('[PushNotification] Registration success, token:', token.value);
