@@ -1,8 +1,5 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
-import {
-  CapacitorHealthkit,
-  OtherData,
-} from '@perfood/capacitor-healthkit';
+import { healthKitService } from './healthKitService';
 
 interface PedometerPlugin {
   startCounting(): Promise<void>;
@@ -61,14 +58,10 @@ class PedometerService {
     if (this.platform === 'ios') {
       try {
         console.log(`${LOG_PREFIX} Requesting HealthKit permissions for iOS...`);
-        await CapacitorHealthkit.requestAuthorization({
-          all: [],
-          read: ['stepCount', 'distanceWalkingRunning', 'activeEnergyBurned'],
-          write: [],
-        });
-        this.hasPermission = true;
-        console.log(`${LOG_PREFIX} HealthKit permission granted`);
-        return true;
+        const granted = await healthKitService.requestPermission();
+        this.hasPermission = granted;
+        console.log(`${LOG_PREFIX} HealthKit permission ${granted ? 'granted' : 'denied'}`);
+        return granted;
       } catch (error) {
         console.error(`${LOG_PREFIX} HealthKit permission denied:`, error);
         this.hasPermission = false;
@@ -151,26 +144,13 @@ class PedometerService {
 
   private async fetchStepsFromHealthKit(): Promise<void> {
     try {
-      const now = new Date();
-      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      const data = await healthKitService.readTodayHealthData();
       
-      const stepData = await CapacitorHealthkit.queryHKitSampleType({
-        sampleName: 'stepCount',
-        startDate: startOfDay.toISOString(),
-        endDate: now.toISOString(),
-        limit: 0,
-      });
-      
-      let totalSteps = 0;
-      if (stepData.resultData) {
-        for (const record of stepData.resultData as OtherData[]) {
-          totalSteps += record.value || 0;
-        }
+      if (data) {
+        this.currentSteps = data.steps;
+        this.currentDistance = data.distance;
+        console.log(`${LOG_PREFIX} HealthKit steps: ${data.steps}`);
       }
-      
-      this.currentSteps = totalSteps;
-      this.currentDistance = this.calculateDistance(totalSteps);
-      console.log(`${LOG_PREFIX} HealthKit steps: ${totalSteps}`);
     } catch (error) {
       console.error(`${LOG_PREFIX} Error fetching HealthKit steps:`, error);
     }
