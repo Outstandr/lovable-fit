@@ -21,6 +21,12 @@ const config: CapacitorConfig = {
       signingType: 'apksigner'
     }
   },
+  ios: {
+    backgroundColor: '#0A1128',
+    contentInset: 'automatic',
+    preferredContentMode: 'mobile',
+    scheme: 'Hotstepper'
+  },
   plugins: {
     StatusBar: {
       style: 'DARK',
