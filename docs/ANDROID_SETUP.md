@@ -1,69 +1,88 @@
-# Android Configuration Guide
+# Android Setup Guide - Health Connect
 
-This guide covers all Android-specific setup required for the app, including Health Connect integration.
+This guide covers Android setup for the app with Health Connect integration.
+
+## ✅ What's Already Done
+
+The `@capgo/capacitor-health` plugin **automatically handles**:
+- All Health Connect permissions in AndroidManifest.xml
+- Health Connect client dependency
+- Permission request UI
+- Data reading/writing APIs
+
+**You only need to ensure the privacy policy file exists** (already included at `public/privacypolicy.html`).
+
+---
+
+## Quick Start
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Add Android platform
+npx cap add android
+
+# 3. Sync project (copies privacy policy to Android assets)
+npx cap sync android
+
+# 4. Open in Android Studio
+npx cap open android
+
+# 5. Run on device/emulator
+npx cap run android
+```
+
+---
 
 ## Prerequisites
 
 - Android Studio (latest stable version)
 - JDK 17 or higher
 - Node.js and npm installed
-
-## Initial Setup
-
-After cloning the project, run:
-
-```bash
-npm install
-npx cap add android
-npx cap sync android
-```
+- Physical device or emulator running **Android 9+ (API 28+)**
+- **Health Connect app** installed on device (pre-installed on Android 14+, downloadable for older versions)
 
 ---
 
-## SDK Version Configuration
+## Privacy Policy (REQUIRED)
 
-### Required: Update `android/variables.gradle`
+Health Connect **requires** a privacy policy to show the permission dialog. 
 
-Open `android/variables.gradle` and update to these values:
+✅ Already included at: `public/privacypolicy.html`
+
+When you run `npx cap sync`, this file is automatically copied to `android/app/src/main/assets/public/privacypolicy.html`.
+
+---
+
+## SDK Configuration (Usually Automatic)
+
+The plugin sets `minSdkVersion = 28` automatically. If you need to verify, check `android/variables.gradle`:
 
 ```gradle
 ext {
-    minSdkVersion = 28          // Required for Health Connect (Android 9+)
-    compileSdkVersion = 35      // Latest stable SDK
-    targetSdkVersion = 35       // Latest target SDK
+    minSdkVersion = 28          // Required for Health Connect
+    compileSdkVersion = 35
+    targetSdkVersion = 35
 }
 ```
 
-### Why minSdkVersion 28?
-
-| SDK Level | Android Version | Device Coverage | Notes |
-|-----------|-----------------|-----------------|-------|
-| 28 | Android 9 (Pie) | ~95% | **Recommended** - Minimum for Health Connect |
-| 29 | Android 10 | ~90% | Better privacy features |
-| 30 | Android 11 | ~85% | Scoped storage enforcement |
-| 31 | Android 12 | ~75% | Health Connect available as module |
-| 34 | Android 14 | ~40% | Health Connect built-in |
+| SDK Level | Android Version | Notes |
+|-----------|-----------------|-------|
+| 28 | Android 9 (Pie) | **Minimum for Health Connect** |
+| 34 | Android 14 | Health Connect built-in |
 
 ---
 
-## Health Connect Setup
+## Data Types Available
 
-### 1. Add Health Connect Dependency
+The app reads these Health Connect data types:
 
-The app uses `@capgo/capacitor-health` which handles Health Connect integration. This is already installed via npm.
-
-### 2. Update `android/app/build.gradle`
-
-Add the Health Connect dependency in the `dependencies` block:
-
-```gradle
-dependencies {
-    // ... existing dependencies
-    
-    // Health Connect
-    implementation "androidx.health.connect:connect-client:1.1.0-alpha10"
-}
-```
+| Data Type | Permission | Unit |
+|-----------|------------|------|
+| Steps | `READ_STEPS` | count |
+| Distance | `READ_DISTANCE` | meters |
+| Calories | `READ_ACTIVE_CALORIES_BURNED` | kcal |
 
 ### 3. Configure `android/app/src/main/AndroidManifest.xml`
 
