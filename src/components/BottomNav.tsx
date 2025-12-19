@@ -25,13 +25,27 @@ export const BottomNav = () => {
     >
       <div className="bottom-nav-inner">
         <div className="bottom-nav-content relative">
+          {/* Active background indicator */}
+          {activeIndex >= 0 && (
+            <motion.div 
+              className="absolute top-1/2 -translate-y-1/2 h-10 rounded-xl bg-primary/15 border border-primary/20"
+              style={{ width: `calc(100% / ${navItems.length} - 8px)` }}
+              initial={false}
+              animate={{ 
+                left: `calc(${activeIndex * (100 / navItems.length)}% + 4px)` 
+              }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            />
+          )}
+
           {/* Active Indicator Line - positioned at top of nav */}
           {activeIndex >= 0 && (
             <motion.div 
-              className="absolute top-0 h-0.5 w-8 rounded-full bg-primary"
+              className="absolute top-0 h-0.5 rounded-full bg-gradient-to-r from-primary via-cyan-glow to-primary"
+              style={{ width: 32 }}
               initial={false}
               animate={{ 
-                left: `calc(${(activeIndex + 0.5) * (100 / navItems.length)}% - 1rem)` 
+                left: `calc(${(activeIndex + 0.5) * (100 / navItems.length)}% - 16px)` 
               }}
               transition={{ type: "spring", stiffness: 500, damping: 30 }}
             />
@@ -48,21 +62,25 @@ export const BottomNav = () => {
                   haptics.light();
                   navigate(item.path);
                 }}
-                className="flex flex-col items-center justify-center gap-1 flex-1 h-full touch-target"
+                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full touch-target relative z-10"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                whileTap={{ scale: 0.95 }}
+                transition={{ delay: index * 0.05 }}
+                whileTap={{ scale: 0.9 }}
                 aria-label={item.label}
                 aria-current={isActive ? 'page' : undefined}
                 role="tab"
               >
-                {/* Icon */}
-                <div className={`flex items-center justify-center h-6 w-6 transition-colors duration-200 ${
-                  isActive ? 'text-primary' : 'text-muted-foreground'
-                }`}>
-                  <Icon className="h-5 w-5" />
-                </div>
+                {/* Icon with animation */}
+                <motion.div 
+                  className={`flex items-center justify-center h-6 w-6 transition-colors duration-200 ${
+                    isActive ? 'text-primary' : 'text-muted-foreground'
+                  }`}
+                  animate={isActive ? { scale: [1, 1.1, 1] } : {}}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
+                </motion.div>
                 
                 {/* Label */}
                 <span className={`text-[10px] font-semibold uppercase tracking-wider transition-colors duration-200 ${
