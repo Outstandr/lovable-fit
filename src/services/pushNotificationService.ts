@@ -11,6 +11,7 @@ export interface PushNotificationState {
 class PushNotificationService {
   private token: string | null = null;
   private initialized = false;
+  private initializationPromise: Promise<void> | null = null;
 
   /**
    * Check if push notifications are supported on this platform
@@ -65,8 +66,15 @@ class PushNotificationService {
 
   /**
    * Initialize push notifications - register listeners and get token
+   * Uses mutex to prevent concurrent initialization
    */
   async initialize(): Promise<void> {
+    // If already initializing, wait for that to complete
+    if (this.initializationPromise) {
+      console.log('[PushNotification] Already initializing, waiting...');
+      return this.initializationPromise;
+    }
+
     if (this.initialized) {
       console.log('[PushNotification] Already initialized');
       return;
@@ -77,6 +85,15 @@ class PushNotificationService {
       return;
     }
 
+    this.initializationPromise = this._doInitialize();
+    try {
+      await this.initializationPromise;
+    } finally {
+      this.initializationPromise = null;
+    }
+  }
+
+  private async _doInitialize(): Promise<void> {
     try {
       // Request permission first
       const hasPermission = await this.requestPermission();
