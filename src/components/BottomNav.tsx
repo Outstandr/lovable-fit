@@ -43,10 +43,10 @@ export const BottomNav = () => {
                 aria-current={isActive ? 'page' : undefined}
                 role="tab"
               >
-                {/* Active Indicator */}
+                {/* Active Indicator - Centered above icon */}
                 {isActive && (
                   <motion.div 
-                    className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-primary"
+                    className="absolute -top-1 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-primary"
                     layoutId="activeTab"
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   />
