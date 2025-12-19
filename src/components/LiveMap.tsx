@@ -1,7 +1,8 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { GoogleMap, useLoadScript, Polyline, Circle } from '@react-google-maps/api';
 import { LocationPoint } from '@/hooks/useLocationTracking';
 import { Signal, SignalLow, SignalMedium, SignalHigh, Loader2, AlertTriangle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface LiveMapProps {
   currentPosition: LocationPoint | null;
@@ -76,11 +77,26 @@ const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy }: Live
   const mapRef = useRef<google.maps.Map | null>(null);
   const hasInitialCenter = useRef(false);
 
-  // Google Maps API key - this is a publishable key (safe for client-side)
-  // Get your key from: https://console.cloud.google.com/google/maps-apis
-  // Enable "Maps JavaScript API" and restrict by HTTP referrers
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
-  
+  // Google Maps API key (publishable) loaded at runtime from backend config.
+  // This avoids relying on client-side .env injection.
+  const [apiKey, setApiKey] = useState<string>(import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '');
+
+  useEffect(() => {
+    if (apiKey) return;
+
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.functions.invoke('public-config');
+      if (!cancelled && !error && data?.googleMapsApiKey) {
+        setApiKey(String(data.googleMapsApiKey));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiKey]);
+
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: apiKey,
   });
@@ -117,6 +133,19 @@ const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy }: Live
   const center = currentPosition 
     ? { lat: currentPosition.latitude, lng: currentPosition.longitude }
     : defaultCenter;
+
+  // Missing key state
+  if (!apiKey) {
+    return (
+      <div className="absolute inset-0 rounded-xl overflow-hidden bg-secondary/50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-center px-4">
+          <AlertTriangle className="h-8 w-8 text-destructive" />
+          <span className="text-sm font-medium text-foreground">Google Maps not configured</span>
+          <span className="text-xs text-muted-foreground">Add a Google Maps API key to continue</span>
+        </div>
+      </div>
+    );
+  }
 
   // Loading state
   if (!isLoaded) {
