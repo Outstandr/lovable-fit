@@ -122,7 +122,7 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen-safe flex flex-col justify-center px-4 safe-area-y">
+    <div className="min-h-screen flex flex-col justify-center px-4 py-8 overflow-y-auto">
       {/* Header */}
       <motion.div 
         className="text-center mb-8"
