@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
 import { OnboardingPrompt } from "@/components/OnboardingPrompt";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { DayView } from "@/components/dashboard/DayView";
 import { WeekView } from "@/components/dashboard/WeekView";
@@ -11,7 +12,7 @@ import { MonthView } from "@/components/dashboard/MonthView";
 import { useHealth } from "@/hooks/useHealth";
 import { useStreak } from "@/hooks/useStreak";
 import { useAudiobook } from "@/hooks/useAudiobook";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from 'sonner';
@@ -29,7 +30,6 @@ const Dashboard = () => {
   
   const [activeTab, setActiveTab] = useState<TabType>("day");
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [dailyGoal, setDailyGoal] = useState(10000);
   
   // Data states
@@ -208,16 +208,14 @@ const Dashboard = () => {
     checkOnboarding();
   }, [user]);
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    haptics.light();
+  const handleRefresh = useCallback(async () => {
     try {
       await syncToDatabase();
       toast.success('✓ Data refreshed');
-    } finally {
-      setTimeout(() => setIsRefreshing(false), 500);
+    } catch (error) {
+      toast.error('Failed to refresh');
     }
-  };
+  }, [syncToDatabase]);
 
   const displayDistance = distance > 0 ? distance : (steps * 0.762) / 1000;
   const activeMinutes = Math.floor(steps / 120);
@@ -225,24 +223,12 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen-safe page-with-bottom-nav relative">
-      {/* Refresh Indicator */}
-      {isRefreshing && (
-        <motion.div 
-          className="absolute top-0 left-0 right-0 z-50 flex items-center justify-center py-4 safe-area-pt"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/20 backdrop-blur-sm">
-            <RefreshCw className="h-4 w-4 text-primary animate-spin" />
-            <span className="text-xs font-medium text-primary">Refreshing...</span>
-          </div>
-        </motion.div>
-      )}
-
       {/* Background gradient */}
       <div className="absolute inset-0 pointer-events-none" style={{
         background: 'radial-gradient(circle at top center, hsl(186, 100%, 50%, 0.05), transparent 60%)'
       }} />
+
+      <PullToRefresh onRefresh={handleRefresh} className="h-full">
 
       {/* Header */}
       <motion.header 
@@ -375,6 +361,7 @@ const Dashboard = () => {
           </div>
         </motion.div>
       </main>
+      </PullToRefresh>
 
       {/* Action Button */}
       <div className="fixed left-4 right-4 z-fixed fixed-above-nav" style={{ marginBottom: '1rem' }}>
