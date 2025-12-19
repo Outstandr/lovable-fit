@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { pushNotificationService } from '@/services/pushNotificationService';
 import { healthService } from '@/services/healthService';
-import { toast } from 'sonner';
 
 interface PushNotificationInitializerProps {
   children: React.ReactNode;
@@ -72,7 +71,6 @@ export function PushNotificationInitializer({ children }: PushNotificationInitia
         if (hasPermission && !hasShownToast.current) {
           const token = pushNotificationService.getToken();
           console.log('[PushNotifications] Enabled, token:', token ? 'received' : 'pending');
-          toast.success('🔔 Push notifications enabled!');
           hasShownToast.current = true;
         } else {
           console.log('[PushNotifications] Permission denied by user');
