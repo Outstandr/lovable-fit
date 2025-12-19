@@ -23,10 +23,7 @@ interface PedometerState {
   lastUpdate: Date;
 }
 
-// Faster polling for smoother updates
-const PEDOMETER_POLL_INTERVAL = 1500; // 1.5 seconds (was 3s)
-const SYNC_THRESHOLD = 50; // Sync every 50 steps (was 100)
-const SMOOTHING_FACTOR = 0.3; // For interpolating step changes
+const PEDOMETER_POLL_INTERVAL = 3000; // 3 seconds
 
 export function usePedometer() {
   const { user } = useAuth();
@@ -47,20 +44,18 @@ export function usePedometer() {
   const lastSyncSteps = useRef(0);
   const hasHit10K = useRef(false);
   const lastCelebrationDay = useRef('');
-  const baselineSteps = useRef(0); // Steps when tracking started
-  const dbSteps = useRef(0); // Steps loaded from database
-  const lastRawSteps = useRef(0); // Last raw step count from sensor
-  const smoothedSteps = useRef(0); // Smoothed step count for display
 
   // 10K Milestone Celebration
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     
+    // Reset celebration flag for new day
     if (lastCelebrationDay.current !== today) {
       hasHit10K.current = false;
       lastCelebrationDay.current = today;
     }
     
+    // Celebrate 10K milestone once per day
     if (state.steps >= 10000 && !hasHit10K.current) {
       hasHit10K.current = true;
       haptics.success();
@@ -90,9 +85,6 @@ export function usePedometer() {
       
       if (data && !error) {
         console.log(`${LOG_PREFIX} Loaded today steps from DB:`, data.steps);
-        dbSteps.current = data.steps || 0;
-        smoothedSteps.current = data.steps || 0;
-        
         setState(prev => ({
           ...prev,
           steps: data.steps || 0,
@@ -101,6 +93,7 @@ export function usePedometer() {
         }));
         lastSyncSteps.current = data.steps || 0;
         
+        // Check if already hit 10K today
         if (data.steps >= 10000) {
           hasHit10K.current = true;
           lastCelebrationDay.current = today;
@@ -113,7 +106,7 @@ export function usePedometer() {
     }
   }, [user]);
 
-  // AUTOMATIC INITIALIZATION
+  // AUTOMATIC INITIALIZATION - Start pedometer immediately on app launch
   useEffect(() => {
     const platform = pedometerService.getPlatform();
     
@@ -127,16 +120,11 @@ export function usePedometer() {
       console.log(`${LOG_PREFIX} === STARTING PEDOMETER TRACKING ===`);
       
       try {
+        // Start pedometer (automatically requests ACTIVITY_RECOGNITION permission)
         const started = await pedometerService.start();
         
         if (started) {
           console.log(`${LOG_PREFIX} ✅ Pedometer started successfully`);
-          
-          // Get initial step count as baseline
-          const initialSteps = await pedometerService.fetchSteps();
-          baselineSteps.current = initialSteps;
-          console.log(`${LOG_PREFIX} Baseline steps: ${baselineSteps.current}`);
-          
           setState(prev => ({
             ...prev,
             dataSource: 'pedometer',
@@ -146,7 +134,7 @@ export function usePedometer() {
             lastUpdate: new Date(),
           }));
         } else {
-          console.log(`${LOG_PREFIX} ⚠️ Pedometer failed to start`);
+          console.log(`${LOG_PREFIX} ⚠️ Pedometer failed to start (permission denied or no sensor)`);
           setState(prev => ({
             ...prev,
             dataSource: 'unavailable',
@@ -165,10 +153,11 @@ export function usePedometer() {
       }
     };
 
+    // Start immediately (no delay)
     init();
   }, []);
 
-  // SMOOTH POLLING - Update steps with interpolation
+  // AUTOMATIC POLLING - Update steps every 3 seconds
   useEffect(() => {
     if (state.platform === 'web' || state.isInitializing) {
       return;
@@ -179,43 +168,20 @@ export function usePedometer() {
       return;
     }
 
-    console.log(`${LOG_PREFIX} Starting smooth pedometer poll every ${PEDOMETER_POLL_INTERVAL}ms`);
+    console.log(`${LOG_PREFIX} Starting pedometer poll every 3 seconds`);
 
     const poll = async () => {
       try {
-        const rawSteps = await pedometerService.fetchSteps();
+        await pedometerService.fetchSteps();
+        const serviceState = pedometerService.getState();
         
-        // Calculate session steps (steps since tracking started)
-        const sessionSteps = Math.max(0, rawSteps - baselineSteps.current);
-        
-        // Total steps = database steps + session steps
-        const totalSteps = dbSteps.current + sessionSteps;
-        
-        // Only update if steps have changed
-        if (totalSteps !== lastRawSteps.current) {
-          lastRawSteps.current = totalSteps;
-          
-          // Smooth the step count for display (prevents jarring jumps)
-          const diff = totalSteps - smoothedSteps.current;
-          if (Math.abs(diff) > 100) {
-            // Large jump - animate quickly but not instantly
-            smoothedSteps.current = Math.round(smoothedSteps.current + diff * 0.5);
-          } else {
-            // Small change - instant update
-            smoothedSteps.current = totalSteps;
-          }
-          
-          const distance = (smoothedSteps.current * 0.762) / 1000;
-          const calories = Math.round(smoothedSteps.current * 0.04);
-          
-          setState(prev => ({
-            ...prev,
-            steps: smoothedSteps.current,
-            distance,
-            calories,
-            lastUpdate: new Date(),
-          }));
-        }
+        setState(prev => ({
+          ...prev,
+          steps: serviceState.steps,
+          distance: serviceState.distance,
+          calories: serviceState.calories,
+          lastUpdate: new Date(),
+        }));
       } catch (error) {
         console.error(`${LOG_PREFIX} Poll error:`, error);
       }
@@ -224,18 +190,16 @@ export function usePedometer() {
     // Initial poll
     poll();
 
-    // Set up fast polling interval
+    // Set up interval
     const interval = setInterval(poll, PEDOMETER_POLL_INTERVAL);
     return () => clearInterval(interval);
   }, [state.dataSource, state.isInitializing, state.platform]);
 
-  // Removed: Catch-up animation was causing infinite loop
-
-  // AUTOMATIC DATABASE SYNC - Every 50 steps
+  // AUTOMATIC DATABASE SYNC - Every 100 steps
   useEffect(() => {
     if (!user || state.steps === 0) return;
     
-    if (state.steps - lastSyncSteps.current >= SYNC_THRESHOLD) {
+    if (state.steps - lastSyncSteps.current >= 100) {
       lastSyncSteps.current = state.steps;
       syncToDatabase();
     }
@@ -247,6 +211,7 @@ export function usePedometer() {
     const today = new Date().toISOString().split('T')[0];
     console.log(`${LOG_PREFIX} Syncing ${state.steps} steps to database`);
     
+    // If offline, queue for later sync
     if (!isOnline) {
       console.log(`${LOG_PREFIX} Offline, queuing step data`);
       queueStepData(today, state.steps, state.distance, state.calories);
@@ -268,11 +233,10 @@ export function usePedometer() {
       
       if (error) {
         console.error(`${LOG_PREFIX} Database sync error:`, error);
+        // Queue if sync fails
         queueStepData(today, state.steps, state.distance, state.calories);
       } else {
         lastSyncSteps.current = state.steps;
-        // Update dbSteps to current value to prevent double counting on restart
-        dbSteps.current = state.steps;
       }
     } catch (error) {
       console.error(`${LOG_PREFIX} Database sync error:`, error);
@@ -280,14 +244,14 @@ export function usePedometer() {
     }
   }, [user, state.steps, state.distance, state.calories, isOnline, queueStepData]);
 
+  // For Active Session use
   const startTracking = useCallback(async (): Promise<boolean> => {
     if (state.dataSource === 'pedometer') {
-      return true;
+      return true; // Already tracking
     }
     
     const started = await pedometerService.start();
     if (started) {
-      baselineSteps.current = await pedometerService.fetchSteps();
       setState(prev => ({ ...prev, isTracking: true, dataSource: 'pedometer' }));
     }
     return started;
@@ -297,28 +261,6 @@ export function usePedometer() {
     await pedometerService.stop();
     setState(prev => ({ ...prev, isTracking: false }));
   }, []);
-
-  // Force refresh
-  const refresh = useCallback(async () => {
-    if (state.dataSource === 'pedometer') {
-      await pedometerService.fetchSteps();
-      const serviceState = pedometerService.getState();
-      
-      const sessionSteps = Math.max(0, serviceState.steps - baselineSteps.current);
-      const totalSteps = dbSteps.current + sessionSteps;
-      
-      smoothedSteps.current = totalSteps;
-      lastRawSteps.current = totalSteps;
-      
-      setState(prev => ({
-        ...prev,
-        steps: totalSteps,
-        distance: (totalSteps * 0.762) / 1000,
-        calories: Math.round(totalSteps * 0.04),
-        lastUpdate: new Date(),
-      }));
-    }
-  }, [state.dataSource]);
 
   return {
     // State
@@ -337,6 +279,5 @@ export function usePedometer() {
     startTracking,
     stopTracking,
     syncToDatabase,
-    refresh,
   };
 }

@@ -1,4 +1,5 @@
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { HealthConnect } from '@pianissimoproject/capacitor-health-connect';
+import { Capacitor } from '@capacitor/core';
 
 const LOG_PREFIX = '[HealthConnect]';
 
@@ -10,31 +11,6 @@ interface HealthConnectState {
   hasPermission: boolean;
   lastChecked: number | null;
 }
-
-// Define the Health Connect plugin interface for Capacitor 8 native bridge
-interface HealthConnectPlugin {
-  checkAvailability(): Promise<{ availability: HealthConnectStatus }>;
-  checkHealthPermissions(options: {
-    read: string[];
-    write: string[];
-  }): Promise<{ hasAllPermissions: boolean }>;
-  requestHealthPermissions(options: {
-    read: string[];
-    write: string[];
-  }): Promise<{ hasAllPermissions: boolean }>;
-  readRecords(options: {
-    type: string;
-    timeRangeFilter: {
-      type: string;
-      startTime: Date;
-      endTime: Date;
-    };
-  }): Promise<{ records: Array<{ count?: number; energy?: { value: number; unit: string } }> }>;
-  openHealthConnectSetting(): Promise<void>;
-}
-
-// Register the Health Connect plugin - will be implemented in native Android code
-const HealthConnect = registerPlugin<HealthConnectPlugin>('HealthConnect');
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -63,18 +39,15 @@ class HealthConnectService {
 
     try {
       console.log(`${LOG_PREFIX} Checking availability...`);
-      const result = await HealthConnect.checkAvailability();
-      console.log(`${LOG_PREFIX} Availability: ${result?.availability}`);
+      const { availability } = await HealthConnect.checkAvailability();
+      console.log(`${LOG_PREFIX} Availability: ${availability}`);
       
-      this.state.availability = result?.availability || 'NotSupported';
+      this.state.availability = availability;
       this.state.lastChecked = Date.now();
       
-      return this.state.availability;
+      return availability;
     } catch (error) {
       console.error(`${LOG_PREFIX} checkAvailability error:`, error);
-      // On Android, if plugin not available, fall back to pedometer
-      this.state.availability = 'NotSupported';
-      this.state.lastChecked = Date.now();
       return 'NotSupported';
     }
   }
@@ -85,13 +58,13 @@ class HealthConnectService {
     try {
       console.log(`${LOG_PREFIX} Checking permissions...`);
       const result = await HealthConnect.checkHealthPermissions({
-        read: ['Steps', 'Distance', 'ActiveCaloriesBurned', 'TotalCaloriesBurned'],
+        read: (['Steps', 'Distance', 'ActiveCaloriesBurned', 'TotalCaloriesBurned'] as unknown) as any,
         write: [],
       });
       
       console.log(`${LOG_PREFIX} Permission check result:`, result);
-      this.state.hasPermission = result?.hasAllPermissions || false;
-      return this.state.hasPermission;
+      this.state.hasPermission = result.hasAllPermissions;
+      return result.hasAllPermissions;
     } catch (error) {
       console.error(`${LOG_PREFIX} checkPermission error:`, error);
       return false;
@@ -110,13 +83,13 @@ class HealthConnectService {
     try {
       console.log(`${LOG_PREFIX} Requesting permissions...`);
       const result = await HealthConnect.requestHealthPermissions({
-        read: ['Steps', 'Distance', 'ActiveCaloriesBurned', 'TotalCaloriesBurned'],
+        read: (['Steps', 'Distance', 'ActiveCaloriesBurned', 'TotalCaloriesBurned'] as unknown) as any,
         write: [],
       });
       
       console.log(`${LOG_PREFIX} Permission request result:`, result);
-      this.state.hasPermission = result?.hasAllPermissions || false;
-      return this.state.hasPermission;
+      this.state.hasPermission = result.hasAllPermissions;
+      return result.hasAllPermissions;
     } catch (error) {
       console.error(`${LOG_PREFIX} requestPermission error:`, error);
       return false;
@@ -142,28 +115,22 @@ class HealthConnectService {
       console.log(`${LOG_PREFIX} Reading health data from ${startOfDay.toISOString()} to ${now.toISOString()}`);
       
       // Read Steps
-      let totalSteps = 0;
-      try {
-        const stepResult = await HealthConnect.readRecords({
-          type: 'Steps',
-          timeRangeFilter: {
-            type: 'between',
-            startTime: startOfDay,
-            endTime: now,
-          },
-        });
+      const { records: stepRecords } = await HealthConnect.readRecords({
+        type: 'Steps',
+        timeRangeFilter: {
+          type: 'between',
+          startTime: startOfDay,
+          endTime: now,
+        },
+      });
 
-        if (stepResult?.records) {
-          for (const record of stepResult.records) {
-            if ('count' in record && record.count) {
-              totalSteps += record.count;
-            }
-          }
+      let totalSteps = 0;
+      for (const record of stepRecords) {
+        if ('count' in record) {
+          totalSteps += record.count;
         }
-        console.log(`${LOG_PREFIX} Total steps: ${totalSteps}`);
-      } catch (e) {
-        console.error(`${LOG_PREFIX} Error reading steps:`, e);
       }
+      console.log(`${LOG_PREFIX} Total steps: ${totalSteps}`);
 
       // Estimate distance from steps (avg stride ~0.762m)
       const totalDistance = (totalSteps * 0.762) / 1000; // in km
@@ -172,7 +139,7 @@ class HealthConnectService {
       // Read Active Calories
       let activeCalories = 0;
       try {
-        const calorieResult = await HealthConnect.readRecords({
+        const { records: activeCalRecords } = await HealthConnect.readRecords({
           type: 'ActiveCaloriesBurned',
           timeRangeFilter: {
             type: 'between',
@@ -181,14 +148,12 @@ class HealthConnectService {
           },
         });
 
-        if (calorieResult?.records) {
-          for (const record of calorieResult.records) {
-            if ('energy' in record && record.energy) {
-              if (record.energy.unit === 'kilocalories') {
-                activeCalories += record.energy.value;
-              } else if (record.energy.unit === 'calories') {
-                activeCalories += record.energy.value / 1000;
-              }
+        for (const record of activeCalRecords) {
+          if ('energy' in record && record.energy) {
+            if (record.energy.unit === 'kilocalories') {
+              activeCalories += record.energy.value;
+            } else if (record.energy.unit === 'calories') {
+              activeCalories += record.energy.value / 1000;
             }
           }
         }

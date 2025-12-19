@@ -137,8 +137,8 @@
   }
 
   .bottom-nav-inner {
-    @apply w-full;
-    padding-bottom: max(env(safe-area-inset-bottom, 0px), 36px);
+    @apply w-full max-w-lg mx-auto;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .bottom-nav-content {
@@ -152,7 +152,7 @@
 
   /* Fixed above bottom nav */
   .fixed-above-nav {
-    bottom: calc(4rem + max(env(safe-area-inset-bottom, 0px), 36px) + 1rem);
+    bottom: calc(4rem + env(safe-area-inset-bottom, 0px) + 1rem);
   }
 }
 

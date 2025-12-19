@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { CheckCircle, Sparkles } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface SetupCompleteStepProps {
@@ -8,42 +8,21 @@ interface SetupCompleteStepProps {
 
 export function SetupCompleteStep({ onComplete }: SetupCompleteStepProps) {
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {/* Main content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6">
-        {/* Success animation */}
+    <div className="min-h-screen-safe flex flex-col px-6 py-8">
+      {/* Content */}
+      <div className="flex-1 flex flex-col items-center justify-center">
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-          className="relative mb-8"
+          className="w-32 h-32 rounded-full bg-accent flex items-center justify-center mb-8"
         >
-          <div className="w-28 h-28 rounded-full bg-accent/20 border-2 border-accent flex items-center justify-center">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.3, type: 'spring', stiffness: 300 }}
-            >
-              <CheckCircle className="w-14 h-14 text-accent" strokeWidth={2.5} />
-            </motion.div>
-          </div>
-          
-          {/* Sparkles */}
           <motion.div
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.5 }}
-            className="absolute -top-2 -right-2"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.3, type: 'spring', stiffness: 300 }}
           >
-            <Sparkles className="w-6 h-6 text-primary" />
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.6 }}
-            className="absolute -bottom-1 -left-3"
-          >
-            <Sparkles className="w-5 h-5 text-accent" />
+            <CheckCircle className="w-16 h-16 text-accent-foreground" strokeWidth={3} />
           </motion.div>
         </motion.div>
 
@@ -51,51 +30,33 @@ export function SetupCompleteStep({ onComplete }: SetupCompleteStepProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="text-3xl font-bold text-foreground text-center mb-3"
+          className="text-2xl font-bold text-foreground text-center mb-4"
         >
-          You're All Set!
+          Setup Complete
         </motion.h1>
 
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="text-muted-foreground text-center max-w-xs text-base"
+          className="text-muted-foreground text-center max-w-xs leading-relaxed"
         >
-          Start walking and track your progress towards a healthier you.
+          Your step counter is now set up. Start walking and track your progress!
         </motion.p>
-
-        {/* Fun stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="mt-8 flex items-center gap-4"
-        >
-          <div className="text-center">
-            <p className="text-2xl font-bold text-primary">10K</p>
-            <p className="text-xs text-muted-foreground">Daily Goal</p>
-          </div>
-          <div className="w-px h-10 bg-border" />
-          <div className="text-center">
-            <p className="text-2xl font-bold text-accent">0</p>
-            <p className="text-xs text-muted-foreground">Steps Today</p>
-          </div>
-        </motion.div>
       </div>
 
-      {/* Fixed bottom button */}
+      {/* Done Button */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.7 }}
-        className="px-6 pb-6 pt-4"
+        transition={{ delay: 0.6 }}
+        className="safe-area-pb"
       >
         <Button
           onClick={onComplete}
-          className="w-full h-14 rounded-xl bg-accent text-accent-foreground font-bold text-lg glow-green"
+          className="w-full h-14 rounded-full bg-primary text-primary-foreground font-semibold text-base"
         >
-          Let's Go! 🚀
+          Done
         </Button>
       </motion.div>
     </div>

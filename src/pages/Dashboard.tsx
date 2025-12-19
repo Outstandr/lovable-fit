@@ -224,7 +224,7 @@ const Dashboard = () => {
   const today = new Date();
 
   return (
-    <div className="min-h-screen-safe page-with-bottom-nav relative flex flex-col">
+    <div className="min-h-screen-safe page-with-bottom-nav relative">
       {/* Refresh Indicator */}
       {isRefreshing && (
         <motion.div 
@@ -246,33 +246,25 @@ const Dashboard = () => {
 
       {/* Header */}
       <motion.header 
-        className="px-4 pb-2 header-safe relative z-content"
+        className="flex items-center justify-between px-4 pb-2 header-safe relative z-content"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        {/* App Title */}
-        <h1 className="text-xl font-bold uppercase tracking-[0.2em] text-primary text-center mb-3">
-          HOTSTEPPER
-        </h1>
+        <button 
+          onClick={() => { haptics.light(); navigate('/profile'); }}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
+        >
+          <Settings className="h-5 w-5" />
+        </button>
         
-        {/* Controls Row */}
-        <div className="flex items-center justify-between">
-          <button 
-            onClick={() => { haptics.light(); navigate('/profile'); }}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
-          >
-            <Settings className="h-5 w-5" />
-          </button>
-          
-          <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
-          
-          <button 
-            onClick={() => toast.info('More options coming soon!')}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
-          >
-            <MoreHorizontal className="h-5 w-5" />
-          </button>
-        </div>
+        <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        
+        <button 
+          onClick={() => toast.info('More options coming soon!')}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
+        >
+          <MoreHorizontal className="h-5 w-5" />
+        </button>
       </motion.header>
 
       {/* Permission Alert */}
@@ -288,8 +280,8 @@ const Dashboard = () => {
         </motion.div>
       )}
 
-      {/* Main Content - Scrollable */}
-      <main className="flex-1 overflow-y-auto px-4 relative z-content">
+      {/* Main Content */}
+      <main className="px-4 relative z-content">
         {activeTab === "day" && (
           <DayView
             steps={steps}
@@ -382,9 +374,6 @@ const Dashboard = () => {
             </div>
           </div>
         </motion.div>
-
-        {/* Spacer for fixed button */}
-        <div className="h-28" />
       </main>
 
       {/* Action Button */}

@@ -50,10 +50,10 @@ const Protocol = () => {
   const progress = (completedCount / tasks.length) * 100;
 
   return (
-    <div className="min-h-screen-safe page-with-bottom-nav overflow-y-auto">
+    <div className="min-h-screen pb-24">
       {/* Header */}
       <motion.header 
-        className="px-4 pb-2 header-safe"
+        className="px-4 pt-6 pb-4"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >

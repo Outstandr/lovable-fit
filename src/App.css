@@ -5,7 +5,7 @@
 /* CSS Custom Properties for consistent spacing */
 :root {
   --safe-area-top: env(safe-area-inset-top, 0px);
-  --safe-area-bottom: max(env(safe-area-inset-bottom, 0px), 36px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
   
@@ -100,13 +100,14 @@
 }
 
 .bottom-nav-inner {
-  padding-bottom: max(env(safe-area-inset-bottom, 0px), 36px);
+  padding-bottom: var(--safe-area-bottom);
 }
 
 .bottom-nav-content {
   display: flex;
   height: var(--bottom-nav-height);
-  width: 100%;
+  max-width: 32rem;
+  margin: 0 auto;
   align-items: center;
   justify-content: space-around;
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronRight, Target, Check } from 'lucide-react';
+import { ChevronRight, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,9 +11,9 @@ interface GoalStepProps {
 }
 
 const PRESET_GOALS = [
-  { label: '4,000', value: 4000, desc: 'Light activity' },
-  { label: '6,000', value: 6000, desc: 'Moderate' },
-  { label: '10,000', value: 10000, desc: 'Recommended', popular: true },
+  { label: '4,000 Steps', value: 4000 },
+  { label: '6,000 Steps', value: 6000 },
+  { label: '10,000 Steps', value: 10000 },
 ];
 
 export function GoalStep({ onNext }: GoalStepProps) {
@@ -56,164 +56,111 @@ export function GoalStep({ onNext }: GoalStepProps) {
     : selectedGoal !== null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {/* Progress indicator */}
-      <div className="px-6 pt-4 pb-2">
-        <div className="flex items-center gap-2">
-          <div className="h-1 flex-1 rounded-full bg-primary" />
-          <div className="h-1 flex-1 rounded-full bg-primary" />
-          <div className="h-1 flex-1 rounded-full bg-primary" />
-          <div className="h-1 flex-1 rounded-full bg-primary" />
-          <div className="h-1 flex-1 rounded-full bg-primary" />
-        </div>
-        <p className="text-xs text-muted-foreground mt-2 text-center">Step 5 of 5</p>
-      </div>
-
-      {/* Main content - scrollable */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        <div className="flex flex-col items-center mb-6">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-            className="w-16 h-16 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center mb-4"
-          >
-            <Target className="w-8 h-8 text-primary" />
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-2xl font-bold text-foreground text-center"
-          >
-            Set Your Daily Goal
-          </motion.h1>
-        </div>
-
-        {/* Goal Options */}
+    <div className="min-h-screen-safe flex flex-col px-6 py-8">
+      {/* Header */}
+      <div className="pt-8 mb-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="space-y-3"
+          className="flex items-center justify-center gap-3 mb-2"
         >
-          {PRESET_GOALS.map((goal, index) => (
-            <motion.button
-              key={goal.value}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 + index * 0.1 }}
-              onClick={() => handleSelectGoal(goal.value)}
-              className={`w-full p-4 rounded-xl border-2 text-left transition-all flex items-center justify-between ${
-                selectedGoal === goal.value
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border bg-secondary/50 hover:border-primary/50'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  selectedGoal === goal.value ? 'bg-primary' : 'bg-background'
-                }`}>
-                  {selectedGoal === goal.value ? (
-                    <Check className="w-5 h-5 text-primary-foreground" />
-                  ) : (
-                    <span className="text-xs font-bold text-muted-foreground">
-                      {(goal.value / 1000).toFixed(0)}K
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <span className="text-lg font-bold text-foreground block">
-                    {goal.label} steps
-                  </span>
-                  <span className="text-xs text-muted-foreground">{goal.desc}</span>
-                </div>
-              </div>
-              {goal.popular && (
-                <span className="px-2 py-1 rounded-full bg-accent/20 text-xs font-medium text-accent">
-                  Popular
-                </span>
-              )}
-            </motion.button>
-          ))}
+          <Target className="w-8 h-8 text-primary" />
+        </motion.div>
+        <motion.h1
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="text-2xl font-bold text-foreground text-center"
+        >
+          Set Your Daily Steps Goal
+        </motion.h1>
+      </div>
 
-          {/* Custom Goal */}
+      {/* Goal Options */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="flex-1 space-y-4"
+      >
+        {PRESET_GOALS.map((goal, index) => (
           <motion.button
+            key={goal.value}
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.5 }}
-            onClick={handleCustomGoal}
-            className={`w-full p-4 rounded-xl border-2 text-left transition-all flex items-center justify-between ${
-              showCustom
+            transition={{ delay: 0.2 + index * 0.1 }}
+            onClick={() => handleSelectGoal(goal.value)}
+            className={`w-full p-5 rounded-2xl border-2 text-left transition-all ${
+              selectedGoal === goal.value
                 ? 'border-primary bg-primary/10'
                 : 'border-border bg-secondary/50 hover:border-primary/50'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                showCustom ? 'bg-primary' : 'bg-background'
-              }`}>
-                {showCustom ? (
-                  <Check className="w-5 h-5 text-primary-foreground" />
-                ) : (
-                  <span className="text-lg font-bold text-muted-foreground">?</span>
-                )}
-              </div>
-              <span className="text-lg font-bold text-foreground">
-                Custom Goal
-              </span>
-            </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            <span className="text-lg font-semibold text-foreground">
+              {goal.label}
+            </span>
           </motion.button>
+        ))}
 
-          {/* Custom Input */}
-          {showCustom && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="p-4 rounded-xl bg-secondary/50 border border-border/50"
-            >
-              <div className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  placeholder="Enter steps"
-                  value={customGoal}
-                  onChange={(e) => setCustomGoal(e.target.value)}
-                  className="flex-1 h-12 text-lg bg-background border-border text-foreground"
-                  min={1000}
-                  max={50000}
-                />
-                <span className="text-muted-foreground text-sm">steps</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Between 1,000 and 50,000 steps
-              </p>
-            </motion.div>
-          )}
-        </motion.div>
-      </div>
+        {/* Custom Goal */}
+        <motion.button
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.5 }}
+          onClick={handleCustomGoal}
+          className={`w-full p-5 rounded-2xl border-2 text-left transition-all flex items-center justify-between ${
+            showCustom
+              ? 'border-primary bg-primary/10'
+              : 'border-border bg-secondary/50 hover:border-primary/50'
+          }`}
+        >
+          <span className="text-lg font-semibold text-foreground">
+            Custom Goal
+          </span>
+          <ChevronRight className="w-5 h-5 text-muted-foreground" />
+        </motion.button>
 
-      {/* Fixed bottom button */}
-      <div className="px-6 pb-6 pt-4 border-t border-border/30 bg-background">
+        {/* Custom Input */}
+        {showCustom && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="px-2"
+          >
+            <div className="flex items-center gap-3">
+              <Input
+                type="number"
+                placeholder="Enter steps"
+                value={customGoal}
+                onChange={(e) => setCustomGoal(e.target.value)}
+                className="flex-1 h-14 text-lg bg-secondary border-border text-foreground"
+                min={1000}
+                max={50000}
+              />
+              <span className="text-muted-foreground">steps</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Enter a goal between 1,000 and 50,000 steps
+            </p>
+          </motion.div>
+        )}
+      </motion.div>
+
+      {/* Continue Button */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
+        className="safe-area-pb mt-6"
+      >
         <Button
           onClick={handleContinue}
           disabled={!isValid || isSaving}
-          className="w-full h-12 rounded-xl bg-primary text-primary-foreground font-semibold text-base disabled:opacity-50"
+          className="w-full h-14 rounded-full bg-primary text-primary-foreground font-semibold text-base disabled:opacity-50"
         >
-          {isSaving ? (
-            <span className="flex items-center gap-2">
-              <span className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-              Saving...
-            </span>
-          ) : (
-            <span className="flex items-center gap-2">
-              Complete Setup
-              <ChevronRight className="w-4 h-4" />
-            </span>
-          )}
+          {isSaving ? 'Saving...' : 'Continue'}
         </Button>
-      </div>
+      </motion.div>
     </div>
   );
 }

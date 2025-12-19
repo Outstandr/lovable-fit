@@ -245,15 +245,15 @@ export default function HealthProfileSetup() {
   }
 
   return (
-    <div className="min-h-screen-safe bg-background">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border/30 header-safe">
+      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border/30">
         <div className="flex items-center justify-between px-4 py-3">
           <button 
             onClick={() => navigate(-1)}
-            className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-smooth"
+            className="p-2 -ml-2 text-muted-foreground hover:text-foreground transition-colors"
           >
-            <ArrowLeft className="h-5 w-5 text-foreground" />
+            <ArrowLeft className="h-5 w-5" />
           </button>
           <h1 className="text-lg font-bold tracking-wide text-foreground">YOUR STATS</h1>
           <button 

@@ -1,5 +1,4 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
-import { healthKitService } from './healthKitService';
 
 interface PedometerPlugin {
   startCounting(): Promise<void>;
@@ -11,6 +10,7 @@ interface PedometerPlugin {
 
 const CapacitorPedometer = registerPlugin<PedometerPlugin>('CapacitorPedometer');
 
+// Ensure plugin is loaded
 if (!CapacitorPedometer) {
   console.error('[Pedometer] CapacitorPedometer plugin not found!');
 }
@@ -23,8 +23,6 @@ class PedometerService {
   private isTracking = false;
   private hasPermission = false;
   private platform: 'android' | 'ios' | 'web';
-  private lastFetchTime = 0;
-  private fetchDebounceMs = 500; // Minimum time between fetches
 
   constructor() {
     this.platform = Capacitor.getPlatform() as 'android' | 'ios' | 'web';
@@ -32,7 +30,9 @@ class PedometerService {
   }
 
   isNative(): boolean {
-    return this.platform === 'android' || this.platform === 'ios';
+    const native = this.platform === 'android' || this.platform === 'ios';
+    console.log(`${LOG_PREFIX} isNative: ${native} (platform: ${this.platform})`);
+    return native;
   }
 
   getPlatform(): 'android' | 'ios' | 'web' {
@@ -41,8 +41,11 @@ class PedometerService {
 
   async checkPermission(): Promise<boolean> {
     if (!this.isNative()) {
+      console.log(`${LOG_PREFIX} checkPermission: Not native, returning false`);
       return false;
     }
+    // This plugin doesn't have permission checking - permissions are handled at startCounting
+    console.log(`${LOG_PREFIX} checkPermission: Plugin handles permissions at start`);
     return this.hasPermission;
   }
 
@@ -54,22 +57,9 @@ class PedometerService {
       return true;
     }
 
-    // iOS uses HealthKit for permissions
-    if (this.platform === 'ios') {
-      try {
-        console.log(`${LOG_PREFIX} Requesting HealthKit permissions for iOS...`);
-        const granted = await healthKitService.requestPermission();
-        this.hasPermission = granted;
-        console.log(`${LOG_PREFIX} HealthKit permission ${granted ? 'granted' : 'denied'}`);
-        return granted;
-      } catch (error) {
-        console.error(`${LOG_PREFIX} HealthKit permission denied:`, error);
-        this.hasPermission = false;
-        return false;
-      }
-    }
-
-    // Android uses pedometer plugin
+    // This plugin doesn't have explicit permission methods
+    // Permissions are requested when startCounting is called
+    // We'll try to start and stop to trigger permission request
     try {
       console.log(`${LOG_PREFIX} Triggering permission via startCounting...`);
       await CapacitorPedometer.startCounting();
@@ -93,25 +83,7 @@ class PedometerService {
         return false;
       }
 
-      // iOS uses HealthKit
-      if (this.platform === 'ios') {
-        console.log(`${LOG_PREFIX} iOS platform, using HealthKit...`);
-        const hasPermission = await this.requestPermission();
-        if (!hasPermission) {
-          console.error(`${LOG_PREFIX} HealthKit permission denied`);
-          return false;
-        }
-        
-        this.isTracking = true;
-        this.hasPermission = true;
-        
-        // Fetch initial step count from HealthKit
-        await this.fetchStepsFromHealthKit();
-        console.log(`${LOG_PREFIX} ✅ iOS tracking started with HealthKit`);
-        return true;
-      }
-
-      // Android uses pedometer plugin
+      // Request ACTIVITY_RECOGNITION permission first (Android 10+)
       const hasPermission = await this.requestActivityRecognitionPermission();
       
       if (!hasPermission) {
@@ -120,12 +92,14 @@ class PedometerService {
         return false;
       }
 
+      // Start counting steps
       console.log(`${LOG_PREFIX} Starting pedometer with permission granted...`);
       await CapacitorPedometer.startCounting();
       this.isTracking = true;
       this.hasPermission = true;
       console.log(`${LOG_PREFIX} ✅ Tracking started successfully`);
       
+      // Fetch initial step count
       const result = await CapacitorPedometer.getStepCount();
       if (result && typeof result.count === 'number') {
         this.currentSteps = result.count;
@@ -142,29 +116,16 @@ class PedometerService {
     }
   }
 
-  private async fetchStepsFromHealthKit(): Promise<void> {
-    try {
-      const data = await healthKitService.readTodayHealthData();
-      
-      if (data) {
-        this.currentSteps = data.steps;
-        this.currentDistance = data.distance;
-        console.log(`${LOG_PREFIX} HealthKit steps: ${data.steps}`);
-      }
-    } catch (error) {
-      console.error(`${LOG_PREFIX} Error fetching HealthKit steps:`, error);
-    }
-  }
-
   private async requestActivityRecognitionPermission(): Promise<boolean> {
     if (this.platform !== 'android') {
       console.log(`${LOG_PREFIX} Not Android, skipping ACTIVITY_RECOGNITION request`);
-      return true;
+      return true; // iOS handles this differently
     }
 
     try {
       console.log(`${LOG_PREFIX} Checking ACTIVITY_RECOGNITION permission...`);
       
+      // Check current permission status
       const checkResult = await CapacitorPedometer.checkPermissions();
       console.log(`${LOG_PREFIX} Current permission status:`, checkResult);
       
@@ -173,6 +134,7 @@ class PedometerService {
         return true;
       }
       
+      // Request permission
       console.log(`${LOG_PREFIX} Requesting ACTIVITY_RECOGNITION permission...`);
       const requestResult = await CapacitorPedometer.requestPermissions();
       console.log(`${LOG_PREFIX} Permission request result:`, requestResult);
@@ -198,16 +160,11 @@ class PedometerService {
         return;
       }
 
-      // iOS doesn't need to stop HealthKit, just mark as not tracking
-      if (this.platform === 'ios') {
-        this.isTracking = false;
-        console.log(`${LOG_PREFIX} iOS tracking stopped (steps preserved: ${this.currentSteps})`);
-        return;
-      }
-
       await CapacitorPedometer.stopCounting();
       this.isTracking = false;
-      console.log(`${LOG_PREFIX} Tracking stopped (steps preserved: ${this.currentSteps})`);
+      this.currentSteps = 0;
+      this.currentDistance = 0;
+      console.log(`${LOG_PREFIX} Tracking stopped`);
     } catch (error) {
       console.error(`${LOG_PREFIX} Error stopping tracking:`, error);
     }
@@ -216,44 +173,30 @@ class PedometerService {
   async fetchSteps(): Promise<number> {
     try {
       if (this.platform === 'web' || !this.isTracking) {
-        return this.currentSteps;
+        return 0;
       }
 
-      // Debounce rapid fetches
-      const now = Date.now();
-      if (now - this.lastFetchTime < this.fetchDebounceMs) {
-        return this.currentSteps;
-      }
-      this.lastFetchTime = now;
-
-      // iOS uses HealthKit
-      if (this.platform === 'ios') {
-        await this.fetchStepsFromHealthKit();
-        return this.currentSteps;
-      }
-
-      // Android uses pedometer plugin
       const result = await CapacitorPedometer.getStepCount();
+      console.log(`${LOG_PREFIX} getStepCount result:`, result);
       
       if (result && typeof result.count === 'number') {
-        if (result.count >= this.currentSteps || this.currentSteps === 0) {
-          this.currentSteps = result.count;
-          this.currentDistance = this.calculateDistance(this.currentSteps);
-        }
+        this.currentSteps = result.count;
+        this.currentDistance = this.calculateDistance(this.currentSteps);
+        console.log(`${LOG_PREFIX} Fetched ${this.currentSteps} steps`);
         return this.currentSteps;
       }
       
-      return this.currentSteps;
+      return 0;
     } catch (error) {
       console.error(`${LOG_PREFIX} Error fetching steps:`, error);
-      return this.currentSteps;
+      return 0;
     }
   }
 
   private calculateDistance(steps: number): number {
     // Average stride length is about 0.762 meters (2.5 feet)
     const strideLength = 0.762;
-    return (steps * strideLength) / 1000;
+    return (steps * strideLength) / 1000; // Convert to km
   }
 
   getSteps(): number {
@@ -265,6 +208,7 @@ class PedometerService {
   }
 
   getCalories(): number {
+    // Rough estimate: 0.04 calories per step
     return Math.round(this.currentSteps * 0.04);
   }
 
@@ -276,6 +220,7 @@ class PedometerService {
     return this.hasPermission;
   }
 
+  // For debugging
   getState() {
     return {
       platform: this.getPlatform(),

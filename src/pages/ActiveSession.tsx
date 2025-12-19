@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, MapPin, Clock, Gauge, Square, Zap, Footprints, Satellite, RefreshCw, Settings, X, Loader2, Headphones, Trophy, Camera, Share2, Check, Calendar } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Gauge, Square, Zap, Footprints, Satellite, RefreshCw, Settings, X, Loader2, Headphones } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { usePedometer } from "@/hooks/usePedometer";
@@ -14,8 +14,6 @@ import { DataSourceBadge } from "@/components/DataSourceBadge";
 import { Capacitor } from "@capacitor/core";
 import AudiobookPlayer from "@/components/AudiobookPlayer";
 import { useAudiobook } from "@/hooks/useAudiobook";
-import { haptics } from "@/utils/haptics";
-import { format } from "date-fns";
 
 const ActiveSession = () => {
   const navigate = useNavigate();
@@ -49,10 +47,6 @@ const ActiveSession = () => {
   const [sessionStartTime] = useState<Date>(new Date());
   const [gpsInitialized, setGpsInitialized] = useState(false);
   const [useStepsOnly, setUseStepsOnly] = useState(false);
-  const [showSummary, setShowSummary] = useState(false);
-  const [sessionEndTime, setSessionEndTime] = useState<Date | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isSharing, setIsSharing] = useState(false);
 
   // Start GPS tracking when component mounts
   useEffect(() => {
@@ -117,7 +111,6 @@ const ActiveSession = () => {
     setIsRunning(false);
     stopTracking();
     stopAudio(); // Stop audiobook when session ends
-    setSessionEndTime(new Date());
     
     if (!user) {
       toast.error("Not logged in");
@@ -150,17 +143,13 @@ const ActiveSession = () => {
       if (error) {
         console.error('[ActiveSession] Save error:', error);
         toast.error("Failed to save session");
+      } else {
+        toast.success(`Session saved! ${sessionDistance.toFixed(2)} km`);
       }
     } catch (error) {
       console.error('[ActiveSession] Error:', error);
     }
 
-    // Show summary screen instead of navigating home
-    setShowSummary(true);
-  };
-
-  const handleSummaryClose = () => {
-    setShowSummary(false);
     navigate('/');
   };
 
@@ -176,191 +165,8 @@ const ActiveSession = () => {
 
   const handleOpenSettings = () => {
     if (Capacitor.isNativePlatform()) {
+      // On native, we can't directly open settings, but we can show a toast
       toast.info("Please open your device Settings > Location to enable GPS");
-    }
-  };
-
-  // Handle save button click - native support via dynamic imports
-  const handleSaveScreenshot = async () => {
-    setIsSaving(true);
-    haptics.medium();
-    try {
-      // Capture the full session summary content (map + stats)
-      const summaryElement = document.getElementById('session-summary-content');
-      if (!summaryElement) {
-        toast.error("Could not capture session");
-        return;
-      }
-      
-      // Dynamic import html2canvas
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(summaryElement, {
-        useCORS: true,
-        backgroundColor: '#0A1128',
-        scale: 2,
-      });
-      
-      // Add HOTSTEPPER watermark to the canvas
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        const watermarkText = 'HOTSTEPPER';
-        const fontSize = Math.round(canvas.width * 0.04);
-        ctx.font = `bold ${fontSize}px Rajdhani, sans-serif`;
-        
-        const padding = Math.round(canvas.width * 0.03);
-        const textMetrics = ctx.measureText(watermarkText);
-        const x = canvas.width - textMetrics.width - padding;
-        const y = canvas.height - padding;
-        
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-        ctx.shadowBlur = 4;
-        ctx.shadowOffsetX = 2;
-        ctx.shadowOffsetY = 2;
-        
-        ctx.fillStyle = 'rgba(0, 212, 255, 0.8)';
-        ctx.fillText(watermarkText, x, y);
-      }
-      
-      const imageBase64 = canvas.toDataURL('image/png');
-      const fileName = `hotstepper-session-${Date.now()}.png`;
-
-      if (Capacitor.isNativePlatform()) {
-        try {
-          // Save base64 to temp file
-          const { Filesystem, Directory } = await import('@capacitor/filesystem');
-          const { Share } = await import('@capacitor/share');
-          const base64Data = imageBase64.replace(/^data:image\/png;base64,/, '');
-          
-          const tempFile = await Filesystem.writeFile({
-            path: fileName,
-            data: base64Data,
-            directory: Directory.Cache,
-          });
-          
-          // Open share sheet - user can save to Photos from there
-          await Share.share({
-            title: 'Hotstepper Session',
-            text: 'Check out my walking session!',
-            url: tempFile.uri,
-            dialogTitle: 'Save or Share Session',
-          });
-          
-          // Clean up temp file after sharing
-          try {
-            await Filesystem.deleteFile({
-              path: fileName,
-              directory: Directory.Cache,
-            });
-          } catch (cleanupErr) {
-            // Ignore cleanup errors
-          }
-          
-          toast.success("Session ready to save!");
-        } catch (err) {
-          console.error('[Save] Share failed:', err);
-          toast.error("Could not save screenshot");
-        }
-      } else {
-        // Web fallback - download
-        const link = document.createElement('a');
-        link.href = imageBase64;
-        link.download = fileName;
-        link.click();
-        toast.success("Session downloaded!");
-      }
-    } catch (err) {
-      console.error('[Save] Error:', err);
-      toast.error("Failed to save screenshot");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Handle share button click - captures screenshot of summary and shares as image
-  const handleShareSession = async () => {
-    setIsSharing(true);
-    haptics.light();
-    try {
-      // Capture the entire summary content
-      const summaryElement = document.getElementById('session-summary-content');
-      if (!summaryElement) {
-        toast.error("Could not capture session");
-        setIsSharing(false);
-        return;
-      }
-      
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(summaryElement, {
-        useCORS: true,
-        backgroundColor: '#0A1128',
-        scale: 2,
-      });
-      
-      // Add HOTSTEPPER watermark to the canvas
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        const watermarkText = 'HOTSTEPPER';
-        const fontSize = Math.round(canvas.width * 0.04); // 4% of width
-        ctx.font = `bold ${fontSize}px Rajdhani, sans-serif`;
-        ctx.letterSpacing = '0.2em';
-        
-        // Position at bottom right with padding
-        const padding = Math.round(canvas.width * 0.03);
-        const textMetrics = ctx.measureText(watermarkText);
-        const x = canvas.width - textMetrics.width - padding;
-        const y = canvas.height - padding;
-        
-        // Add subtle shadow for visibility
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-        ctx.shadowBlur = 4;
-        ctx.shadowOffsetX = 2;
-        ctx.shadowOffsetY = 2;
-        
-        // Draw text with cyan primary color
-        ctx.fillStyle = 'rgba(0, 212, 255, 0.8)';
-        ctx.fillText(watermarkText, x, y);
-      }
-      
-      const imageBase64 = canvas.toDataURL('image/png');
-      const fileName = `hotstepper-session-${Date.now()}.png`;
-
-      if (Capacitor.isNativePlatform()) {
-        // Save to temp file and share the image
-        const { Filesystem, Directory } = await import('@capacitor/filesystem');
-        const base64Data = imageBase64.replace(/^data:image\/png;base64,/, '');
-        
-        const tempFile = await Filesystem.writeFile({
-          path: fileName,
-          data: base64Data,
-          directory: Directory.Cache,
-        });
-        
-        const { Share } = await import('@capacitor/share');
-        await Share.share({
-          title: 'My Hotstepper Session',
-          url: tempFile.uri,
-          dialogTitle: 'Share your session',
-        });
-        
-        // Cleanup temp file after share
-        try {
-          await Filesystem.deleteFile({ path: fileName, directory: Directory.Cache });
-        } catch (e) {
-          // Ignore cleanup errors
-        }
-      } else {
-        // Web fallback - download
-        const link = document.createElement('a');
-        link.href = imageBase64;
-        link.download = fileName;
-        link.click();
-        toast.success('Session screenshot downloaded!');
-      }
-    } catch (err) {
-      console.error('[Share] Error:', err);
-      toast.error("Failed to share session");
-    } finally {
-      setIsSharing(false);
     }
   };
 
@@ -609,90 +415,6 @@ const ActiveSession = () => {
         isOpen={isPlayerOpen}
         onClose={() => setIsPlayerOpen(false)}
       />
-
-      {/* Session Summary Screen - Inline Implementation */}
-      {showSummary && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-modal bg-background flex flex-col">
-          {/* Fixed Header */}
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-center py-4 safe-area-pt flex-shrink-0">
-            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring', stiffness: 200 }} className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-primary/20 mb-3">
-              <Trophy className="h-7 w-7 text-primary" />
-            </motion.div>
-            <h1 className="text-xl font-bold uppercase tracking-widest text-foreground">Session Complete</h1>
-            <p className="text-sm text-muted-foreground mt-1">Great work! 🔥</p>
-          </motion.div>
-
-          {/* Scrollable Content Area */}
-          <div id="session-summary-content" className="flex-1 overflow-y-auto px-4 bg-background">
-            <motion.div id="session-summary-map" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="rounded-xl overflow-hidden bg-secondary/50 relative aspect-video max-h-[200px]">
-              {currentPosition ? (
-                <LiveMap 
-                  currentPosition={currentPosition} 
-                  routePoints={routePoints.length > 1 ? routePoints : [{ latitude: currentPosition.latitude, longitude: currentPosition.longitude, timestamp: Date.now(), accuracy: gpsAccuracy || undefined }]} 
-                  isTracking={false} 
-                  gpsAccuracy={null} 
-                />
-              ) : (
-                <MapPlaceholder message="Steps-only session" sessionSteps={sessionSteps} sessionDistance={parseFloat(sessionData.distance)} showStepsFallback />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-background/50 to-transparent pointer-events-none" />
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="py-4">
-              <div className="tactical-card">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20"><Clock className="h-4 w-4 text-primary" /></div>
-                    <div><span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Duration</span><p className="text-lg font-bold text-foreground tabular-nums">{formatTime(duration)}</p></div>
-                  </div>
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20"><MapPin className="h-4 w-4 text-primary" /></div>
-                    <div><span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Distance</span><p className="text-lg font-bold text-foreground tabular-nums">{sessionData.distance} km</p></div>
-                  </div>
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20"><Gauge className="h-4 w-4 text-primary" /></div>
-                    <div><span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Pace</span><p className="text-lg font-bold text-foreground tabular-nums">{sessionData.pace}/km</p></div>
-                  </div>
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20"><Footprints className="h-4 w-4 text-primary" /></div>
-                    <div><span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Steps</span><p className="text-lg font-bold text-foreground tabular-nums">{sessionSteps.toLocaleString()}</p></div>
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-center gap-2 text-muted-foreground">
-                  <Calendar className="h-4 w-4" /><span className="text-xs">{format(sessionEndTime || new Date(), 'MMM d, yyyy')} at {format(sessionEndTime || new Date(), 'h:mm a')}</span>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Fixed Bottom Buttons */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="px-4 safe-area-pb pb-4 flex-shrink-0 bg-background">
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <Button 
-                variant="tactical" 
-                disabled={isSaving} 
-                className="h-12 press-scale" 
-                onClick={handleSaveScreenshot}
-              >
-                {isSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Camera className="h-5 w-5 mr-2" />}
-                <span className="text-sm font-bold uppercase tracking-wider">{isSaving ? 'Saving...' : 'Save'}</span>
-              </Button>
-              <Button 
-                variant="tactical" 
-                disabled={isSharing} 
-                className="h-12 press-scale" 
-                onClick={handleShareSession}
-              >
-                {isSharing ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Share2 className="h-5 w-5 mr-2" />}
-                <span className="text-sm font-bold uppercase tracking-wider">{isSharing ? 'Sharing...' : 'Share'}</span>
-              </Button>
-            </div>
-            <Button variant="default" size="full" onClick={handleSummaryClose} className="h-12 text-sm font-bold uppercase tracking-widest press-scale">
-              <Check className="h-5 w-5 mr-2" />Done - Go Home
-            </Button>
-          </motion.div>
-        </motion.div>
-      )}
     </div>
   );
 };

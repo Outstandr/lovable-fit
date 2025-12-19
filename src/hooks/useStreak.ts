@@ -16,17 +16,15 @@ interface UseStreakReturn {
   refetch: () => Promise<void>;
 }
 
-const initialStreakState: StreakData = {
-  currentStreak: 0,
-  longestStreak: 0,
-  lastTargetHitDate: null,
-  isLoading: true,
-  error: null
-};
-
 export function useStreak(): UseStreakReturn {
   const { user } = useAuth();
-  const [streak, setStreak] = useState<StreakData>(initialStreakState);
+  const [streak, setStreak] = useState<StreakData>({
+    currentStreak: 0,
+    longestStreak: 0,
+    lastTargetHitDate: null,
+    isLoading: true,
+    error: null
+  });
 
   const fetchStreak = useCallback(async () => {
     if (!user) {

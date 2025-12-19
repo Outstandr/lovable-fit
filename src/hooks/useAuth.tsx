@@ -29,8 +29,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         console.log('[Auth] State change:', event, session?.user?.id);
+        
+        // Don't log out on SIGNED_OUT event if we still have a valid session
+        if (event === 'SIGNED_OUT') {
+          const { data } = await supabase.auth.getSession();
+          if (data.session) {
+            console.log('[Auth] Ignoring SIGNED_OUT, session still valid');
+            return;
+          }
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);

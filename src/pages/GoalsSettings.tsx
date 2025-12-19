@@ -63,7 +63,7 @@ const GoalsSettings = () => {
   const presets = [5000, 7500, 10000, 12500, 15000, 20000];
 
   return (
-    <div className="min-h-screen-safe bg-background">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <motion.header 
         className="flex items-center gap-4 p-4 border-b border-border header-safe"

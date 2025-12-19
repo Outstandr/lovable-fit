@@ -11,26 +11,12 @@ const config: CapacitorConfig = {
   // },
   android: {
     minWebViewVersion: 55,
-    backgroundColor: '#0A1128',
-    allowMixedContent: true,
     buildOptions: {
       keystorePath: undefined,
       keystorePassword: undefined,
       keystoreAlias: undefined,
       keystoreAliasPassword: undefined,
       signingType: 'apksigner'
-    }
-  },
-  ios: {
-    backgroundColor: '#0A1128',
-    contentInset: 'automatic',
-    preferredContentMode: 'mobile',
-    scheme: 'Hotstepper'
-  },
-  plugins: {
-    StatusBar: {
-      style: 'DARK',
-      backgroundColor: '#0A1128'
     }
   }
 };
