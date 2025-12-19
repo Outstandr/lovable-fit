@@ -8,7 +8,7 @@ import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { DayView } from "@/components/dashboard/DayView";
 import { WeekView } from "@/components/dashboard/WeekView";
 import { MonthView } from "@/components/dashboard/MonthView";
-import { usePedometer } from "@/hooks/usePedometer";
+import { useHealth } from "@/hooks/useHealth";
 import { useStreak } from "@/hooks/useStreak";
 import { useAudiobook } from "@/hooks/useAudiobook";
 import { useEffect, useState } from "react";
@@ -23,7 +23,7 @@ type TabType = "day" | "week" | "month";
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { steps, distance, calories, dataSource, syncToDatabase } = usePedometer();
+  const { steps, distance, calories, dataSource, syncToDatabase } = useHealth();
   const { streak, updateStreakOnTargetHit } = useStreak();
   const { isPlaying, currentChapter, currentTime, duration, togglePlay, formatTime, isLoading: audiobookLoading } = useAudiobook();
   

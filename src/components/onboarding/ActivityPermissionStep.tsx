@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
-import { pedometerService } from '@/services/pedometerService';
+import { healthService } from '@/services/healthService';
 
 interface ActivityPermissionStepProps {
   onNext: () => void;
@@ -17,10 +17,8 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
     
     try {
       if (Capacitor.isNativePlatform()) {
-        // Request activity recognition permission
-        await pedometerService.requestPermission();
-        // Start pedometer tracking
-        await pedometerService.start();
+        // Request health permission (HealthKit on iOS, Health Connect on Android)
+        await healthService.requestPermission();
       }
     } catch (error) {
       console.log('[Onboarding] Activity permission error:', error);
@@ -29,6 +27,9 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
     setIsRequesting(false);
     onNext();
   };
+
+  const platform = Capacitor.getPlatform();
+  const platformLabel = platform === 'ios' ? 'Apple Health' : 'Health Connect';
 
   return (
     <div className="min-h-screen-safe flex flex-col px-6 py-8">
@@ -49,7 +50,7 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
           transition={{ delay: 0.2 }}
           className="text-2xl font-bold text-foreground text-center mb-4"
         >
-          Physical Activity Access
+          Health Data Access
         </motion.h1>
 
         <motion.p
@@ -58,7 +59,7 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
           transition={{ delay: 0.3 }}
           className="text-muted-foreground text-center max-w-xs leading-relaxed"
         >
-          Hotstepper needs access to your physical activity data to accurately count your steps and track your progress.
+          Hotstepper needs access to {platformLabel} to accurately count your steps and track your progress.
         </motion.p>
 
         {/* Benefits list */}
@@ -72,7 +73,8 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
             'Automatic step counting',
             'Accurate distance tracking',
             'Real-time progress updates',
-          ].map((benefit, index) => (
+            'Calorie tracking',
+          ].map((benefit) => (
             <div
               key={benefit}
               className="flex items-center gap-3 text-sm text-foreground/80"
