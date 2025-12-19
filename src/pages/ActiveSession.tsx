@@ -214,6 +214,8 @@ const ActiveSession = () => {
             routePoints={routePoints}
             isTracking={isGpsTracking}
             gpsAccuracy={gpsAccuracy}
+            sessionSteps={sessionSteps}
+            sessionDistance={stepBasedDistance}
           />
         ) : (
           <MapPlaceholder 
