@@ -226,8 +226,9 @@ const ActiveSession = () => {
 
       if (Capacitor.isNativePlatform()) {
         try {
-          // Step 1: Save base64 to temp file first
+          // Save base64 to temp file
           const { Filesystem, Directory } = await import('@capacitor/filesystem');
+          const { Share } = await import('@capacitor/share');
           const base64Data = imageBase64.replace(/^data:image\/png;base64,/, '');
           
           const tempFile = await Filesystem.writeFile({
@@ -236,40 +237,15 @@ const ActiveSession = () => {
             directory: Directory.Cache,
           });
           
-          // Step 2: Get or create Hotstepper album
-          const { Media } = await import('@capacitor-community/media');
-          let albumIdentifier: string | undefined;
-          
-          try {
-            const { albums } = await Media.getAlbums();
-            console.log('[Save] Available albums:', albums);
-            const hotstepperAlbum = albums.find(a => a.name === 'Hotstepper');
-            
-            if (hotstepperAlbum) {
-              albumIdentifier = hotstepperAlbum.identifier;
-              console.log('[Save] Found existing Hotstepper album:', albumIdentifier);
-            } else {
-              // Create the album if it doesn't exist
-              console.log('[Save] Creating Hotstepper album...');
-              await Media.createAlbum({ name: 'Hotstepper' });
-              
-              // Fetch albums again to get the identifier
-              const { albums: updatedAlbums } = await Media.getAlbums();
-              const newAlbum = updatedAlbums.find(a => a.name === 'Hotstepper');
-              albumIdentifier = newAlbum?.identifier;
-              console.log('[Save] Created Hotstepper album:', albumIdentifier);
-            }
-          } catch (albumErr) {
-            console.log('[Save] Album handling failed, saving to default:', albumErr);
-          }
-          
-          // Step 3: Save to gallery using proper album identifier
-          await Media.savePhoto({
-            path: tempFile.uri,
-            albumIdentifier: albumIdentifier,
+          // Open share sheet - user can save to Photos from there
+          await Share.share({
+            title: 'Hotstepper Session',
+            text: 'Check out my walking session!',
+            url: tempFile.uri,
+            dialogTitle: 'Save or Share Session',
           });
           
-          // Step 4: Clean up temp file
+          // Clean up temp file after sharing
           try {
             await Filesystem.deleteFile({
               path: fileName,
@@ -279,10 +255,10 @@ const ActiveSession = () => {
             // Ignore cleanup errors
           }
           
-          toast.success("Session saved to Gallery! 📸");
+          toast.success("Session ready to save!");
         } catch (err) {
-          console.error('[Save] Gallery save failed:', err);
-          toast.error("Could not save to gallery");
+          console.error('[Save] Share failed:', err);
+          toast.error("Could not save screenshot");
         }
       } else {
         // Web fallback - download
@@ -290,7 +266,7 @@ const ActiveSession = () => {
         link.href = imageBase64;
         link.download = fileName;
         link.click();
-        toast.success("Session downloaded! 📸");
+        toast.success("Session downloaded!");
       }
     } catch (err) {
       console.error('[Save] Error:', err);
