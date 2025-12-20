@@ -1,11 +1,13 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, Settings, Ruler, Info, RefreshCw } from "lucide-react";
+import { ArrowLeft, Settings, Ruler, Info, RefreshCw, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+
+const ONBOARDING_KEY = 'device_onboarding_completed';
 
 const AppSettings = () => {
   const navigate = useNavigate();
@@ -47,9 +49,22 @@ const AppSettings = () => {
   });
 
   const handleClearCache = () => {
+    // Keep onboarding flag when clearing cache
+    const onboardingFlag = localStorage.getItem(ONBOARDING_KEY);
     localStorage.clear();
+    if (onboardingFlag) {
+      localStorage.setItem(ONBOARDING_KEY, onboardingFlag);
+    }
     queryClient.clear();
     toast.success("Cache cleared successfully!");
+  };
+
+  const handleResetOnboarding = () => {
+    localStorage.removeItem(ONBOARDING_KEY);
+    toast.success("Onboarding reset! Redirecting...");
+    setTimeout(() => {
+      navigate('/onboarding');
+    }, 500);
   };
 
   const currentUnit = profile?.unit_preference || "metric";
@@ -113,12 +128,37 @@ const AppSettings = () => {
           </div>
         </motion.div>
 
-        {/* Clear Cache */}
+        {/* Reset Onboarding */}
         <motion.div 
           className="tactical-card p-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <RotateCcw className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">Reset Onboarding</p>
+                <p className="text-xs text-muted-foreground">Re-request all permissions</p>
+              </div>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleResetOnboarding}
+            >
+              Reset
+            </Button>
+          </div>
+        </motion.div>
+
+        {/* Clear Cache */}
+        <motion.div 
+          className="tactical-card p-4"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -143,7 +183,7 @@ const AppSettings = () => {
           className="tactical-card p-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.4 }}
         >
           <div className="flex items-center gap-3 mb-4">
             <Info className="h-5 w-5 text-primary" />
