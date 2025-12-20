@@ -1,39 +1,21 @@
 import { useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { pushNotificationService } from '@/services/pushNotificationService';
-import { healthService } from '@/services/healthService';
 
 interface PushNotificationInitializerProps {
   children: React.ReactNode;
 }
 
-// Wait for health permission flow to complete before requesting push permissions
-const waitForHealthInit = async (maxWaitMs: number = 8000): Promise<void> => {
-  const startTime = Date.now();
-  
-  // Minimum 2s wait to let permission dialog appear
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  
-  // Poll every 500ms to check if health service has resolved permission
-  while (Date.now() - startTime < maxWaitMs) {
-    // If health has permission, permission flow is complete
-    const state = healthService.getState();
-    if (state.hasPermission) {
-      console.log('[PushNotifications] Health init complete, proceeding...');
-      return;
-    }
-    await new Promise(resolve => setTimeout(resolve, 500));
-  }
-  
-  console.log('[PushNotifications] Health init timeout, proceeding anyway...');
-};
+const ONBOARDING_KEY = 'device_onboarding_completed';
 
 export function PushNotificationInitializer({ children }: PushNotificationInitializerProps) {
   const { user } = useAuth();
+  const location = useLocation();
   const hasInitialized = useRef(false);
   const hasShownToast = useRef(false);
 
-  // Initialize push notifications after user login AND health init
+  // Initialize push notifications after user login - but NOT during onboarding
   useEffect(() => {
     const initializePushNotifications = async () => {
       // Prevent multiple initializations
@@ -54,11 +36,21 @@ export function PushNotificationInitializer({ children }: PushNotificationInitia
         return;
       }
 
+      // CRITICAL: Skip if currently on onboarding page
+      if (location.pathname === '/onboarding') {
+        console.log('[PushNotifications] On onboarding page, skipping auto-init');
+        return;
+      }
+
+      // CRITICAL: Skip if onboarding hasn't been completed yet
+      const onboardingCompleted = localStorage.getItem(ONBOARDING_KEY) === 'true';
+      if (!onboardingCompleted) {
+        console.log('[PushNotifications] Onboarding not completed, skipping auto-init');
+        return;
+      }
+
       try {
         hasInitialized.current = true;
-        
-        // Wait for health permission flow to complete first
-        await waitForHealthInit();
         
         console.log('[PushNotifications] Initializing for user:', user.id);
         
@@ -91,7 +83,7 @@ export function PushNotificationInitializer({ children }: PushNotificationInitia
     if (user && !hasInitialized.current) {
       initializePushNotifications();
     }
-  }, [user]);
+  }, [user, location.pathname]);
 
   // Clean up push token on logout
   useEffect(() => {
