@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Trophy, Crown, Medal, Loader2, WifiOff, RefreshCw, Footprints } from "lucide-react";
+import { Trophy, Crown, Medal, Loader2, WifiOff, Footprints } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
@@ -217,21 +217,15 @@ const Leaderboard = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Trophy className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold uppercase tracking-[0.2em] text-foreground">
-              Leaderboard
-            </h1>
-          </div>
-          <button
-            onClick={handleRefresh}
-            className="p-2 rounded-full hover:bg-secondary/50 transition-colors"
-            aria-label="Refresh leaderboard"
-          >
-            <RefreshCw className="h-5 w-5 text-muted-foreground" />
-          </button>
+        <div className="flex items-center gap-2">
+          <Trophy className="h-6 w-6 text-primary" />
+          <h1 className="text-xl font-bold uppercase tracking-[0.2em] text-foreground">
+            Leaderboard
+          </h1>
         </div>
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mt-1">
+          Today's Rankings • {leaderboard.length} Participants • Updated {lastUpdate.toLocaleTimeString()}
+        </p>
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mt-1">
           Today's Rankings • {leaderboard.length} Participants • Updated {lastUpdate.toLocaleTimeString()}
         </p>

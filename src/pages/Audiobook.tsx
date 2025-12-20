@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
 import { 
-  Play, Pause, SkipBack, SkipForward, ChevronLeft, 
+  Play, Pause, SkipBack, SkipForward, 
   Check, Headphones, Volume2
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+
 import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
 import { useAudiobook } from "@/hooks/useAudiobook";
@@ -12,7 +12,6 @@ import { Progress } from "@/components/ui/progress";
 import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
 
 const Audiobook = () => {
-  const navigate = useNavigate();
   const {
     isPlaying,
     currentChapter,
@@ -70,19 +69,11 @@ const Audiobook = () => {
 
       {/* Header */}
       <motion.header 
-        className="flex items-center gap-3 px-4 pb-4 relative z-10 header-safe flex-shrink-0"
+        className="flex items-center gap-2 px-4 pb-4 relative z-10 header-safe flex-shrink-0"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <button 
-          onClick={() => {
-            haptics.light();
-            navigate(-1);
-          }}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth touch-target"
-        >
-          <ChevronLeft className="h-6 w-6" />
-        </button>
+        <Headphones className="h-6 w-6 text-primary" />
         <h1 className="text-lg font-bold text-foreground">Audiobook</h1>
       </motion.header>
 
