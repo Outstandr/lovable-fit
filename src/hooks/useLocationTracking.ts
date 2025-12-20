@@ -276,29 +276,37 @@ export const useLocationTracking = (): UseLocationTrackingReturn => {
   }, [startTracking]);
 
   const stopTracking = useCallback(() => {
-    console.log(`${LOG_PREFIX} Stopping GPS tracking...`);
-    if (watchIdRef.current !== null) {
-      if (Capacitor.isNativePlatform()) {
-        Geolocation.clearWatch({ id: watchIdRef.current });
-      } else {
-        navigator.geolocation.clearWatch(parseInt(watchIdRef.current));
-      }
-      watchIdRef.current = null;
-    }
-    setIsTracking(false);
-    setCurrentSpeed(0);
-    console.log(`${LOG_PREFIX} Tracking stopped`);
-  }, []);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
+    try {
+      console.log(`${LOG_PREFIX} Stopping GPS tracking...`);
       if (watchIdRef.current !== null) {
         if (Capacitor.isNativePlatform()) {
           Geolocation.clearWatch({ id: watchIdRef.current });
         } else {
           navigator.geolocation.clearWatch(parseInt(watchIdRef.current));
         }
+        watchIdRef.current = null;
+      }
+      setIsTracking(false);
+      setCurrentSpeed(0);
+      console.log(`${LOG_PREFIX} Tracking stopped`);
+    } catch (error) {
+      console.error(`${LOG_PREFIX} Error stopping tracking:`, error);
+    }
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      try {
+        if (watchIdRef.current !== null) {
+          if (Capacitor.isNativePlatform()) {
+            Geolocation.clearWatch({ id: watchIdRef.current });
+          } else {
+            navigator.geolocation.clearWatch(parseInt(watchIdRef.current));
+          }
+        }
+      } catch (error) {
+        console.error(`${LOG_PREFIX} Cleanup error:`, error);
       }
     };
   }, []);

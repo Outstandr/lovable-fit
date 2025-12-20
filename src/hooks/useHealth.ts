@@ -72,30 +72,34 @@ export function useHealth() {
     const loadTodaySteps = async () => {
       if (!user) return;
       
-      const today = new Date().toISOString().split('T')[0];
-      
-      const { data, error } = await supabase
-        .from('daily_steps')
-        .select('steps, distance_km, calories')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .maybeSingle();
-      
-      if (data && !error) {
-        console.log(`${LOG_PREFIX} Loaded today steps from DB:`, data.steps);
-        setState(prev => ({
-          ...prev,
-          steps: data.steps || 0,
-          distance: data.distance_km || 0,
-          calories: data.calories || 0,
-        }));
-        lastSyncSteps.current = data.steps || 0;
+      try {
+        const today = new Date().toISOString().split('T')[0];
         
-        // Check if already hit 10K today
-        if (data.steps >= 10000) {
-          hasHit10K.current = true;
-          lastCelebrationDay.current = today;
+        const { data, error } = await supabase
+          .from('daily_steps')
+          .select('steps, distance_km, calories')
+          .eq('user_id', user.id)
+          .eq('date', today)
+          .maybeSingle();
+        
+        if (data && !error) {
+          console.log(`${LOG_PREFIX} Loaded today steps from DB:`, data.steps);
+          setState(prev => ({
+            ...prev,
+            steps: data.steps || 0,
+            distance: data.distance_km || 0,
+            calories: data.calories || 0,
+          }));
+          lastSyncSteps.current = data.steps || 0;
+          
+          // Check if already hit 10K today
+          if (data.steps >= 10000) {
+            hasHit10K.current = true;
+            lastCelebrationDay.current = today;
+          }
         }
+      } catch (error) {
+        console.error(`${LOG_PREFIX} Error loading today steps:`, error);
       }
     };
     
@@ -265,23 +269,33 @@ export function useHealth() {
   }, [user, state.steps, state.distance, state.calories, isOnline, queueStepData]);
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    const granted = await healthService.requestPermission();
-    if (granted) {
-      setState(prev => ({ ...prev, hasPermission: true }));
+    try {
+      const granted = await healthService.requestPermission();
+      if (granted) {
+        setState(prev => ({ ...prev, hasPermission: true }));
+      }
+      return granted;
+    } catch (error) {
+      console.error(`${LOG_PREFIX} requestPermission error:`, error);
+      return false;
     }
-    return granted;
   }, []);
 
   const startTracking = useCallback(async (): Promise<boolean> => {
-    if (state.dataSource === 'health') {
-      return true; // Already tracking
+    try {
+      if (state.dataSource === 'health') {
+        return true; // Already tracking
+      }
+      
+      const started = await healthService.start();
+      if (started) {
+        setState(prev => ({ ...prev, isTracking: true, dataSource: 'health', hasPermission: true }));
+      }
+      return started;
+    } catch (error) {
+      console.error(`${LOG_PREFIX} startTracking error:`, error);
+      return false;
     }
-    
-    const started = await healthService.start();
-    if (started) {
-      setState(prev => ({ ...prev, isTracking: true, dataSource: 'health', hasPermission: true }));
-    }
-    return started;
   }, [state.dataSource]);
 
   const stopTracking = useCallback((): void => {

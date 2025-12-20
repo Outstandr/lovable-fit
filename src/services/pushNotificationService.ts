@@ -147,29 +147,44 @@ class PushNotificationService {
     }
     this.listenersRegistered = true;
 
-    // Registration success
-    PushNotifications.addListener('registration', async (token) => {
-      console.log('[PushNotification] Registration success, token:', token.value);
-      this.token = token.value;
-      await this.saveTokenToDatabase(token.value);
-    });
+    try {
+      // Registration success
+      PushNotifications.addListener('registration', async (token) => {
+        try {
+          console.log('[PushNotification] Registration success, token:', token.value);
+          this.token = token.value;
+          await this.saveTokenToDatabase(token.value);
+        } catch (error) {
+          console.error('[PushNotification] Token save error:', error);
+        }
+      });
 
-    // Registration error
-    PushNotifications.addListener('registrationError', (error) => {
-      console.error('[PushNotification] Registration error:', JSON.stringify(error));
-    });
+      // Registration error
+      PushNotifications.addListener('registrationError', (error) => {
+        console.error('[PushNotification] Registration error:', JSON.stringify(error));
+      });
 
-    // Notification received while app is in foreground
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
-      console.log('[PushNotification] Received in foreground:', JSON.stringify(notification));
-      // Could show an in-app notification here
-    });
+      // Notification received while app is in foreground
+      PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        try {
+          console.log('[PushNotification] Received in foreground:', JSON.stringify(notification));
+        } catch (error) {
+          console.error('[PushNotification] Error handling foreground notification:', error);
+        }
+      });
 
-    // User tapped on notification
-    PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-      console.log('[PushNotification] Action performed:', JSON.stringify(notification));
-      this.handleNotificationTap(notification.notification.data);
-    });
+      // User tapped on notification
+      PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+        try {
+          console.log('[PushNotification] Action performed:', JSON.stringify(notification));
+          this.handleNotificationTap(notification.notification.data);
+        } catch (error) {
+          console.error('[PushNotification] Error handling notification tap:', error);
+        }
+      });
+    } catch (error) {
+      console.error('[PushNotification] Error setting up listeners:', error);
+    }
   }
 
   /**
