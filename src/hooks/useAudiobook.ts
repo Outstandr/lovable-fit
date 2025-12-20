@@ -4,6 +4,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
+export interface Bookmark {
+  id: string;
+  chapter_id: number;
+  timestamp_seconds: number;
+  label: string | null;
+  created_at: string;
+}
+
 const STORAGE_BUCKET = 'rbd-audiobook';
 
 export interface Chapter {
@@ -29,6 +37,7 @@ interface AudiobookState {
   allChaptersComplete: boolean;
   chapterProgress: Map<number, number>; // chapterId -> lastPosition
   playbackSpeed: number;
+  bookmarks: Bookmark[];
 }
 
 const PLAYBACK_SPEEDS = [1, 1.5, 2] as const;
@@ -63,6 +72,7 @@ export const useAudiobook = () => {
     allChaptersComplete: false,
     chapterProgress: new Map(),
     playbackSpeed: 1,
+    bookmarks: [],
   });
   
   const hasTriggeredCompletion = useRef<Set<number>>(new Set());
@@ -80,6 +90,28 @@ export const useAudiobook = () => {
       }
     }
   }, []);
+
+  // Load bookmarks from database
+  useEffect(() => {
+    const fetchBookmarks = async () => {
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from('audiobook_bookmarks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('[useAudiobook] Failed to fetch bookmarks:', error);
+        return;
+      }
+      
+      setState(prev => ({ ...prev, bookmarks: data || [] }));
+    };
+    
+    fetchBookmarks();
+  }, [user]);
 
   // Save progress to localStorage - use ref to get latest values
   const currentTimeRef = useRef(state.currentTime);
@@ -345,6 +377,71 @@ export const useAudiobook = () => {
     setState(prev => ({ ...prev, isPlaying: false, currentTime: 0 }));
   }, [saveProgress]);
 
+  // Bookmark functions
+  const addBookmark = useCallback(async (label?: string) => {
+    if (!user || !state.currentChapter) {
+      toast.error('Please start playing a chapter first');
+      return;
+    }
+    
+    const bookmark = {
+      user_id: user.id,
+      chapter_id: state.currentChapter.id,
+      timestamp_seconds: state.currentTime,
+      label: label || null,
+    };
+    
+    const { data, error } = await supabase
+      .from('audiobook_bookmarks')
+      .insert(bookmark)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('[useAudiobook] Failed to add bookmark:', error);
+      toast.error('Failed to save bookmark');
+      return;
+    }
+    
+    setState(prev => ({ ...prev, bookmarks: [data, ...prev.bookmarks] }));
+    toast.success('Bookmark saved');
+  }, [user, state.currentChapter, state.currentTime]);
+
+  const removeBookmark = useCallback(async (bookmarkId: string) => {
+    if (!user) return;
+    
+    const { error } = await supabase
+      .from('audiobook_bookmarks')
+      .delete()
+      .eq('id', bookmarkId)
+      .eq('user_id', user.id);
+    
+    if (error) {
+      console.error('[useAudiobook] Failed to remove bookmark:', error);
+      toast.error('Failed to remove bookmark');
+      return;
+    }
+    
+    setState(prev => ({ 
+      ...prev, 
+      bookmarks: prev.bookmarks.filter(b => b.id !== bookmarkId) 
+    }));
+    toast.success('Bookmark removed');
+  }, [user]);
+
+  const seekToBookmark = useCallback(async (bookmark: Bookmark) => {
+    // If different chapter, load it first
+    if (state.currentChapter?.id !== bookmark.chapter_id) {
+      await loadChapter(bookmark.chapter_id, false);
+    }
+    audioService.seekTo(bookmark.timestamp_seconds);
+    toast.success(`Jumped to ${formatTime(bookmark.timestamp_seconds)}`);
+  }, [state.currentChapter, loadChapter]);
+
+  const getBookmarksForChapter = useCallback((chapterId: number) => {
+    return state.bookmarks.filter(b => b.chapter_id === chapterId);
+  }, [state.bookmarks]);
+
   // Get remaining time for current chapter
   const getRemainingTime = useCallback(() => {
     if (!state.duration) return null;
@@ -388,6 +485,7 @@ export const useAudiobook = () => {
     error: state.error,
     allChaptersComplete: state.allChaptersComplete,
     playbackSpeed: state.playbackSpeed,
+    bookmarks: state.bookmarks,
     chapters: chapters,
     play,
     pause,
@@ -401,5 +499,9 @@ export const useAudiobook = () => {
     getButtonText,
     formatTime,
     cyclePlaybackSpeed,
+    addBookmark,
+    removeBookmark,
+    seekToBookmark,
+    getBookmarksForChapter,
   };
 };
