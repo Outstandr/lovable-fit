@@ -92,6 +92,33 @@ export type Database = {
         }
         Relationships: []
       }
+      audiobook_bookmarks: {
+        Row: {
+          chapter_id: number
+          created_at: string
+          id: string
+          label: string | null
+          timestamp_seconds: number
+          user_id: string
+        }
+        Insert: {
+          chapter_id: number
+          created_at?: string
+          id?: string
+          label?: string | null
+          timestamp_seconds: number
+          user_id: string
+        }
+        Update: {
+          chapter_id?: number
+          created_at?: string
+          id?: string
+          label?: string | null
+          timestamp_seconds?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       daily_steps: {
         Row: {
           calories: number | null

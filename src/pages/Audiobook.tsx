@@ -1,12 +1,12 @@
 import { motion } from "framer-motion";
 import { 
   Play, Pause, SkipBack, SkipForward, 
-  Check, Headphones, Volume2
+  Check, Headphones, Volume2, Bookmark, Trash2
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
-import { useAudiobook } from "@/hooks/useAudiobook";
+import { useAudiobook, Bookmark as BookmarkType } from "@/hooks/useAudiobook";
 import { haptics } from '@/utils/haptics';
 import { Progress } from "@/components/ui/progress";
 import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
@@ -19,6 +19,7 @@ const Audiobook = () => {
     duration,
     isLoading,
     playbackSpeed,
+    bookmarks,
     chapters,
     play,
     pause,
@@ -29,6 +30,10 @@ const Audiobook = () => {
     loadChapter,
     formatTime,
     cyclePlaybackSpeed,
+    addBookmark,
+    removeBookmark,
+    seekToBookmark,
+    getBookmarksForChapter,
   } = useAudiobook();
 
   const handleSeek = (value: number[]) => {
@@ -174,8 +179,8 @@ const Audiobook = () => {
             </button>
           </div>
 
-          {/* Speed Control */}
-          <div className="flex justify-center mt-4">
+          {/* Speed & Bookmark Controls */}
+          <div className="flex justify-center items-center gap-4 mt-4">
             <button
               onClick={() => {
                 haptics.light();
@@ -185,7 +190,67 @@ const Audiobook = () => {
             >
               {playbackSpeed}x Speed
             </button>
+            
+            <button
+              onClick={() => {
+                haptics.medium();
+                addBookmark();
+              }}
+              disabled={!currentChapter}
+              className="h-10 w-10 rounded-full flex items-center justify-center bg-secondary/50 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-smooth disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Add bookmark at current position"
+            >
+              <Bookmark className="h-5 w-5" />
+            </button>
           </div>
+
+          {/* Current Chapter Bookmarks */}
+          {currentChapter && getBookmarksForChapter(currentChapter.id).length > 0 && (
+            <motion.div 
+              className="mt-4 pt-4 border-t border-border/50"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                Bookmarks
+              </h4>
+              <div className="space-y-1">
+                {getBookmarksForChapter(currentChapter.id).map((bookmark) => (
+                  <div 
+                    key={bookmark.id}
+                    className="flex items-center justify-between gap-2 p-2 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-smooth"
+                  >
+                    <button
+                      onClick={() => {
+                        haptics.light();
+                        seekToBookmark(bookmark);
+                      }}
+                      className="flex items-center gap-2 flex-1 text-left"
+                    >
+                      <Bookmark className="h-4 w-4 text-primary flex-shrink-0" />
+                      <span className="text-sm font-medium tabular-nums">
+                        {formatTime(Number(bookmark.timestamp_seconds))}
+                      </span>
+                      {bookmark.label && (
+                        <span className="text-xs text-muted-foreground truncate">
+                          {bookmark.label}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        haptics.light();
+                        removeBookmark(bookmark.id);
+                      }}
+                      className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-smooth"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
         </motion.div>
 
         {/* Chapter List */}
