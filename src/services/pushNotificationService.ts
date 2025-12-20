@@ -96,6 +96,13 @@ class PushNotificationService {
 
   private async _doInitialize(): Promise<void> {
     try {
+      // CRITICAL: Don't auto-initialize during onboarding
+      const onboardingCompleted = localStorage.getItem('device_onboarding_completed') === 'true';
+      if (!onboardingCompleted) {
+        console.log('[PushNotification] Onboarding not completed, skipping auto-init');
+        return;
+      }
+
       // Check if already has permission (granted during onboarding)
       let hasPermission = await this.checkPermission();
       

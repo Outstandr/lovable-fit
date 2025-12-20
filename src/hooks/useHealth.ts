@@ -105,7 +105,7 @@ export function useHealth() {
   }, [user]);
 
   // AUTOMATIC INITIALIZATION - Start health service on app launch
-  // Delayed to avoid conflict with onboarding permission flow
+  // Only after onboarding is complete to avoid permission conflicts
   useEffect(() => {
     const platform = healthService.getPlatform();
     
@@ -115,7 +115,22 @@ export function useHealth() {
       return;
     }
 
-    // Delay initialization to avoid conflict with onboarding permission flow
+    // CRITICAL: Skip if currently on onboarding page
+    if (window.location.pathname === '/onboarding') {
+      console.log(`${LOG_PREFIX} On onboarding page, skipping auto-init`);
+      setState(prev => ({ ...prev, isInitializing: false }));
+      return;
+    }
+
+    // CRITICAL: Skip if onboarding hasn't been completed yet
+    const onboardingCompleted = localStorage.getItem('device_onboarding_completed') === 'true';
+    if (!onboardingCompleted) {
+      console.log(`${LOG_PREFIX} Onboarding not completed, skipping auto-init`);
+      setState(prev => ({ ...prev, isInitializing: false }));
+      return;
+    }
+
+    // Delay initialization slightly to let page settle
     const timer = setTimeout(async () => {
       console.log(`${LOG_PREFIX} === STARTING HEALTH TRACKING ===`);
       
