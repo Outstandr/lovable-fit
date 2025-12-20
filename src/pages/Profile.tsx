@@ -86,7 +86,7 @@ const Profile = () => {
 
   return (
     <div className="h-screen flex flex-col page-with-bottom-nav relative">
-      <div className="flex-1 overflow-y-auto scroll-smooth-native">
+      <div className="flex-1 overflow-y-auto scroll-smooth-native pb-8">
       {/* Background gradient */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/5 rounded-full blur-[100px]" />
