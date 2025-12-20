@@ -52,11 +52,22 @@ const ActiveSession = () => {
   // Start GPS tracking when component mounts
   useEffect(() => {
     const initGps = async () => {
-      await startTracking();
-      setGpsInitialized(true);
+      try {
+        await startTracking();
+      } catch (error) {
+        console.error('[ActiveSession] GPS init error:', error);
+      } finally {
+        setGpsInitialized(true);
+      }
     };
     initGps();
-    return () => stopTracking();
+    return () => {
+      try {
+        stopTracking();
+      } catch (error) {
+        console.error('[ActiveSession] GPS cleanup error:', error);
+      }
+    };
   }, []);
 
   // Capture start steps when session begins

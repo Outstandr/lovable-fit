@@ -46,8 +46,12 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchGoal = async () => {
       if (!user) return;
-      const { data } = await supabase.from('profiles').select('daily_step_goal').eq('id', user.id).single();
-      if (data?.daily_step_goal) setDailyGoal(data.daily_step_goal);
+      try {
+        const { data } = await supabase.from('profiles').select('daily_step_goal').eq('id', user.id).single();
+        if (data?.daily_step_goal) setDailyGoal(data.daily_step_goal);
+      } catch (error) {
+        console.error('[Dashboard] Error fetching goal:', error);
+      }
     };
     fetchGoal();
   }, [user]);
@@ -56,55 +60,59 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchWeeklyData = async () => {
       if (!user) return;
-      const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-      const today = new Date();
-      const startDate = new Date(today);
-      startDate.setDate(startDate.getDate() - 6);
-      
-      const { data } = await supabase
-        .from('daily_steps')
-        .select('date, steps, distance_km, calories')
-        .eq('user_id', user.id)
-        .gte('date', startDate.toISOString().split('T')[0])
-        .lte('date', today.toISOString().split('T')[0]);
-      
-      const weekDataArr: typeof weekData = [];
-      const trendArr: typeof weeklyTrend = [];
-      
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(startDate);
-        date.setDate(date.getDate() + i);
-        const dateStr = date.toISOString().split('T')[0];
-        const record = data?.find(d => d.date === dateStr);
-        const stepsVal = record?.steps || 0;
+      try {
+        const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+        const today = new Date();
+        const startDate = new Date(today);
+        startDate.setDate(startDate.getDate() - 6);
         
-        weekDataArr.push({
-          day: days[date.getDay()],
-          steps: stepsVal,
-          isToday: i === 6,
-          hitGoal: stepsVal >= dailyGoal
+        const { data } = await supabase
+          .from('daily_steps')
+          .select('date, steps, distance_km, calories')
+          .eq('user_id', user.id)
+          .gte('date', startDate.toISOString().split('T')[0])
+          .lte('date', today.toISOString().split('T')[0]);
+        
+        const weekDataArr: typeof weekData = [];
+        const trendArr: typeof weeklyTrend = [];
+        
+        for (let i = 0; i < 7; i++) {
+          const date = new Date(startDate);
+          date.setDate(date.getDate() + i);
+          const dateStr = date.toISOString().split('T')[0];
+          const record = data?.find(d => d.date === dateStr);
+          const stepsVal = record?.steps || 0;
+          
+          weekDataArr.push({
+            day: days[date.getDay()],
+            steps: stepsVal,
+            isToday: i === 6,
+            hitGoal: stepsVal >= dailyGoal
+          });
+          
+          trendArr.push({ label: days[date.getDay()], value: stepsVal });
+        }
+        
+        setWeekData(weekDataArr);
+        setWeeklyTrend(trendArr);
+        
+        // Calculate week stats
+        const totalSteps = weekDataArr.reduce((sum, d) => sum + d.steps, 0);
+        const avgSteps = Math.round(totalSteps / 7);
+        const totalCalories = data?.reduce((sum, d) => sum + (d.calories || 0), 0) || 0;
+        const totalDistance = data?.reduce((sum, d) => sum + (d.distance_km || 0), 0) || 0;
+        
+        setWeekStats({
+          totalSteps,
+          avgSteps,
+          prevWeekAvg: avgSteps, // TODO: fetch previous week
+          calories: totalCalories,
+          distance: totalDistance,
+          activeMinutes: Math.round(totalSteps / 120)
         });
-        
-        trendArr.push({ label: days[date.getDay()], value: stepsVal });
+      } catch (error) {
+        console.error('[Dashboard] Error fetching weekly data:', error);
       }
-      
-      setWeekData(weekDataArr);
-      setWeeklyTrend(trendArr);
-      
-      // Calculate week stats
-      const totalSteps = weekDataArr.reduce((sum, d) => sum + d.steps, 0);
-      const avgSteps = Math.round(totalSteps / 7);
-      const totalCalories = data?.reduce((sum, d) => sum + (d.calories || 0), 0) || 0;
-      const totalDistance = data?.reduce((sum, d) => sum + (d.distance_km || 0), 0) || 0;
-      
-      setWeekStats({
-        totalSteps,
-        avgSteps,
-        prevWeekAvg: avgSteps, // TODO: fetch previous week
-        calories: totalCalories,
-        distance: totalDistance,
-        activeMinutes: Math.round(totalSteps / 120)
-      });
     };
     
     fetchWeeklyData();
@@ -116,72 +124,76 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchMonthlyData = async () => {
       if (!user) return;
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = today.getMonth();
-      const startOfMonth = new Date(year, month, 1);
-      
-      const { data } = await supabase
-        .from('daily_steps')
-        .select('date, steps, distance_km, calories')
-        .eq('user_id', user.id)
-        .gte('date', startOfMonth.toISOString().split('T')[0])
-        .lte('date', today.toISOString().split('T')[0]);
-      
-      // Build calendar data
-      const calData: typeof calendarData = [];
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      
-      for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(year, month, day);
-        const dateStr = date.toISOString().split('T')[0];
-        const record = data?.find(d => d.date === dateStr);
-        const stepsVal = record?.steps || 0;
+      try {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = today.getMonth();
+        const startOfMonth = new Date(year, month, 1);
         
-        calData.push({
-          date: day,
-          steps: stepsVal,
-          hitGoal: stepsVal >= dailyGoal,
-          isToday: day === today.getDate(),
-          isFuture: day > today.getDate()
+        const { data } = await supabase
+          .from('daily_steps')
+          .select('date, steps, distance_km, calories')
+          .eq('user_id', user.id)
+          .gte('date', startOfMonth.toISOString().split('T')[0])
+          .lte('date', today.toISOString().split('T')[0]);
+        
+        // Build calendar data
+        const calData: typeof calendarData = [];
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        
+        for (let day = 1; day <= daysInMonth; day++) {
+          const date = new Date(year, month, day);
+          const dateStr = date.toISOString().split('T')[0];
+          const record = data?.find(d => d.date === dateStr);
+          const stepsVal = record?.steps || 0;
+          
+          calData.push({
+            date: day,
+            steps: stepsVal,
+            hitGoal: stepsVal >= dailyGoal,
+            isToday: day === today.getDate(),
+            isFuture: day > today.getDate()
+          });
+        }
+        
+        setCalendarData(calData);
+        
+        // Calculate month stats
+        const totalSteps = data?.reduce((sum, d) => sum + (d.steps || 0), 0) || 0;
+        const daysWithData = data?.length || 1;
+        const avgSteps = Math.round(totalSteps / daysWithData);
+        const daysHitGoal = calData.filter(d => d.hitGoal).length;
+        const totalCalories = data?.reduce((sum, d) => sum + (d.calories || 0), 0) || 0;
+        const totalDistance = data?.reduce((sum, d) => sum + (d.distance_km || 0), 0) || 0;
+        
+        setMonthStats({
+          totalSteps,
+          avgSteps,
+          prevMonthAvg: avgSteps,
+          daysHitGoal,
+          calories: totalCalories,
+          distance: totalDistance,
+          activeMinutes: Math.round(totalSteps / 120)
         });
+        
+        // Monthly trend (last 2 months)
+        const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        const trendData: { label: string; value: number }[] = [];
+        for (let i = 1; i >= 0; i--) {
+          const m = new Date(year, month - i, 1);
+          trendData.push({ label: monthNames[m.getMonth()], value: i === 0 ? totalSteps : 0 });
+        }
+        setMonthlyTrend(trendData);
+        
+        // Yearly trend (by month)
+        const yearTrend: { label: string; value: number }[] = monthNames.slice(0, month + 1).map((m, i) => ({
+          label: m,
+          value: i === month ? totalSteps : 0
+        }));
+        setYearlyTrend(yearTrend);
+      } catch (error) {
+        console.error('[Dashboard] Error fetching monthly data:', error);
       }
-      
-      setCalendarData(calData);
-      
-      // Calculate month stats
-      const totalSteps = data?.reduce((sum, d) => sum + (d.steps || 0), 0) || 0;
-      const daysWithData = data?.length || 1;
-      const avgSteps = Math.round(totalSteps / daysWithData);
-      const daysHitGoal = calData.filter(d => d.hitGoal).length;
-      const totalCalories = data?.reduce((sum, d) => sum + (d.calories || 0), 0) || 0;
-      const totalDistance = data?.reduce((sum, d) => sum + (d.distance_km || 0), 0) || 0;
-      
-      setMonthStats({
-        totalSteps,
-        avgSteps,
-        prevMonthAvg: avgSteps,
-        daysHitGoal,
-        calories: totalCalories,
-        distance: totalDistance,
-        activeMinutes: Math.round(totalSteps / 120)
-      });
-      
-      // Monthly trend (last 2 months)
-      const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-      const trendData: { label: string; value: number }[] = [];
-      for (let i = 1; i >= 0; i--) {
-        const m = new Date(year, month - i, 1);
-        trendData.push({ label: monthNames[m.getMonth()], value: i === 0 ? totalSteps : 0 });
-      }
-      setMonthlyTrend(trendData);
-      
-      // Yearly trend (by month)
-      const yearTrend: { label: string; value: number }[] = monthNames.slice(0, month + 1).map((m, i) => ({
-        label: m,
-        value: i === month ? totalSteps : 0
-      }));
-      setYearlyTrend(yearTrend);
     };
     
     fetchMonthlyData();
@@ -198,12 +210,16 @@ const Dashboard = () => {
   useEffect(() => {
     const checkOnboarding = async () => {
       if (!user) return;
-      const onboardingDone = localStorage.getItem('onboarding_completed');
-      if (onboardingDone === 'true') return;
-      
-      const { data } = await supabase.from('profiles').select('profile_completed').eq('id', user.id).single();
-      if (!data?.profile_completed) {
-        setTimeout(() => setShowOnboarding(true), 2000);
+      try {
+        const onboardingDone = localStorage.getItem('onboarding_completed');
+        if (onboardingDone === 'true') return;
+        
+        const { data } = await supabase.from('profiles').select('profile_completed').eq('id', user.id).single();
+        if (!data?.profile_completed) {
+          setTimeout(() => setShowOnboarding(true), 2000);
+        }
+      } catch (error) {
+        console.error('[Dashboard] Error checking onboarding:', error);
       }
     };
     checkOnboarding();

@@ -52,11 +52,16 @@ const Onboarding = () => {
   const handleComplete = async () => {
     if (!user) return;
 
-    // Mark profile as completed in database
-    await supabase
-      .from('profiles')
-      .update({ profile_completed: true })
-      .eq('id', user.id);
+    try {
+      // Mark profile as completed in database
+      await supabase
+        .from('profiles')
+        .update({ profile_completed: true })
+        .eq('id', user.id);
+    } catch (error) {
+      console.error('[Onboarding] Error completing onboarding:', error);
+      // Continue anyway - don't block user from using the app
+    }
 
     // Set device onboarding completed in localStorage
     localStorage.setItem(ONBOARDING_KEY, 'true');
