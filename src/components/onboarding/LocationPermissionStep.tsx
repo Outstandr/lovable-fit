@@ -26,14 +26,14 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
         await Promise.race([permissionPromise, timeoutPromise]);
       }
     } catch (error) {
-      console.log('Location permission request completed or timed out:', error);
+      console.log('[Onboarding] Location permission error (safe):', error);
     }
     
-    // Short delay for better UX
-    setTimeout(() => {
-      setIsRequesting(false);
-      onNext();
-    }, 500);
+    // Wait for native side to stabilize before proceeding
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    setIsRequesting(false);
+    onNext();
   };
 
   const benefits = [
