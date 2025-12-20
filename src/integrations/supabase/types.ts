@@ -362,6 +362,7 @@ export type Database = {
         Args: never
         Returns: {
           avatar_initials: string
+          current_streak: number
           display_name: string
           rank: number
           total_steps: number
@@ -373,6 +374,7 @@ export type Database = {
         Returns: {
           avatar_initials: string
           calories: number
+          current_streak: number
           display_name: string
           distance_km: number
           rank: number
@@ -384,6 +386,7 @@ export type Database = {
         Args: never
         Returns: {
           avatar_initials: string
+          current_streak: number
           display_name: string
           rank: number
           total_steps: number

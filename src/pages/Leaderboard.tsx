@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Trophy, Crown, Medal, Loader2, WifiOff, Footprints } from "lucide-react";
+import { Trophy, Crown, Medal, Loader2, WifiOff, Footprints, Flame } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
@@ -20,7 +20,18 @@ interface LeaderboardEntry {
   avatar: string;
   userId: string;
   isCurrentUser: boolean;
+  streak: number;
 }
+
+const StreakBadge = ({ streak }: { streak: number }) => {
+  if (streak === 0) return null;
+  return (
+    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 text-[10px] font-bold">
+      <Flame className="h-3 w-3" />
+      {streak}
+    </span>
+  );
+};
 
 const getRankStyle = (rank: number) => {
   if (rank === 1) return { bg: "bg-yellow-500/20", border: "border-yellow-500/50", text: "text-yellow-400" };
@@ -81,7 +92,8 @@ const Leaderboard = () => {
         steps: tab === 'today' ? (row.steps || 0) : (row.total_steps || 0),
         avatar: row.avatar_initials || 'NA',
         userId: row.user_id,
-        isCurrentUser: row.user_id === user?.id
+        isCurrentUser: row.user_id === user?.id,
+        streak: row.current_streak || 0
       }));
 
       setLeaderboard(entries);
@@ -254,7 +266,10 @@ const Leaderboard = () => {
               </div>
               <Medal className="absolute -bottom-1 -right-1 h-5 w-5 text-gray-300" />
             </div>
-            <span className="mt-2 text-sm font-semibold text-foreground truncate max-w-[80px]">{top3[1].name}</span>
+            <div className="flex items-center gap-1 mt-2">
+              <span className="text-sm font-semibold text-foreground truncate max-w-[70px]">{top3[1].name}</span>
+              <StreakBadge streak={top3[1].streak} />
+            </div>
             <span className="text-xs font-medium text-primary">{top3[1].steps.toLocaleString()}</span>
             <div className="mt-2 h-16 w-20 rounded-t-lg bg-gray-400/20 border-t border-x border-gray-400/30" />
           </div>
@@ -267,7 +282,10 @@ const Leaderboard = () => {
                 <span className="text-xl font-bold text-yellow-400">{top3[0].avatar}</span>
               </div>
             </div>
-            <span className="mt-2 text-sm font-bold text-foreground truncate max-w-[96px]">{top3[0].name}</span>
+            <div className="flex items-center gap-1 mt-2">
+              <span className="text-sm font-bold text-foreground truncate max-w-[80px]">{top3[0].name}</span>
+              <StreakBadge streak={top3[0].streak} />
+            </div>
             <span className="text-xs font-bold text-yellow-400">{top3[0].steps.toLocaleString()}</span>
             <div className="mt-2 h-24 w-24 rounded-t-lg bg-yellow-500/20 border-t border-x border-yellow-500/30" />
           </div>
@@ -280,7 +298,10 @@ const Leaderboard = () => {
               </div>
               <Medal className="absolute -bottom-1 -right-1 h-5 w-5 text-amber-500" />
             </div>
-            <span className="mt-2 text-sm font-semibold text-foreground truncate max-w-[80px]">{top3[2].name}</span>
+            <div className="flex items-center gap-1 mt-2">
+              <span className="text-sm font-semibold text-foreground truncate max-w-[70px]">{top3[2].name}</span>
+              <StreakBadge streak={top3[2].streak} />
+            </div>
             <span className="text-xs font-medium text-primary">{top3[2].steps.toLocaleString()}</span>
             <div className="mt-2 h-12 w-20 rounded-t-lg bg-amber-600/20 border-t border-x border-amber-600/30" />
           </div>
@@ -313,7 +334,10 @@ const Leaderboard = () => {
                         {index === 1 && <Medal className="h-5 w-5 text-gray-300" />}
                         <span className={`font-bold ${style.text}`}>#{entry.rank}</span>
                       </div>
-                      <span className="text-foreground font-semibold">{entry.name}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-foreground font-semibold">{entry.name}</span>
+                        <StreakBadge streak={entry.streak} />
+                      </div>
                     </div>
                   </div>
                   <div className="text-right">
@@ -351,9 +375,12 @@ const Leaderboard = () => {
                   <div className="h-10 w-10 rounded-full bg-secondary border border-border flex items-center justify-center">
                     <span className="text-sm font-semibold text-foreground">{entry.avatar}</span>
                   </div>
-                  <span className={`text-sm font-semibold ${entry.isCurrentUser ? 'text-primary' : 'text-foreground'}`}>
-                    {entry.name}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className={`text-sm font-semibold ${entry.isCurrentUser ? 'text-primary' : 'text-foreground'}`}>
+                      {entry.name}
+                    </span>
+                    <StreakBadge streak={entry.streak} />
+                  </div>
                 </div>
                 <span className="text-sm font-bold text-primary">
                   {entry.steps.toLocaleString()}
