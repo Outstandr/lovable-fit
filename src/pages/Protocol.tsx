@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { CheckCircle2, Circle, Footprints, BookOpen, Wine, Sparkles } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
+import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
 import { useState } from "react";
 
 interface Task {
@@ -50,10 +51,10 @@ const Protocol = () => {
   const progress = (completedCount / tasks.length) * 100;
 
   return (
-    <div className="min-h-screen-safe page-with-bottom-nav scroll-smooth-native overflow-y-auto">
+    <div className="h-screen flex flex-col page-with-bottom-nav">
       {/* Header */}
       <motion.header 
-        className="px-4 pb-4 header-safe"
+        className="px-4 pb-4 header-safe flex-shrink-0"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
@@ -65,8 +66,9 @@ const Protocol = () => {
         </p>
       </motion.header>
 
-      {/* Progress Bar */}
-      <motion.div 
+      <RubberBandScroll className="flex-1 overflow-y-auto">
+        {/* Progress Bar */}
+        <motion.div
         className="px-4 mb-6"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -173,6 +175,7 @@ const Protocol = () => {
           </button>
         </div>
       </motion.div>
+      </RubberBandScroll>
 
       <BottomNav />
     </div>
