@@ -20,19 +20,48 @@ export function BodyMeasurementsStep({ onNext }: BodyMeasurementsStepProps) {
   const [weightKg, setWeightKg] = useState<number>(70);
   const [birthYear, setBirthYear] = useState<number>(1990);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Imperial display values
   const [heightFt, setHeightFt] = useState<number>(5);
   const [heightIn, setHeightIn] = useState<number>(7);
   const [weightLbs, setWeightLbs] = useState<number>(154);
 
+  // Pre-fill from existing profile data
+  useEffect(() => {
+    const loadExistingProfile = async () => {
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('height_cm, weight_kg, age, gender, unit_preference')
+        .eq('id', user.id)
+        .single();
+
+      if (profile) {
+        if (profile.height_cm) setHeightCm(profile.height_cm);
+        if (profile.weight_kg) setWeightKg(profile.weight_kg);
+        if (profile.age) {
+          const currentYear = new Date().getFullYear();
+          setBirthYear(currentYear - profile.age);
+        }
+        if (profile.gender) setGender(profile.gender as Gender);
+        if (profile.unit_preference) setUnits(profile.unit_preference as UnitSystem);
+      }
+      setIsLoaded(true);
+    };
+
+    loadExistingProfile();
+  }, [user]);
+
   // Convert metric to imperial for display
   useEffect(() => {
+    if (!isLoaded) return;
     const totalInches = heightCm / 2.54;
     setHeightFt(Math.floor(totalInches / 12));
     setHeightIn(Math.round(totalInches % 12));
     setWeightLbs(Math.round(weightKg * 2.205));
-  }, [heightCm, weightKg]);
+  }, [heightCm, weightKg, isLoaded]);
 
   const handleHeightChange = (value: number) => {
     if (units === 'metric') {

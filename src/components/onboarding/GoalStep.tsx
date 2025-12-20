@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronRight, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,34 @@ export function GoalStep({ onNext }: GoalStepProps) {
   const [customGoal, setCustomGoal] = useState<string>('');
   const [showCustom, setShowCustom] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Pre-fill from existing profile goal
+  useEffect(() => {
+    const loadExistingGoal = async () => {
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('daily_step_goal')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.daily_step_goal) {
+        const goal = profile.daily_step_goal;
+        const isPreset = PRESET_GOALS.some(p => p.value === goal);
+        
+        if (isPreset) {
+          setSelectedGoal(goal);
+        } else {
+          setShowCustom(true);
+          setSelectedGoal(null);
+          setCustomGoal(goal.toString());
+        }
+      }
+    };
+
+    loadExistingGoal();
+  }, [user]);
 
   const handleSelectGoal = (value: number) => {
     setSelectedGoal(value);

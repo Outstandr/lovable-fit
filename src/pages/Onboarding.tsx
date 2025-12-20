@@ -20,6 +20,8 @@ export type OnboardingStep =
   | 'goal' 
   | 'complete';
 
+const ONBOARDING_KEY = 'device_onboarding_completed';
+
 const Onboarding = () => {
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('activity');
   const [isLoading, setIsLoading] = useState(true);
@@ -27,28 +29,20 @@ const Onboarding = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const checkOnboardingStatus = async () => {
-      if (!user) {
-        navigate('/auth');
-        return;
-      }
+    // Check if user is authenticated
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
 
-      // Check if user has completed onboarding
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('profile_completed')
-        .eq('id', user.id)
-        .single();
+    // Check if device onboarding was already completed (localStorage)
+    const deviceOnboardingCompleted = localStorage.getItem(ONBOARDING_KEY) === 'true';
+    if (deviceOnboardingCompleted) {
+      navigate('/');
+      return;
+    }
 
-      if (profile?.profile_completed) {
-        navigate('/');
-        return;
-      }
-
-      setIsLoading(false);
-    };
-
-    checkOnboardingStatus();
+    setIsLoading(false);
   }, [user, navigate]);
 
   const handleNext = (nextStep: OnboardingStep) => {
@@ -58,14 +52,14 @@ const Onboarding = () => {
   const handleComplete = async () => {
     if (!user) return;
 
-    // Mark profile as completed
+    // Mark profile as completed in database
     await supabase
       .from('profiles')
       .update({ profile_completed: true })
       .eq('id', user.id);
 
-    // Clear onboarding flag and navigate to dashboard
-    localStorage.setItem('onboarding_completed', 'true');
+    // Set device onboarding completed in localStorage
+    localStorage.setItem(ONBOARDING_KEY, 'true');
     navigate('/');
   };
 

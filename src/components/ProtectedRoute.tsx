@@ -1,45 +1,22 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
 
 interface ProtectedRouteProps {
   children: ReactNode;
   skipOnboardingCheck?: boolean;
 }
 
+const ONBOARDING_KEY = 'device_onboarding_completed';
+
 export const ProtectedRoute = ({ children, skipOnboardingCheck = false }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
-  const [checkingOnboarding, setCheckingOnboarding] = useState(!skipOnboardingCheck);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
-  useEffect(() => {
-    const checkOnboarding = async () => {
-      if (!user || skipOnboardingCheck) {
-        setCheckingOnboarding(false);
-        return;
-      }
+  // Check localStorage for device onboarding completion
+  const deviceOnboardingCompleted = localStorage.getItem(ONBOARDING_KEY) === 'true';
+  const needsOnboarding = !skipOnboardingCheck && !deviceOnboardingCompleted;
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('profile_completed')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile?.profile_completed) {
-        setNeedsOnboarding(true);
-      }
-      setCheckingOnboarding(false);
-    };
-
-    if (user && !skipOnboardingCheck) {
-      checkOnboarding();
-    } else {
-      setCheckingOnboarding(false);
-    }
-  }, [user, skipOnboardingCheck]);
-
-  if (loading || checkingOnboarding) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -56,7 +33,7 @@ export const ProtectedRoute = ({ children, skipOnboardingCheck = false }: Protec
     return <Navigate to="/auth" replace />;
   }
 
-  if (needsOnboarding && !skipOnboardingCheck) {
+  if (needsOnboarding) {
     return <Navigate to="/onboarding" replace />;
   }
 
