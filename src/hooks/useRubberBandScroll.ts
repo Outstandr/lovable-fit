@@ -14,11 +14,12 @@ export const useRubberBandScroll = (options: UseRubberBandScrollOptions = {}) =>
   const isAtTop = useRef(false);
   const isAtBottom = useRef(false);
   const isDragging = useRef(false);
+  const wheelAccumulator = useRef(0);
+  const wheelTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const rubberBand = useCallback((distance: number): number => {
     const sign = distance < 0 ? -1 : 1;
     const absDistance = Math.abs(distance);
-    // Rubber band formula: diminishing returns as you pull further
     return sign * maxStretch * (1 - Math.exp(-absDistance * resistance / maxStretch));
   }, [maxStretch, resistance]);
 
@@ -27,6 +28,7 @@ export const useRubberBandScroll = (options: UseRubberBandScrollOptions = {}) =>
       contentRef.current.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
       contentRef.current.style.transform = 'translateY(0)';
     }
+    wheelAccumulator.current = 0;
   }, []);
 
   useEffect(() => {
@@ -56,12 +58,10 @@ export const useRubberBandScroll = (options: UseRubberBandScrollOptions = {}) =>
       currentY.current = e.touches[0].clientY;
       const deltaY = currentY.current - startY.current;
       
-      // Only apply rubber band when pulling beyond bounds
       if ((isAtTop.current && deltaY > 0) || (isAtBottom.current && deltaY < 0)) {
         const stretch = rubberBand(deltaY);
         content.style.transform = `translateY(${stretch}px)`;
       } else {
-        // Reset if scrolling in normal direction
         isDragging.current = false;
         resetTransform();
       }
@@ -74,16 +74,47 @@ export const useRubberBandScroll = (options: UseRubberBandScrollOptions = {}) =>
       }
     };
 
+    // Desktop wheel support
+    const handleWheel = (e: WheelEvent) => {
+      const scrollTop = container.scrollTop;
+      const scrollHeight = container.scrollHeight;
+      const clientHeight = container.clientHeight;
+      
+      const atTop = scrollTop <= 0;
+      const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+      
+      // Scrolling up at top, or scrolling down at bottom
+      if ((atTop && e.deltaY < 0) || (atBottom && e.deltaY > 0)) {
+        content.style.transition = 'none';
+        wheelAccumulator.current += e.deltaY * -0.5;
+        
+        // Clamp the accumulator
+        wheelAccumulator.current = Math.max(-200, Math.min(200, wheelAccumulator.current));
+        
+        const stretch = rubberBand(wheelAccumulator.current);
+        content.style.transform = `translateY(${stretch}px)`;
+        
+        // Reset after scrolling stops
+        if (wheelTimeout.current) clearTimeout(wheelTimeout.current);
+        wheelTimeout.current = setTimeout(() => {
+          resetTransform();
+        }, 150);
+      }
+    };
+
     container.addEventListener('touchstart', handleTouchStart, { passive: true });
     container.addEventListener('touchmove', handleTouchMove, { passive: true });
     container.addEventListener('touchend', handleTouchEnd, { passive: true });
     container.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+    container.addEventListener('wheel', handleWheel, { passive: true });
 
     return () => {
       container.removeEventListener('touchstart', handleTouchStart);
       container.removeEventListener('touchmove', handleTouchMove);
       container.removeEventListener('touchend', handleTouchEnd);
       container.removeEventListener('touchcancel', handleTouchEnd);
+      container.removeEventListener('wheel', handleWheel);
+      if (wheelTimeout.current) clearTimeout(wheelTimeout.current);
     };
   }, [rubberBand, resetTransform]);
 

@@ -9,6 +9,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { useAudiobook } from "@/hooks/useAudiobook";
 import { haptics } from '@/utils/haptics';
 import { Progress } from "@/components/ui/progress";
+import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
 
 const Audiobook = () => {
   const navigate = useNavigate();
@@ -61,7 +62,7 @@ const Audiobook = () => {
   };
 
   return (
-    <div className="min-h-screen-safe page-with-bottom-nav relative bg-background">
+    <div className="h-screen flex flex-col page-with-bottom-nav relative bg-background">
       {/* Subtle gradient overlay */}
       <div className="absolute inset-0 pointer-events-none" style={{
         background: 'radial-gradient(circle at top center, hsl(186, 100%, 50%, 0.05), transparent 60%)'
@@ -69,7 +70,7 @@ const Audiobook = () => {
 
       {/* Header */}
       <motion.header 
-        className="flex items-center gap-3 px-4 pb-4 relative z-10 header-safe"
+        className="flex items-center gap-3 px-4 pb-4 relative z-10 header-safe flex-shrink-0"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
@@ -85,7 +86,7 @@ const Audiobook = () => {
         <h1 className="text-lg font-bold text-foreground">Audiobook</h1>
       </motion.header>
 
-      <main className="px-4 pb-8">
+      <RubberBandScroll className="flex-1 overflow-y-auto" contentClassName="px-4 pb-8">
         {/* Now Playing Card */}
         <motion.div
           className="tactical-card mb-6"
@@ -267,7 +268,7 @@ const Audiobook = () => {
             })}
           </div>
         </motion.div>
-      </main>
+      </RubberBandScroll>
 
       <BottomNav />
     </div>

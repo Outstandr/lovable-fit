@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
 import { OnboardingPrompt } from "@/components/OnboardingPrompt";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { DayView } from "@/components/dashboard/DayView";
 import { WeekView } from "@/components/dashboard/WeekView";
@@ -222,16 +223,16 @@ const Dashboard = () => {
   const today = new Date();
 
   return (
-    <div className="min-h-screen-safe page-with-bottom-nav relative scroll-lock">
+    <div className="h-screen flex flex-col page-with-bottom-nav relative">
       {/* Background gradient */}
       <div className="absolute inset-0 pointer-events-none" style={{
         background: 'radial-gradient(circle at top center, hsl(186, 100%, 50%, 0.05), transparent 60%)'
       }} />
 
-      <PullToRefresh onRefresh={handleRefresh} className="h-full">
-
-      {/* Header */}
-      <motion.header 
+      <PullToRefresh onRefresh={handleRefresh} className="flex-1 flex flex-col overflow-hidden">
+        <RubberBandScroll className="flex-1 overflow-y-auto">
+          {/* Header */}
+          <motion.header
         className="flex items-center justify-between px-4 pb-2 header-safe relative z-content"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -359,8 +360,9 @@ const Dashboard = () => {
               </button>
             </div>
           </div>
-        </motion.div>
-      </main>
+          </motion.div>
+        </main>
+        </RubberBandScroll>
       </PullToRefresh>
 
       {/* Action Button */}
