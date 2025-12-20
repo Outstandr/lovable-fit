@@ -119,9 +119,16 @@ class PushNotificationService {
       // Set up listeners before registering
       this.setupListeners();
 
-      // Register with APNS/FCM
-      await PushNotifications.register();
-      console.log('[PushNotification] Registration initiated');
+      // Register with APNS/FCM - wrapped in try-catch to handle Firebase not configured
+      try {
+        await PushNotifications.register();
+        console.log('[PushNotification] Registration initiated');
+      } catch (registerError) {
+        // Firebase may not be configured - log but don't crash
+        console.warn('[PushNotification] Registration failed (Firebase/FCM may not be configured):', registerError);
+        // Still mark as initialized so we don't keep retrying
+        // Push notifications won't work until Firebase is properly configured
+      }
       
       this.initialized = true;
     } catch (error) {

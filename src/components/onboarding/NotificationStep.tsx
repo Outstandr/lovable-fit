@@ -17,15 +17,17 @@ export function NotificationStep({ onNext }: NotificationStepProps) {
     
     try {
       if (Capacitor.isNativePlatform() && pushNotificationService.isSupported()) {
-        // Request permission with timeout protection
+        // Only request OS permission during onboarding - don't trigger Firebase/FCM registration
+        // Firebase registration will happen later after onboarding is complete
         await Promise.race([
           pushNotificationService.requestPermission(),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
         ]);
+        console.log('[NotificationStep] Permission request completed (no FCM registration during onboarding)');
       }
     } catch (error) {
-      console.log('[Onboarding] Notification permission error (safe):', error);
-      // Continue anyway - don't crash
+      // Gracefully handle any errors including Firebase not configured - don't block onboarding
+      console.warn('[NotificationStep] Notification permission error (continuing anyway):', error);
     }
     
     // Delay to let native side stabilize before proceeding
