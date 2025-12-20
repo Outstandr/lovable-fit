@@ -85,7 +85,8 @@ const Profile = () => {
   const avatarInitials = profile?.avatar_initials || displayName.slice(0, 2).toUpperCase();
 
   return (
-    <div className="min-h-screen-safe page-with-bottom-nav overflow-y-auto scroll-smooth-native relative">
+    <div className="h-screen flex flex-col page-with-bottom-nav relative">
+      <div className="flex-1 overflow-y-auto scroll-smooth-native">
       {/* Background gradient */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/5 rounded-full blur-[100px]" />
@@ -260,6 +261,7 @@ const Profile = () => {
           </div>
           <ChevronRight className="h-4 w-4 text-destructive/50" />
         </motion.button>
+        </div>
       </div>
 
       <BottomNav />
