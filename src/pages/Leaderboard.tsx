@@ -11,6 +11,8 @@ import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useNavigate } from "react-router-dom";
 import { toast } from 'sonner';
 
+type TabType = 'today' | 'week' | 'month';
+
 interface LeaderboardEntry {
   rank: number;
   name: string;
@@ -27,25 +29,47 @@ const getRankStyle = (rank: number) => {
   return { bg: "bg-secondary", border: "border-border", text: "text-muted-foreground" };
 };
 
+const TAB_CONFIG: { key: TabType; label: string; subtitle: string }[] = [
+  { key: 'today', label: 'Today', subtitle: "Today's Rankings" },
+  { key: 'week', label: 'Week', subtitle: "This Week's Rankings" },
+  { key: 'month', label: 'Month', subtitle: "This Month's Rankings" },
+];
+
 const Leaderboard = () => {
   const { user } = useAuth();
   const { isOnline } = useOfflineSync();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<TabType>('today');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = useCallback(async (tab: TabType = activeTab) => {
     try {
-      console.log('[Leaderboard] Fetching from RPC function...');
+      setLoading(true);
+      console.log(`[Leaderboard] Fetching ${tab} leaderboard...`);
       
-      // Use the new RPC function for efficient querying
-      const { data, error } = await supabase.rpc('get_today_leaderboard');
+      let data: any[] | null = null;
+      let error: any = null;
+
+      if (tab === 'today') {
+        const result = await supabase.rpc('get_today_leaderboard');
+        data = result.data;
+        error = result.error;
+      } else if (tab === 'week') {
+        const result = await supabase.rpc('get_weekly_leaderboard');
+        data = result.data;
+        error = result.error;
+      } else if (tab === 'month') {
+        const result = await supabase.rpc('get_monthly_leaderboard');
+        data = result.data;
+        error = result.error;
+      }
 
       if (error) {
         console.error('[Leaderboard] RPC error:', error);
-        // Fallback to direct query if RPC fails
-        return fetchLeaderboardFallback();
+        toast.error('Failed to load leaderboard');
+        return;
       }
 
       console.log('[Leaderboard] RPC data:', data);
@@ -54,7 +78,7 @@ const Leaderboard = () => {
       const entries: LeaderboardEntry[] = (data || []).map((row: any) => ({
         rank: Number(row.rank),
         name: row.display_name || 'Unknown',
-        steps: row.steps || 0,
+        steps: tab === 'today' ? (row.steps || 0) : (row.total_steps || 0),
         avatar: row.avatar_initials || 'NA',
         userId: row.user_id,
         isCurrentUser: row.user_id === user?.id
@@ -64,87 +88,26 @@ const Leaderboard = () => {
       setLastUpdate(new Date());
     } catch (error) {
       console.error('[Leaderboard] Error:', error);
-      fetchLeaderboardFallback();
+      toast.error('Failed to load leaderboard');
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, user?.id]);
 
-  // Fallback to direct query if RPC is not available
-  const fetchLeaderboardFallback = async () => {
-    try {
-      console.log('[Leaderboard] Using fallback query...');
-      const today = new Date().toISOString().split('T')[0];
-      
-      const { data: stepsData, error: stepsError } = await supabase
-        .from('daily_steps')
-        .select('user_id, steps, date')
-        .eq('date', today)
-        .order('steps', { ascending: false });
-
-      if (stepsError) {
-        console.error('[Leaderboard] Error fetching steps:', stepsError);
-        return;
-      }
-
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, display_name, avatar_initials');
-
-      if (profilesError) {
-        console.error('[Leaderboard] Error fetching profiles:', profilesError);
-        return;
-      }
-
-      const profilesMap = new Map(
-        profilesData?.map(p => [p.id, { name: p.display_name, avatar: p.avatar_initials || 'NA' }]) || []
-      );
-
-      const entries: LeaderboardEntry[] = (stepsData || []).map((step, index) => {
-        const profile = profilesMap.get(step.user_id);
-        return {
-          rank: index + 1,
-          name: profile?.name || 'Unknown',
-          steps: step.steps,
-          avatar: profile?.avatar || 'NA',
-          userId: step.user_id,
-          isCurrentUser: step.user_id === user?.id
-        };
-      });
-
-      // Add current user if not in list
-      if (user && !entries.find(e => e.userId === user.id)) {
-        const currentUserProfile = profilesMap.get(user.id);
-        if (currentUserProfile) {
-          entries.push({
-            rank: entries.length + 1,
-            name: currentUserProfile.name,
-            steps: 0,
-            avatar: currentUserProfile.avatar,
-            userId: user.id,
-            isCurrentUser: true
-          });
-        }
-      }
-
-      setLeaderboard(entries);
-      setLastUpdate(new Date());
-    } catch (error) {
-      console.error('[Leaderboard] Fallback error:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    fetchLeaderboard(tab);
   };
 
   const handleRefresh = useCallback(async () => {
     await fetchLeaderboard();
     toast.success('✓ Leaderboard updated');
-  }, []);
+  }, [fetchLeaderboard]);
 
   useEffect(() => {
     fetchLeaderboard();
 
-    // Set up real-time subscription for daily_steps changes (COD-style updates!)
+    // Set up real-time subscription for daily_steps changes
     const channel = supabase
       .channel('leaderboard-realtime')
       .on(
@@ -164,26 +127,27 @@ const Leaderboard = () => {
       });
 
     // Auto-refresh every 30 seconds
-    const refreshInterval = setInterval(fetchLeaderboard, 30000);
+    const refreshInterval = setInterval(() => fetchLeaderboard(), 30000);
 
     return () => {
       supabase.removeChannel(channel);
       clearInterval(refreshInterval);
     };
-  }, [user]);
+  }, [user, fetchLeaderboard]);
 
   // Refetch when coming back online
   useEffect(() => {
     if (isOnline) {
       fetchLeaderboard();
     }
-  }, [isOnline]);
+  }, [isOnline, fetchLeaderboard]);
 
   const currentUser = leaderboard.find(e => e.isCurrentUser);
   const top3 = leaderboard.slice(0, 3);
   const rest = leaderboard.slice(3);
+  const activeTabConfig = TAB_CONFIG.find(t => t.key === activeTab)!;
 
-  if (loading) {
+  if (loading && leaderboard.length === 0) {
     return (
       <div className="min-h-screen-safe flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
@@ -224,19 +188,45 @@ const Leaderboard = () => {
           </h1>
         </div>
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mt-1">
-          Today's Rankings • {leaderboard.length} Participants • Updated {lastUpdate.toLocaleTimeString()}
+          {activeTabConfig.subtitle} • {leaderboard.length} Participants • Updated {lastUpdate.toLocaleTimeString()}
         </p>
       </motion.header>
 
+      {/* Tab Switcher */}
+      <div className="px-4 pb-4">
+        <div className="flex rounded-lg bg-secondary p-1 gap-1">
+          {TAB_CONFIG.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => handleTabChange(tab.key)}
+              className={`flex-1 py-2 px-3 text-sm font-medium uppercase tracking-wider rounded-md transition-all ${
+                activeTab === tab.key
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Loading overlay for tab switches */}
+      {loading && leaderboard.length > 0 && (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      )}
+
       {/* Empty State - Improved */}
-      {leaderboard.length === 0 && (
+      {!loading && leaderboard.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 px-4">
           <Footprints className="h-16 w-16 text-primary/50 mb-4" />
           <p className="text-lg font-semibold text-foreground text-center">
             Be the First!
           </p>
           <p className="text-muted-foreground text-center mt-2">
-            No one has logged steps today yet.<br />Start walking to top the leaderboard!
+            No one has logged steps {activeTab === 'today' ? 'today' : activeTab === 'week' ? 'this week' : 'this month'} yet.<br />Start walking to top the leaderboard!
           </p>
           <Button 
             variant="outline"
@@ -249,7 +239,7 @@ const Leaderboard = () => {
       )}
 
       {/* Top 3 Podium - Only show if exactly 3+ users */}
-      {top3.length >= 3 && (
+      {!loading && top3.length >= 3 && (
         <motion.div 
           className="flex items-end justify-center gap-2 px-4 py-6"
           initial={{ opacity: 0, scale: 0.95 }}
@@ -298,7 +288,7 @@ const Leaderboard = () => {
       )}
 
       {/* Simplified Cards for 1-2 users */}
-      {leaderboard.length > 0 && leaderboard.length < 3 && (
+      {!loading && leaderboard.length > 0 && leaderboard.length < 3 && (
         <motion.div 
           className="px-4 py-6 space-y-3"
           initial={{ opacity: 0, scale: 0.95 }}
@@ -338,39 +328,41 @@ const Leaderboard = () => {
       )}
 
       {/* Full List */}
-      <div className="px-4 space-y-2 pb-4">
-        {rest.map((entry, index) => {
-          const style = getRankStyle(entry.rank);
-          return (
-            <motion.div
-              key={entry.userId}
-              className={`flex items-center justify-between rounded-lg px-4 py-3 ${
-                entry.isCurrentUser 
-                  ? 'bg-primary/10 border border-primary/30' 
-                  : style.bg + ' border ' + style.border
-              }`}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4 + index * 0.05 }}
-            >
-              <div className="flex items-center gap-4">
-                <span className={`w-8 text-lg font-bold ${entry.isCurrentUser ? 'text-primary' : style.text}`}>
-                  #{entry.rank}
-                </span>
-                <div className="h-10 w-10 rounded-full bg-secondary border border-border flex items-center justify-center">
-                  <span className="text-sm font-semibold text-foreground">{entry.avatar}</span>
+      {!loading && (
+        <div className="px-4 space-y-2 pb-4">
+          {rest.map((entry, index) => {
+            const style = getRankStyle(entry.rank);
+            return (
+              <motion.div
+                key={entry.userId}
+                className={`flex items-center justify-between rounded-lg px-4 py-3 ${
+                  entry.isCurrentUser 
+                    ? 'bg-primary/10 border border-primary/30' 
+                    : style.bg + ' border ' + style.border
+                }`}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 + index * 0.05 }}
+              >
+                <div className="flex items-center gap-4">
+                  <span className={`w-8 text-lg font-bold ${entry.isCurrentUser ? 'text-primary' : style.text}`}>
+                    #{entry.rank}
+                  </span>
+                  <div className="h-10 w-10 rounded-full bg-secondary border border-border flex items-center justify-center">
+                    <span className="text-sm font-semibold text-foreground">{entry.avatar}</span>
+                  </div>
+                  <span className={`text-sm font-semibold ${entry.isCurrentUser ? 'text-primary' : 'text-foreground'}`}>
+                    {entry.name}
+                  </span>
                 </div>
-                <span className={`text-sm font-semibold ${entry.isCurrentUser ? 'text-primary' : 'text-foreground'}`}>
-                  {entry.name}
+                <span className="text-sm font-bold text-primary">
+                  {entry.steps.toLocaleString()}
                 </span>
-              </div>
-              <span className="text-sm font-bold text-primary">
-                {entry.steps.toLocaleString()}
-              </span>
-            </motion.div>
-          );
-        })}
-      </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
       </PullToRefresh>
       </RubberBandScroll>
 

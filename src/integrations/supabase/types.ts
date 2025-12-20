@@ -380,6 +380,16 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_weekly_leaderboard: {
+        Args: never
+        Returns: {
+          avatar_initials: string
+          display_name: string
+          rank: number
+          total_steps: number
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
