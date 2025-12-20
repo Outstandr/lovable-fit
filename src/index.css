@@ -1,7 +1,7 @@
-@import url('@fontsource/rajdhani/400.css');
-@import url('@fontsource/rajdhani/500.css');
-@import url('@fontsource/rajdhani/600.css');
-@import url('@fontsource/rajdhani/700.css');
+@import url('@fontsource/poppins/400.css');
+@import url('@fontsource/poppins/500.css');
+@import url('@fontsource/poppins/600.css');
+@import url('@fontsource/poppins/700.css');
 
 
 @tailwind base;
@@ -109,7 +109,7 @@
   }
 
   html {
-    font-family: 'Rajdhani', system-ui, sans-serif;
+    font-family: 'Poppins', system-ui, sans-serif;
     -webkit-tap-highlight-color: transparent;
   }
 
