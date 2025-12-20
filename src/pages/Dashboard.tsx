@@ -222,7 +222,7 @@ const Dashboard = () => {
   const today = new Date();
 
   return (
-    <div className="min-h-screen-safe page-with-bottom-nav relative">
+    <div className="min-h-screen-safe page-with-bottom-nav relative scroll-lock">
       {/* Background gradient */}
       <div className="absolute inset-0 pointer-events-none" style={{
         background: 'radial-gradient(circle at top center, hsl(186, 100%, 50%, 0.05), transparent 60%)'

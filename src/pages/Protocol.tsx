@@ -50,7 +50,7 @@ const Protocol = () => {
   const progress = (completedCount / tasks.length) * 100;
 
   return (
-    <div className="min-h-screen-safe page-with-bottom-nav">
+    <div className="min-h-screen-safe page-with-bottom-nav scroll-smooth-native overflow-y-auto">
       {/* Header */}
       <motion.header 
         className="px-4 pb-4 header-safe"

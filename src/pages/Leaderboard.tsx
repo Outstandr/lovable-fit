@@ -194,7 +194,7 @@ const Leaderboard = () => {
   }
 
   return (
-    <div className="min-h-screen-safe page-with-bottom-nav relative">
+    <div className="min-h-screen-safe page-with-bottom-nav relative scroll-lock">
       <PullToRefresh onRefresh={handleRefresh} className="h-full">
 
       {/* Offline Banner with safe area */}

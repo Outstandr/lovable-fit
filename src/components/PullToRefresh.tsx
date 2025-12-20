@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, ReactNode } from 'react';
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
+import { motion, useMotionValue, useTransform, animate, useSpring } from 'framer-motion';
 import { RefreshCw } from 'lucide-react';
 import { haptics } from '@/utils/haptics';
 
@@ -11,6 +11,9 @@ interface PullToRefreshProps {
 
 const PULL_THRESHOLD = 80;
 const MAX_PULL = 120;
+
+// Enhanced spring config for smoother animations
+const springConfig = { stiffness: 300, damping: 30, mass: 0.8 };
 
 export const PullToRefresh = ({ onRefresh, children, className = '' }: PullToRefreshProps) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -90,8 +93,11 @@ export const PullToRefresh = ({ onRefresh, children, className = '' }: PullToRef
     }
   }, [isPulling, isRefreshing, onRefresh, pullDistance]);
   
+  // Smooth spring for content translation
+  const smoothY = useSpring(pullDistance, springConfig);
+  
   return (
-    <div className={`relative overflow-hidden ${className}`}>
+    <div className={`relative overflow-hidden scroll-lock ${className}`}>
       {/* Pull indicator */}
       <motion.div 
         className="absolute left-0 right-0 flex items-center justify-center pointer-events-none z-50"
@@ -105,30 +111,30 @@ export const PullToRefresh = ({ onRefresh, children, className = '' }: PullToRef
           className="flex items-center justify-center"
           style={{ scale: indicatorScale }}
         >
-          <div className={`
-            flex items-center justify-center w-10 h-10 rounded-full 
-            bg-card/90 backdrop-blur-sm border border-border/50 shadow-lg
-          `}>
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-card/90 backdrop-blur-md border border-border/50 shadow-lg">
             <motion.div
               style={{ rotate: isRefreshing ? undefined : indicatorRotation }}
               animate={isRefreshing ? { rotate: 360 } : undefined}
               transition={isRefreshing ? { 
                 repeat: Infinity, 
-                duration: 1, 
+                duration: 0.8, 
                 ease: 'linear' 
               } : undefined}
             >
-              <RefreshCw className={`h-5 w-5 text-primary ${isRefreshing ? '' : ''}`} />
+              <RefreshCw className="h-5 w-5 text-primary" />
             </motion.div>
           </div>
         </motion.div>
       </motion.div>
       
-      {/* Content */}
+      {/* Content with enhanced scrolling */}
       <motion.div
         ref={containerRef}
-        className="h-full overflow-y-auto"
-        style={{ y: pullDistance }}
+        className="h-full overflow-y-auto scroll-smooth-native"
+        style={{ 
+          y: smoothY,
+          WebkitOverflowScrolling: 'touch',
+        }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
