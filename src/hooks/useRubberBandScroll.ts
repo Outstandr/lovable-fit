@@ -10,10 +10,8 @@ export const useRubberBandScroll = (options: UseRubberBandScrollOptions = {}) =>
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
-  const currentY = useRef(0);
-  const isAtTop = useRef(false);
-  const isAtBottom = useRef(false);
   const isDragging = useRef(false);
+  const pullDirection = useRef<'top' | 'bottom' | null>(null);
   const wheelAccumulator = useRef(0);
   const wheelTimeout = useRef<NodeJS.Timeout | null>(null);
 
@@ -29,6 +27,7 @@ export const useRubberBandScroll = (options: UseRubberBandScrollOptions = {}) =>
       contentRef.current.style.transform = 'translateY(0)';
     }
     wheelAccumulator.current = 0;
+    pullDirection.current = null;
   }, []);
 
   useEffect(() => {
@@ -37,31 +36,51 @@ export const useRubberBandScroll = (options: UseRubberBandScrollOptions = {}) =>
     if (!container || !content) return;
 
     const handleTouchStart = (e: TouchEvent) => {
-      const scrollTop = container.scrollTop;
-      const scrollHeight = container.scrollHeight;
-      const clientHeight = container.clientHeight;
-      
-      isAtTop.current = scrollTop <= 0;
-      isAtBottom.current = scrollTop + clientHeight >= scrollHeight - 1;
-      
-      if (isAtTop.current || isAtBottom.current) {
-        startY.current = e.touches[0].clientY;
-        currentY.current = startY.current;
-        isDragging.current = true;
-        content.style.transition = 'none';
-      }
+      // Just store the start position, don't activate rubber band yet
+      startY.current = e.touches[0].clientY;
+      isDragging.current = false;
+      pullDirection.current = null;
+      content.style.transition = 'none';
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (!isDragging.current) return;
+      const currentY = e.touches[0].clientY;
+      const deltaY = currentY - startY.current;
       
-      currentY.current = e.touches[0].clientY;
-      const deltaY = currentY.current - startY.current;
+      // Check current scroll position
+      const scrollTop = container.scrollTop;
+      const scrollHeight = container.scrollHeight;
+      const clientHeight = container.clientHeight;
+      const atTop = scrollTop <= 0;
+      const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+
+      // If not already dragging, check if we should start rubber band
+      if (!isDragging.current) {
+        // Only activate when pulling PAST an edge with sufficient threshold
+        if (atTop && deltaY > 8) {
+          isDragging.current = true;
+          pullDirection.current = 'top';
+          startY.current = currentY; // Reset start to current position
+        } else if (atBottom && deltaY < -8) {
+          isDragging.current = true;
+          pullDirection.current = 'bottom';
+          startY.current = currentY; // Reset start to current position
+        }
+        return;
+      }
+
+      // We're in rubber band mode
+      const pullDelta = currentY - startY.current;
       
-      if ((isAtTop.current && deltaY > 0) || (isAtBottom.current && deltaY < 0)) {
-        const stretch = rubberBand(deltaY);
+      // Check if user is still pulling in valid direction
+      if (pullDirection.current === 'top' && pullDelta > 0) {
+        const stretch = rubberBand(pullDelta);
+        content.style.transform = `translateY(${stretch}px)`;
+      } else if (pullDirection.current === 'bottom' && pullDelta < 0) {
+        const stretch = rubberBand(pullDelta);
         content.style.transform = `translateY(${stretch}px)`;
       } else {
+        // User reversed direction or scrolled away from edge
         isDragging.current = false;
         resetTransform();
       }
@@ -74,7 +93,7 @@ export const useRubberBandScroll = (options: UseRubberBandScrollOptions = {}) =>
       }
     };
 
-    // Desktop wheel support
+    // Desktop wheel support - only at edges
     const handleWheel = (e: WheelEvent) => {
       const scrollTop = container.scrollTop;
       const scrollHeight = container.scrollHeight;
@@ -83,18 +102,15 @@ export const useRubberBandScroll = (options: UseRubberBandScrollOptions = {}) =>
       const atTop = scrollTop <= 0;
       const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
       
-      // Scrolling up at top, or scrolling down at bottom
+      // Only apply rubber band when scrolling past edges
       if ((atTop && e.deltaY < 0) || (atBottom && e.deltaY > 0)) {
         content.style.transition = 'none';
         wheelAccumulator.current += e.deltaY * -0.5;
-        
-        // Clamp the accumulator
         wheelAccumulator.current = Math.max(-200, Math.min(200, wheelAccumulator.current));
         
         const stretch = rubberBand(wheelAccumulator.current);
         content.style.transform = `translateY(${stretch}px)`;
         
-        // Reset after scrolling stops
         if (wheelTimeout.current) clearTimeout(wheelTimeout.current);
         wheelTimeout.current = setTimeout(() => {
           resetTransform();
