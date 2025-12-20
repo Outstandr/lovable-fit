@@ -156,6 +156,26 @@
     display: none;
   }
 
+  /* Rubber band scroll effect container */
+  .scroll-rubber-band {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    overscroll-behavior-y: none;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scroll-rubber-band::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Rubber band inner content wrapper */
+  .scroll-rubber-band-content {
+    min-height: 100%;
+    transition: transform 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
   /* Prevent overscroll on fixed elements */
   .scroll-lock {
     overscroll-behavior: none;

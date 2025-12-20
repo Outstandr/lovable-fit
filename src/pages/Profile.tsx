@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { User, Settings, Bell, Shield, LogOut, ChevronRight, Zap, Target, Calendar, Heart, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
+import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -86,7 +87,7 @@ const Profile = () => {
 
   return (
     <div className="h-screen flex flex-col page-with-bottom-nav relative">
-      <div className="flex-1 overflow-y-auto scroll-smooth-native pb-8">
+      <RubberBandScroll className="flex-1" contentClassName="pb-8">
       {/* Background gradient */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/5 rounded-full blur-[100px]" />
@@ -262,7 +263,7 @@ const Profile = () => {
           <ChevronRight className="h-4 w-4 text-destructive/50" />
         </motion.button>
         </div>
-      </div>
+      </RubberBandScroll>
 
       <BottomNav />
     </div>

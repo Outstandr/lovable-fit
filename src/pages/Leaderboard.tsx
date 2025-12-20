@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Trophy, Crown, Medal, Loader2, WifiOff, RefreshCw, Footprints } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -194,7 +195,8 @@ const Leaderboard = () => {
   }
 
   return (
-    <div className="min-h-screen-safe page-with-bottom-nav relative scroll-lock">
+    <div className="h-screen flex flex-col page-with-bottom-nav relative">
+      <RubberBandScroll className="flex-1" contentClassName="pb-8">
       <PullToRefresh onRefresh={handleRefresh} className="h-full">
 
       {/* Offline Banner with safe area */}
@@ -379,6 +381,7 @@ const Leaderboard = () => {
         })}
       </div>
       </PullToRefresh>
+      </RubberBandScroll>
 
       {/* Pinned User Rank - Fixed above bottom nav */}
       {currentUser && currentUser.rank > 3 && (
