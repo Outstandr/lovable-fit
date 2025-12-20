@@ -85,7 +85,7 @@ const Profile = () => {
   const avatarInitials = profile?.avatar_initials || displayName.slice(0, 2).toUpperCase();
 
   return (
-    <div className="min-h-screen-safe page-with-bottom-nav overflow-y-auto relative">
+    <div className="min-h-screen-safe page-with-bottom-nav overflow-y-auto scroll-smooth-native relative">
       {/* Background gradient */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/5 rounded-full blur-[100px]" />

@@ -127,6 +127,53 @@
   }
 }
 
+/* Smooth Scrolling & Momentum */
+@layer utilities {
+  /* Native-like smooth scrolling */
+  .scroll-smooth-native {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    overscroll-behavior-y: contain;
+    will-change: scroll-position;
+  }
+
+  /* Scroll container with momentum */
+  .scroll-container {
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    will-change: scroll-position;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scroll-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Prevent overscroll on fixed elements */
+  .scroll-lock {
+    overscroll-behavior: none;
+  }
+
+  /* Scroll fade indicators */
+  .scroll-fade-top {
+    mask-image: linear-gradient(to bottom, transparent, black 24px);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 24px);
+  }
+
+  .scroll-fade-bottom {
+    mask-image: linear-gradient(to top, transparent, black 24px);
+    -webkit-mask-image: linear-gradient(to top, transparent, black 24px);
+  }
+
+  .scroll-fade-both {
+    mask-image: linear-gradient(to bottom, transparent, black 24px, black calc(100% - 24px), transparent);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 24px, black calc(100% - 24px), transparent);
+  }
+}
+
 /* iOS Safe Area Utilities */
 @layer utilities {
   /* Safe area insets */
