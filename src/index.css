@@ -129,21 +129,25 @@
 
 /* Smooth Scrolling & Momentum */
 @layer utilities {
-  /* Native-like smooth scrolling */
+  /* Native-like smooth scrolling with elastic overscroll */
   .scroll-smooth-native {
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
-    overscroll-behavior-y: contain;
-    will-change: scroll-position;
+    overscroll-behavior-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scroll-smooth-native::-webkit-scrollbar {
+    display: none;
   }
 
   /* Scroll container with momentum */
   .scroll-container {
     overflow-y: auto;
-    overscroll-behavior-y: contain;
+    overscroll-behavior-y: auto;
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
-    will-change: scroll-position;
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
@@ -155,6 +159,17 @@
   /* Prevent overscroll on fixed elements */
   .scroll-lock {
     overscroll-behavior: none;
+  }
+
+  /* Soft scroll end padding */
+  .scroll-end-soft {
+    padding-bottom: 32px;
+  }
+
+  .scroll-end-soft::after {
+    content: '';
+    display: block;
+    height: 24px;
   }
 
   /* Scroll fade indicators */
