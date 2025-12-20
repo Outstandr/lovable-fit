@@ -14,6 +14,7 @@ import { DataSourceBadge } from "@/components/DataSourceBadge";
 import { Capacitor } from "@capacitor/core";
 import AudiobookPlayer from "@/components/AudiobookPlayer";
 import { useAudiobook } from "@/hooks/useAudiobook";
+import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
 
 const ActiveSession = () => {
   const navigate = useNavigate();
@@ -178,10 +179,10 @@ const ActiveSession = () => {
   const gpsUnavailable = useStepsOnly || (gpsInitialized && (!hasGpsPermission || !!gpsError));
 
   return (
-    <div className="min-h-screen-safe flex flex-col">
+    <div className="h-screen flex flex-col">
       {/* Header with safe area */}
       <motion.header 
-        className="flex items-center gap-4 px-4 pb-4 header-safe"
+        className="flex-shrink-0 flex items-center gap-4 px-4 pb-4 header-safe"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
@@ -201,8 +202,9 @@ const ActiveSession = () => {
         </div>
       </motion.header>
 
-      {/* Map Area */}
-      <motion.div 
+      <RubberBandScroll className="flex-1 overflow-y-auto" contentClassName="flex flex-col">
+        {/* Map Area */}
+        <motion.div
         className="flex-1 mx-4 rounded-xl overflow-hidden bg-secondary/50 relative min-h-[300px]"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -446,6 +448,7 @@ const ActiveSession = () => {
           </Button>
         </motion.div>
       </div>
+      </RubberBandScroll>
 
       {/* Audiobook Mini Player */}
       <AudiobookPlayer 
