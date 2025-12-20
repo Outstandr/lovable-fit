@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { ActivityPermissionStep } from '@/components/onboarding/ActivityPermissionStep';
+import { LocationPermissionStep } from '@/components/onboarding/LocationPermissionStep';
 import { BodyMeasurementsStep } from '@/components/onboarding/BodyMeasurementsStep';
 import { BatteryOptimizationStep } from '@/components/onboarding/BatteryOptimizationStep';
 import { NotificationStep } from '@/components/onboarding/NotificationStep';
@@ -12,6 +13,7 @@ import { SetupCompleteStep } from '@/components/onboarding/SetupCompleteStep';
 
 export type OnboardingStep = 
   | 'activity' 
+  | 'location'
   | 'body' 
   | 'battery' 
   | 'notification' 
@@ -87,7 +89,20 @@ const Onboarding = () => {
             transition={{ duration: 0.3 }}
             className="h-full"
           >
-            <ActivityPermissionStep onNext={() => handleNext('body')} />
+            <ActivityPermissionStep onNext={() => handleNext('location')} />
+          </motion.div>
+        )}
+
+        {currentStep === 'location' && (
+          <motion.div
+            key="location"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+            className="h-full"
+          >
+            <LocationPermissionStep onNext={() => handleNext('body')} />
           </motion.div>
         )}
 
