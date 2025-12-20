@@ -226,9 +226,6 @@ const Leaderboard = () => {
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mt-1">
           Today's Rankings • {leaderboard.length} Participants • Updated {lastUpdate.toLocaleTimeString()}
         </p>
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mt-1">
-          Today's Rankings • {leaderboard.length} Participants • Updated {lastUpdate.toLocaleTimeString()}
-        </p>
       </motion.header>
 
       {/* Empty State - Improved */}
