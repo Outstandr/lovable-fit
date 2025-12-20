@@ -114,11 +114,13 @@ const Profile = () => {
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.2, type: "spring" }}
             >
-              <div className="avatar-ring p-1">
-                <div className="h-24 w-24 rounded-full bg-secondary flex items-center justify-center">
-                  <span className="text-2xl font-bold text-primary">{avatarInitials}</span>
+            <div className="relative h-28 w-28">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary to-cyan-400 p-[3px]">
+                <div className="h-full w-full rounded-full bg-background flex items-center justify-center">
+                  <span className="text-3xl font-bold text-primary">{avatarInitials}</span>
                 </div>
               </div>
+            </div>
             </motion.div>
             
             <motion.h1 
