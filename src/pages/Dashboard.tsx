@@ -16,7 +16,7 @@ import { useAudiobook } from "@/hooks/useAudiobook";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from 'sonner';
+
 import { haptics } from '@/utils/haptics';
 import { Progress } from "@/components/ui/progress";
 
@@ -228,9 +228,8 @@ const Dashboard = () => {
   const handleRefresh = useCallback(async () => {
     try {
       await syncToDatabase();
-      toast.success('✓ Data refreshed');
     } catch (error) {
-      toast.error('Failed to refresh');
+      console.error('Failed to refresh:', error);
     }
   }, [syncToDatabase]);
 
@@ -263,7 +262,6 @@ const Dashboard = () => {
         <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
         
         <button 
-          onClick={() => toast.info('More options coming soon!')}
           className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
         >
           <MoreHorizontal className="h-5 w-5" />

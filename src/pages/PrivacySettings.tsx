@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,10 +51,6 @@ const PrivacySettings = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
-      toast.success("Privacy settings updated!");
-    },
-    onError: () => {
-      toast.error("Failed to update settings");
     },
   });
 
@@ -86,22 +82,19 @@ const PrivacySettings = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
-      toast.success("Data exported successfully!");
     } catch (error) {
-      toast.error("Failed to export data");
+      console.error("Failed to export data:", error);
     }
   };
 
   const handleDeleteAccount = async () => {
     try {
       // Note: Full account deletion requires admin API
-      // For now, we'll sign out and inform user
+      // For now, we'll sign out
       await signOut();
-      toast.success("Account deletion requested. Please contact support.");
       navigate("/auth");
     } catch (error) {
-      toast.error("Failed to process request");
+      console.error("Failed to process request:", error);
     }
   };
 

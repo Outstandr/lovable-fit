@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useNavigate } from "react-router-dom";
-import { toast } from 'sonner';
+
 
 type TabType = 'today' | 'week' | 'month';
 
@@ -79,7 +79,6 @@ const Leaderboard = () => {
 
       if (error) {
         console.error('[Leaderboard] RPC error:', error);
-        toast.error('Failed to load leaderboard');
         return;
       }
 
@@ -100,7 +99,6 @@ const Leaderboard = () => {
       setLastUpdate(new Date());
     } catch (error) {
       console.error('[Leaderboard] Error:', error);
-      toast.error('Failed to load leaderboard');
     } finally {
       setLoading(false);
     }
@@ -113,7 +111,6 @@ const Leaderboard = () => {
 
   const handleRefresh = useCallback(async () => {
     await fetchLeaderboard();
-    toast.success('✓ Leaderboard updated');
   }, [fetchLeaderboard]);
 
   useEffect(() => {

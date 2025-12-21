@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -222,11 +222,9 @@ export default function HealthProfileSetup() {
       
       if (error) throw error;
       
-      toast.success('Profile saved successfully');
       navigate('/');
     } catch (error) {
       console.error('Error saving profile:', error);
-      toast.error('Failed to save profile');
     } finally {
       setIsSaving(false);
     }

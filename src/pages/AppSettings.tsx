@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+
 
 const ONBOARDING_KEY = 'device_onboarding_completed';
 
@@ -41,10 +41,6 @@ const AppSettings = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
-      toast.success("Unit preference updated!");
-    },
-    onError: () => {
-      toast.error("Failed to update settings");
     },
   });
 
@@ -56,15 +52,11 @@ const AppSettings = () => {
       localStorage.setItem(ONBOARDING_KEY, onboardingFlag);
     }
     queryClient.clear();
-    toast.success("Cache cleared successfully!");
   };
 
   const handleResetOnboarding = () => {
     localStorage.removeItem(ONBOARDING_KEY);
-    toast.success("Onboarding reset! Redirecting...");
-    setTimeout(() => {
-      navigate('/onboarding');
-    }, 500);
+    navigate('/onboarding');
   };
 
   const currentUnit = profile?.unit_preference || "metric";
