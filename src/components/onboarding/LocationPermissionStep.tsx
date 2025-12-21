@@ -18,7 +18,7 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
     try {
       if (Capacitor.isNativePlatform()) {
         // Request location permission with timeout
-        const permissionPromise = Geolocation.requestPermissions();
+        const permissionPromise = Geolocation.requestPermissions({ permissions: ['location'] });
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Permission timeout')), 10000)
         );
