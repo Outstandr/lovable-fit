@@ -118,12 +118,12 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
         </motion.p>
       </div>
 
-      {/* Continue Button */}
+      {/* Buttons */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.9 }}
-        className="safe-area-bottom"
+        className="safe-area-bottom space-y-3"
       >
         <Button
           onClick={handleContinue}
@@ -131,7 +131,16 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
           className="w-full h-14 text-lg font-semibold"
           size="lg"
         >
-          {isRequesting ? 'Requesting...' : 'Continue'}
+          {isRequesting ? 'Requesting...' : 'Enable Location'}
+        </Button>
+        <Button
+          onClick={onNext}
+          disabled={isRequesting}
+          variant="ghost"
+          className="w-full h-12 text-muted-foreground"
+          size="lg"
+        >
+          Skip for now
         </Button>
       </motion.div>
     </div>
