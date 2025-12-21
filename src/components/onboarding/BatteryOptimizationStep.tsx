@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Battery } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
+import { BatteryOptimization } from '@capawesome-team/capacitor-android-battery-optimization';
 
 interface BatteryOptimizationStepProps {
   onNext: () => void;
@@ -15,17 +15,28 @@ export function BatteryOptimizationStep({ onNext }: BatteryOptimizationStepProps
     setIsRequesting(true);
     
     try {
-      if (Capacitor.isNativePlatform()) {
-        // On Android, we would typically open battery optimization settings
-        // This is a platform-specific API that requires a native plugin
-        // For now, we'll just inform the user and continue
-        console.log('[Onboarding] Battery optimization request - would open settings on native');
+      if (Capacitor.getPlatform() === 'android') {
+        // Check if battery optimization is currently enabled for this app
+        const { enabled } = await BatteryOptimization.isBatteryOptimizationEnabled();
+        
+        if (enabled) {
+          // Request the user to disable battery optimization
+          await BatteryOptimization.requestIgnoreBatteryOptimization();
+          console.log('[Onboarding] Battery optimization request completed');
+        } else {
+          console.log('[Onboarding] Battery optimization already disabled');
+        }
       }
     } catch (error) {
       console.log('[Onboarding] Battery optimization error:', error);
     }
     
     setIsRequesting(false);
+    onNext();
+  };
+
+  const handleSkip = () => {
+    console.log('[Onboarding] Battery optimization skipped');
     onNext();
   };
 
@@ -96,7 +107,15 @@ export function BatteryOptimizationStep({ onNext }: BatteryOptimizationStepProps
           disabled={isRequesting}
           className="w-full h-14 rounded-full bg-primary text-primary-foreground font-semibold text-base"
         >
-          {isRequesting ? 'Requesting...' : 'Continue'}
+          {isRequesting ? 'Requesting...' : 'Enable Background Activity'}
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={handleSkip}
+          disabled={isRequesting}
+          className="w-full h-12 text-muted-foreground"
+        >
+          Skip for now
         </Button>
       </motion.div>
     </div>
