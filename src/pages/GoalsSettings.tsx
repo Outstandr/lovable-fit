@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+
 import { useState, useEffect } from "react";
 
 const GoalsSettings = () => {
@@ -49,10 +49,6 @@ const GoalsSettings = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
-      toast.success("Daily goal updated!");
-    },
-    onError: () => {
-      toast.error("Failed to update goal");
     },
   });
 

@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+
 
 interface NotificationPreferences {
   daily_reminders: boolean;
@@ -86,13 +86,11 @@ const NotificationSettings = () => {
 
       if (error) {
         console.error("Error saving preferences:", error);
-        toast.error("Failed to save preference");
         // Revert on error
         setPreferences(preferences);
       }
     } catch (error) {
       console.error("Error:", error);
-      toast.error("Failed to save preference");
       setPreferences(preferences);
     } finally {
       setSaving(false);
@@ -100,12 +98,7 @@ const NotificationSettings = () => {
   };
 
   const handleEnableNotifications = async () => {
-    const granted = await requestPermission();
-    if (granted) {
-      toast.success("Notifications enabled!");
-    } else {
-      toast.error("Permission denied. Enable in device settings.");
-    }
+    await requestPermission();
   };
 
   const settingsItems = [

@@ -7,7 +7,7 @@ import { useHealth } from "@/hooks/useHealth";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+
 import LiveMap from "@/components/LiveMap";
 import MapPlaceholder from "@/components/MapPlaceholder";
 import { DataSourceBadge } from "@/components/DataSourceBadge";
@@ -125,7 +125,6 @@ const ActiveSession = () => {
     stopAudio(); // Stop audiobook when session ends
     
     if (!user) {
-      toast.error("Not logged in");
       navigate('/');
       return;
     }
@@ -154,9 +153,6 @@ const ActiveSession = () => {
 
       if (error) {
         console.error('[ActiveSession] Save error:', error);
-        toast.error("Failed to save session");
-      } else {
-        toast.success(`Session saved! ${sessionDistance.toFixed(2)} km`);
       }
     } catch (error) {
       console.error('[ActiveSession] Error:', error);
@@ -176,10 +172,7 @@ const ActiveSession = () => {
   };
 
   const handleOpenSettings = () => {
-    if (Capacitor.isNativePlatform()) {
-      // On native, we can't directly open settings, but we can show a toast
-      toast.info("Please open your device Settings > Location to enable GPS");
-    }
+    // On native, we can't directly open settings programmatically
   };
 
   // Determine what to show in map area
