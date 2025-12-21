@@ -19,11 +19,20 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
       if (Capacitor.isNativePlatform()) {
         // Request location permission with timeout
         const permissionPromise = Geolocation.requestPermissions({ permissions: ['location'] });
-        const timeoutPromise = new Promise((_, reject) => 
+        const timeoutPromise = new Promise<never>((_, reject) => 
           setTimeout(() => reject(new Error('Permission timeout')), 10000)
         );
         
-        await Promise.race([permissionPromise, timeoutPromise]);
+        const result = await Promise.race([permissionPromise, timeoutPromise]);
+        
+        // Check permission status
+        if (result.location === 'denied') {
+          console.log('[Onboarding] Location permission denied by user');
+        } else if (result.location === 'granted' || result.coarseLocation === 'granted') {
+          console.log('[Onboarding] Location permission granted');
+        } else {
+          console.log('[Onboarding] Location permission status:', result);
+        }
       }
     } catch (error) {
       console.log('[Onboarding] Location permission error (safe):', error);
