@@ -76,82 +76,34 @@ const GpsSignalIndicator = ({ accuracy }: { accuracy: number | null }) => {
   );
 };
 
-const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy, sessionSteps = 0, sessionDistance = 0 }: LiveMapProps) => {
+// Inner component that uses useLoadScript - only mounted when API key is ready
+interface LiveMapContentProps extends LiveMapProps {
+  apiKey: string;
+  onRetry: () => void;
+}
+
+const LiveMapContent = ({ 
+  currentPosition, 
+  routePoints, 
+  isTracking, 
+  gpsAccuracy, 
+  sessionSteps = 0, 
+  sessionDistance = 0,
+  apiKey,
+  onRetry,
+}: LiveMapContentProps) => {
   const mapRef = useRef<google.maps.Map | null>(null);
   const hasInitialCenter = useRef(false);
 
-  // Online/Offline detection
-  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
-  const [apiKeyFailed, setApiKeyFailed] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  // Google Maps API key (publishable) loaded at runtime from backend config.
-  const [apiKey, setApiKey] = useState<string>(import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '');
-
-  useEffect(() => {
-    console.log('[LiveMap] API key effect triggered', { 
-      hasApiKey: !!apiKey, 
-      apiKeyLength: apiKey?.length,
-      isOnline, 
-      retryCount 
-    });
-    
-    if (apiKey || !isOnline) {
-      console.log('[LiveMap] Skipping fetch - already have key or offline');
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        console.log('[LiveMap] Fetching API key from public-config...');
-        const { data, error } = await supabase.functions.invoke('public-config');
-        console.log('[LiveMap] public-config response:', { 
-          data: data ? { ...data, googleMapsApiKey: data.googleMapsApiKey ? `${String(data.googleMapsApiKey).substring(0, 10)}...` : 'missing' } : null, 
-          error 
-        });
-        
-        if (!cancelled && !error && data?.googleMapsApiKey) {
-          const key = String(data.googleMapsApiKey);
-          console.log('[LiveMap] API key loaded successfully:', key.substring(0, 10) + '...');
-          setApiKey(key);
-          setApiKeyFailed(false);
-        } else if (!cancelled) {
-          console.log('[LiveMap] API key failed - no key in response or error:', { error, hasData: !!data });
-          setApiKeyFailed(true);
-        }
-      } catch (err) {
-        console.log('[LiveMap] Exception fetching API key:', err);
-        if (!cancelled) setApiKeyFailed(true);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [apiKey, isOnline, retryCount]);
-
+  // useLoadScript is now only called ONCE with a valid API key
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: apiKey,
   });
 
-  const handleRetry = () => {
-    setApiKeyFailed(false);
-    setRetryCount(c => c + 1);
-  };
+  console.log('[LiveMapContent] useLoadScript state:', { isLoaded, loadError: loadError?.message, apiKeyPrefix: apiKey.substring(0, 10) });
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
+    console.log('[LiveMapContent] Map loaded successfully');
     mapRef.current = map;
   }, []);
 
@@ -170,9 +122,11 @@ const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy, sessio
   }, [currentPosition]);
 
   // Effect to pan map when position changes
-  if (currentPosition && mapRef.current) {
-    onPositionChange();
-  }
+  useEffect(() => {
+    if (currentPosition && mapRef.current) {
+      onPositionChange();
+    }
+  }, [currentPosition, onPositionChange]);
 
   // Convert route points to Google Maps format
   const routePath = routePoints.map(point => ({
@@ -183,45 +137,6 @@ const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy, sessio
   const center = currentPosition 
     ? { lat: currentPosition.latitude, lng: currentPosition.longitude }
     : defaultCenter;
-
-  // Offline fallback - show placeholder with session stats
-  if (!isOnline) {
-    return (
-      <div className="absolute inset-0 rounded-xl overflow-hidden">
-        <MapPlaceholder 
-          message="Offline - Using step tracking"
-          sessionSteps={sessionSteps}
-          sessionDistance={sessionDistance}
-          showStepsFallback={true}
-        />
-        <div className="absolute top-4 left-4 z-10 rounded-lg bg-destructive/20 backdrop-blur-sm px-3 py-1.5 border border-destructive/30 flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-destructive">Offline</span>
-        </div>
-      </div>
-    );
-  }
-
-  // API key failed or missing - show placeholder with retry
-  if (!apiKey || apiKeyFailed) {
-    return (
-      <div className="absolute inset-0 rounded-xl overflow-hidden">
-        <MapPlaceholder 
-          message="Map unavailable - Using step tracking"
-          sessionSteps={sessionSteps}
-          sessionDistance={sessionDistance}
-          showStepsFallback={true}
-        />
-        <button
-          onClick={handleRetry}
-          className="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-lg bg-primary/20 backdrop-blur-sm px-3 py-2 border border-primary/30 hover:bg-primary/30 transition-colors"
-        >
-          <RefreshCw className="h-4 w-4 text-primary" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-primary">Retry</span>
-        </button>
-      </div>
-    );
-  }
 
   // Loading state
   if (!isLoaded) {
@@ -237,6 +152,7 @@ const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy, sessio
 
   // Map load error - show placeholder with retry
   if (loadError) {
+    console.log('[LiveMapContent] Load error:', loadError);
     return (
       <div className="absolute inset-0 rounded-xl overflow-hidden">
         <MapPlaceholder 
@@ -246,7 +162,7 @@ const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy, sessio
           showStepsFallback={true}
         />
         <button
-          onClick={handleRetry}
+          onClick={onRetry}
           className="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-lg bg-primary/20 backdrop-blur-sm px-3 py-2 border border-primary/30 hover:bg-primary/30 transition-colors"
         >
           <RefreshCw className="h-4 w-4 text-primary" />
@@ -333,6 +249,155 @@ const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy, sessio
         </div>
       )}
     </div>
+  );
+};
+
+// Wrapper component that handles API key fetching
+const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy, sessionSteps = 0, sessionDistance = 0 }: LiveMapProps) => {
+  // Online/Offline detection
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [apiKeyFailed, setApiKeyFailed] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [apiKey, setApiKey] = useState<string>(import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '');
+  const [isLoadingKey, setIsLoadingKey] = useState(!apiKey);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Fetch API key from backend
+  useEffect(() => {
+    console.log('[LiveMap] API key effect triggered', { 
+      hasApiKey: !!apiKey, 
+      apiKeyLength: apiKey?.length,
+      isOnline, 
+      retryCount 
+    });
+    
+    if (apiKey) {
+      console.log('[LiveMap] Already have API key, skipping fetch');
+      setIsLoadingKey(false);
+      return;
+    }
+    
+    if (!isOnline) {
+      console.log('[LiveMap] Offline, skipping fetch');
+      setIsLoadingKey(false);
+      return;
+    }
+
+    setIsLoadingKey(true);
+    let cancelled = false;
+    
+    (async () => {
+      try {
+        console.log('[LiveMap] Fetching API key from public-config...');
+        const { data, error } = await supabase.functions.invoke('public-config');
+        console.log('[LiveMap] public-config response:', { 
+          data: data ? { ...data, googleMapsApiKey: data.googleMapsApiKey ? `${String(data.googleMapsApiKey).substring(0, 10)}...` : 'missing' } : null, 
+          error 
+        });
+        
+        if (!cancelled && !error && data?.googleMapsApiKey) {
+          const key = String(data.googleMapsApiKey);
+          console.log('[LiveMap] API key loaded successfully:', key.substring(0, 10) + '...');
+          setApiKey(key);
+          setApiKeyFailed(false);
+        } else if (!cancelled) {
+          console.log('[LiveMap] API key failed - no key in response or error:', { error, hasData: !!data });
+          setApiKeyFailed(true);
+        }
+      } catch (err) {
+        console.log('[LiveMap] Exception fetching API key:', err);
+        if (!cancelled) setApiKeyFailed(true);
+      } finally {
+        if (!cancelled) setIsLoadingKey(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiKey, isOnline, retryCount]);
+
+  const handleRetry = useCallback(() => {
+    console.log('[LiveMap] Retry triggered');
+    setApiKey('');
+    setApiKeyFailed(false);
+    setRetryCount(c => c + 1);
+  }, []);
+
+  // Offline fallback - show placeholder with session stats
+  if (!isOnline) {
+    return (
+      <div className="absolute inset-0 rounded-xl overflow-hidden">
+        <MapPlaceholder 
+          message="Offline - Using step tracking"
+          sessionSteps={sessionSteps}
+          sessionDistance={sessionDistance}
+          showStepsFallback={true}
+        />
+        <div className="absolute top-4 left-4 z-10 rounded-lg bg-destructive/20 backdrop-blur-sm px-3 py-1.5 border border-destructive/30 flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-destructive">Offline</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading API key
+  if (isLoadingKey) {
+    return (
+      <div className="absolute inset-0 rounded-xl overflow-hidden bg-secondary/50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="text-xs text-muted-foreground">Initializing map...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // API key failed or missing - show placeholder with retry
+  if (!apiKey || apiKeyFailed) {
+    return (
+      <div className="absolute inset-0 rounded-xl overflow-hidden">
+        <MapPlaceholder 
+          message="Map unavailable - Using step tracking"
+          sessionSteps={sessionSteps}
+          sessionDistance={sessionDistance}
+          showStepsFallback={true}
+        />
+        <button
+          onClick={handleRetry}
+          className="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-lg bg-primary/20 backdrop-blur-sm px-3 py-2 border border-primary/30 hover:bg-primary/30 transition-colors"
+        >
+          <RefreshCw className="h-4 w-4 text-primary" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-primary">Retry</span>
+        </button>
+      </div>
+    );
+  }
+
+  // Only render the map content component when we have a valid API key
+  // This ensures useLoadScript is only called once with the valid key
+  return (
+    <LiveMapContent
+      currentPosition={currentPosition}
+      routePoints={routePoints}
+      isTracking={isTracking}
+      gpsAccuracy={gpsAccuracy}
+      sessionSteps={sessionSteps}
+      sessionDistance={sessionDistance}
+      apiKey={apiKey}
+      onRetry={handleRetry}
+    />
   );
 };
 
