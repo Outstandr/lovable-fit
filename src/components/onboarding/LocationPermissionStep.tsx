@@ -16,9 +16,9 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
     setIsRequesting(true);
     
     try {
-      if (Capacitor.isNativePlatform()) {
+      if (Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('Geolocation')) {
         // Request location permission with timeout
-        const permissionPromise = Geolocation.requestPermissions({ permissions: ['location'] });
+        const permissionPromise = Geolocation.requestPermissions();
         const timeoutPromise = new Promise<never>((_, reject) => 
           setTimeout(() => reject(new Error('Permission timeout')), 10000)
         );
@@ -33,6 +33,8 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
         } else {
           console.log('[Onboarding] Location permission status:', result);
         }
+      } else {
+        console.log('[Onboarding] Geolocation plugin not available on this platform');
       }
     } catch (error) {
       console.log('[Onboarding] Location permission error (safe):', error);
