@@ -15,6 +15,7 @@ import { Capacitor } from "@capacitor/core";
 import AudiobookPlayer from "@/components/AudiobookPlayer";
 import { useAudiobook } from "@/hooks/useAudiobook";
 import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
+import { NativeSettings, AndroidSettings, IOSSettings } from 'capacitor-native-settings';
 
 const ActiveSession = () => {
   const navigate = useNavigate();
@@ -171,8 +172,21 @@ const ActiveSession = () => {
     await retryGPS();
   };
 
-  const handleOpenSettings = () => {
-    // On native, we can't directly open settings programmatically
+  const handleOpenSettings = async () => {
+    try {
+      const platform = Capacitor.getPlatform();
+      if (platform === 'android') {
+        await NativeSettings.openAndroid({
+          option: AndroidSettings.ApplicationDetails,
+        });
+      } else if (platform === 'ios') {
+        await NativeSettings.openIOS({
+          option: IOSSettings.App,
+        });
+      }
+    } catch (error) {
+      console.error('[ActiveSession] Failed to open settings:', error);
+    }
   };
 
   // Determine what to show in map area
