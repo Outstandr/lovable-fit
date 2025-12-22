@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.create-test-users]
 verify_jwt = false
+
+[functions.delete-user-data]
+verify_jwt = true
+
+[functions.public-config]
+verify_jwt = false
