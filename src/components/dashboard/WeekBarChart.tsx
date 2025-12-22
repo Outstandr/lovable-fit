@@ -19,14 +19,14 @@ export const WeekBarChart = ({ data, goal }: WeekBarChartProps) => {
     <div className="px-2">
       {/* Day labels */}
       <div className="flex justify-between mb-2">
-        {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
+        {data.map((item, index) => (
           <span 
             key={index}
             className={`text-xs font-medium w-10 text-center ${
-              data[index]?.isToday ? "text-foreground" : "text-muted-foreground"
+              item.isToday ? "text-foreground" : "text-muted-foreground"
             }`}
           >
-            {day}
+            {item.day.charAt(0)}
           </span>
         ))}
       </div>
