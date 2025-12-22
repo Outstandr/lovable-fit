@@ -268,19 +268,6 @@ const Dashboard = () => {
         </button>
       </motion.header>
 
-      {/* Permission Alert */}
-      {dataSource === 'unavailable' && (
-        <motion.div className="mx-4 mb-4 relative z-content" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-            <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-yellow-400">Step Tracking Unavailable</p>
-              <p className="text-xs text-muted-foreground">Enable Physical Activity permission in settings.</p>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
       {/* Main Content */}
       <main className="px-4 relative z-content">
         {activeTab === "day" && (
