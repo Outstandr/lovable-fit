@@ -1,4 +1,5 @@
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface DayActivity {
   date: number;
@@ -16,6 +17,7 @@ interface MonthCalendarProps {
 }
 
 export const MonthCalendar = ({ year, month, data, goal }: MonthCalendarProps) => {
+  const [selectedDate, setSelectedDate] = useState<number | null>(null);
   const daysOfWeek = ["S", "M", "T", "W", "T", "F", "S"];
   
   // Get first day of month and total days
@@ -71,7 +73,8 @@ export const MonthCalendar = ({ year, month, data, goal }: MonthCalendarProps) =
           return (
             <motion.div
               key={index}
-              className={`aspect-square rounded-full flex items-center justify-center text-xs font-medium relative ${
+              onClick={() => setSelectedDate(selectedDate === day.date ? null : day.date)}
+              className={`aspect-square rounded-full flex items-center justify-center text-xs font-medium relative cursor-pointer active:scale-95 transition-transform ${
                 day.isToday 
                   ? "ring-2 ring-foreground" 
                   : ""
@@ -91,8 +94,21 @@ export const MonthCalendar = ({ year, month, data, goal }: MonthCalendarProps) =
               transition={{ delay: index * 0.01 }}
             >
               {day.date}
+              {/* Steps tooltip */}
+              <AnimatePresence>
+                {selectedDate === day.date && day.steps > 0 && (
+                  <motion.span 
+                    initial={{ opacity: 0, scale: 0.8, y: 4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, y: 4 }}
+                    className="absolute -top-6 left-1/2 -translate-x-1/2 bg-foreground text-background text-[10px] px-1.5 py-0.5 rounded-md whitespace-nowrap font-bold z-10 shadow-lg"
+                  >
+                    {day.steps.toLocaleString()}
+                  </motion.span>
+                )}
+              </AnimatePresence>
               {/* Activity indicator dot */}
-              {day.steps > 0 && !day.isFuture && (
+              {day.steps > 0 && !day.isFuture && selectedDate !== day.date && (
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
               )}
             </motion.div>
