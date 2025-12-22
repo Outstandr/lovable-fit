@@ -100,19 +100,39 @@ const LiveMap = ({ currentPosition, routePoints, isTracking, gpsAccuracy, sessio
   const [apiKey, setApiKey] = useState<string>(import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '');
 
   useEffect(() => {
-    if (apiKey || !isOnline) return;
+    console.log('[LiveMap] API key effect triggered', { 
+      hasApiKey: !!apiKey, 
+      apiKeyLength: apiKey?.length,
+      isOnline, 
+      retryCount 
+    });
+    
+    if (apiKey || !isOnline) {
+      console.log('[LiveMap] Skipping fetch - already have key or offline');
+      return;
+    }
 
     let cancelled = false;
     (async () => {
       try {
+        console.log('[LiveMap] Fetching API key from public-config...');
         const { data, error } = await supabase.functions.invoke('public-config');
+        console.log('[LiveMap] public-config response:', { 
+          data: data ? { ...data, googleMapsApiKey: data.googleMapsApiKey ? `${String(data.googleMapsApiKey).substring(0, 10)}...` : 'missing' } : null, 
+          error 
+        });
+        
         if (!cancelled && !error && data?.googleMapsApiKey) {
-          setApiKey(String(data.googleMapsApiKey));
+          const key = String(data.googleMapsApiKey);
+          console.log('[LiveMap] API key loaded successfully:', key.substring(0, 10) + '...');
+          setApiKey(key);
           setApiKeyFailed(false);
         } else if (!cancelled) {
+          console.log('[LiveMap] API key failed - no key in response or error:', { error, hasData: !!data });
           setApiKeyFailed(true);
         }
-      } catch {
+      } catch (err) {
+        console.log('[LiveMap] Exception fetching API key:', err);
         if (!cancelled) setApiKeyFailed(true);
       }
     })();
