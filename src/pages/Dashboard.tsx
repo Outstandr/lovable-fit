@@ -245,7 +245,7 @@ const Dashboard = () => {
       }} />
 
       <PullToRefresh onRefresh={handleRefresh} className="flex-1 flex flex-col overflow-hidden">
-        <RubberBandScroll className="flex-1 overflow-y-auto">
+        <RubberBandScroll className="flex-1 overflow-y-auto" contentClassName="pb-32">
           {/* Header */}
           <motion.header
         className="flex items-center justify-between px-4 pb-2 header-safe relative z-content"
