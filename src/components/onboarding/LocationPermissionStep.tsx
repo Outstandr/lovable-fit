@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MapPin, Navigation, Route, Gauge } from 'lucide-react';
+import { MapPin, Navigation, Route, Gauge, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
@@ -11,37 +11,31 @@ interface LocationPermissionStepProps {
 
 export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) => {
   const [isRequesting, setIsRequesting] = useState(false);
+  const [alreadyGranted, setAlreadyGranted] = useState(false);
 
   const handleContinue = async () => {
     setIsRequesting(true);
     
     try {
       if (Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('Geolocation')) {
-        // Request location permission with timeout
-        const permissionPromise = Geolocation.requestPermissions();
-        const timeoutPromise = new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error('Permission timeout')), 10000)
-        );
-        
-        const result = await Promise.race([permissionPromise, timeoutPromise]);
-        
-        // Check permission status
-        if (result.location === 'denied') {
-          console.log('[Onboarding] Location permission denied by user');
-        } else if (result.location === 'granted' || result.coarseLocation === 'granted') {
-          console.log('[Onboarding] Location permission granted');
-        } else {
-          console.log('[Onboarding] Location permission status:', result);
+        // First check if permission is already granted
+        const currentStatus = await Geolocation.checkPermissions();
+        if (currentStatus.location === 'granted' || currentStatus.coarseLocation === 'granted') {
+          console.log('[Onboarding] Location permission already granted');
+          setAlreadyGranted(true);
+          setTimeout(() => onNext(), 1000);
+          return;
         }
+        
+        // Request permission - this triggers the native system dialog
+        const result = await Geolocation.requestPermissions();
+        console.log('[Onboarding] Location permission result:', result);
       } else {
         console.log('[Onboarding] Geolocation plugin not available on this platform');
       }
     } catch (error) {
-      console.log('[Onboarding] Location permission error (safe):', error);
+      console.log('[Onboarding] Location permission error:', error);
     }
-    
-    // Wait for native side to stabilize before proceeding
-    await new Promise(resolve => setTimeout(resolve, 500));
     
     setIsRequesting(false);
     onNext();
@@ -129,21 +123,32 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
       >
         <Button
           onClick={handleContinue}
-          disabled={isRequesting}
+          disabled={isRequesting || alreadyGranted}
           className="w-full h-14 text-lg font-semibold"
           size="lg"
         >
-          {isRequesting ? 'Requesting...' : 'Enable Location'}
+          {alreadyGranted ? (
+            <>
+              <Check className="mr-2 h-5 w-5" />
+              Permission Granted
+            </>
+          ) : isRequesting ? (
+            'Requesting...'
+          ) : (
+            'Enable Location'
+          )}
         </Button>
-        <Button
-          onClick={onNext}
-          disabled={isRequesting}
-          variant="ghost"
-          className="w-full h-12 text-muted-foreground"
-          size="lg"
-        >
-          Skip for now
-        </Button>
+        {!alreadyGranted && (
+          <Button
+            onClick={onNext}
+            disabled={isRequesting}
+            variant="ghost"
+            className="w-full h-12 text-muted-foreground"
+            size="lg"
+          >
+            Skip for now
+          </Button>
+        )}
       </motion.div>
     </div>
   );
