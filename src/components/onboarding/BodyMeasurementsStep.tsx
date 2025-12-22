@@ -84,26 +84,37 @@ export function BodyMeasurementsStep({ onNext }: BodyMeasurementsStepProps) {
   };
 
   const handleContinue = async () => {
-    if (!user) return;
+    if (!user) {
+      onNext();
+      return;
+    }
     
     setIsSaving(true);
     
-    const currentYear = new Date().getFullYear();
-    const age = currentYear - birthYear;
+    try {
+      const currentYear = new Date().getFullYear();
+      const age = currentYear - birthYear;
 
-    await supabase
-      .from('profiles')
-      .update({
-        height_cm: heightCm,
-        weight_kg: weightKg,
-        age,
-        gender: gender || undefined,
-        unit_preference: units,
-      })
-      .eq('id', user.id);
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          height_cm: heightCm,
+          weight_kg: weightKg,
+          age,
+          gender,
+          unit_preference: units,
+        })
+        .eq('id', user.id);
 
-    setIsSaving(false);
-    onNext();
+      if (error) {
+        console.error('[BodyMeasurements] Error saving:', error);
+      }
+    } catch (error) {
+      console.error('[BodyMeasurements] Exception:', error);
+    } finally {
+      setIsSaving(false);
+      onNext();
+    }
   };
 
   return (
