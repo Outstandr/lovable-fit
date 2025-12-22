@@ -2,6 +2,19 @@
 
 This guide covers Android setup for the app with Health Connect integration.
 
+## ⚠️ CRITICAL: Manual Permissions Required
+
+> **Before running your app, you MUST manually add these permissions to `AndroidManifest.xml`!**
+> Capacitor plugins do NOT automatically add all required permissions.
+
+| Feature | Required Action | What Happens If Missing |
+|---------|-----------------|------------------------|
+| **Location/GPS** | [Add location permissions](#-geolocation-setup-critical) | Location won't appear in app settings, GPS tracking fails silently |
+| **Background Location** | [Add background permission](#-geolocation-setup-critical) | Active Session tracking stops when app is minimized |
+| **Battery Optimization** | [Add battery permission](#battery-optimization) | Background step syncing may be killed by Android |
+
+---
+
 ## ✅ What's Already Done
 
 The `@capgo/capacitor-health` plugin **automatically handles**:
@@ -23,13 +36,16 @@ npm install
 # 2. Add Android platform
 npx cap add android
 
-# 3. Sync project (copies privacy policy to Android assets)
+# 3. ⚠️ IMPORTANT: Add manual permissions (see sections below)
+# Edit android/app/src/main/AndroidManifest.xml
+
+# 4. Sync project (copies privacy policy to Android assets)
 npx cap sync android
 
-# 4. Open in Android Studio
+# 5. Open in Android Studio
 npx cap open android
 
-# 5. Run on device/emulator
+# 6. Run on device/emulator
 npx cap run android
 ```
 
@@ -179,17 +195,60 @@ apply plugin: 'com.google.gms.google-services'
 
 ---
 
-## Geolocation Setup
+## 📍 Geolocation Setup (CRITICAL)
 
-### Permissions in `AndroidManifest.xml`
+> ⚠️ **WITHOUT THESE PERMISSIONS, LOCATION FEATURES WILL NOT WORK!**
+> 
+> Capacitor's Geolocation plugin does **NOT** automatically add these permissions to your AndroidManifest.xml.
+> You MUST add them manually, or:
+> - Location permission will **never appear** in the app's permission settings
+> - The app will **never prompt** the user for location access
+> - GPS tracking in Active Session will **fail silently**
+
+### Why Manual Setup is Required
+
+Unlike some plugins, `@capacitor/geolocation` only provides the JavaScript API. The native Android permissions must be declared manually in your `AndroidManifest.xml`.
+
+### Required Permissions
+
+Add ALL of the following to `android/app/src/main/AndroidManifest.xml` inside the `<manifest>` tag, **before** `<application>`:
 
 ```xml
+<!-- ============================================== -->
+<!-- LOCATION PERMISSIONS - MUST BE ADDED MANUALLY -->
+<!-- ============================================== -->
+
+<!-- Approximate location (network-based) -->
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+<!-- Precise GPS location (required for Active Session tracking) -->
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+<!-- Background location (required for tracking when app is minimized) -->
+<!-- Note: On Android 10+, user must grant this separately in settings -->
 <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
+<!-- Declare GPS hardware (optional but recommended) -->
 <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 ```
+
+### Permission Explanations
+
+| Permission | Purpose | Required For |
+|------------|---------|--------------|
+| `ACCESS_COARSE_LOCATION` | Network-based approximate location | Basic location features |
+| `ACCESS_FINE_LOCATION` | GPS-based precise location | Active Session route tracking |
+| `ACCESS_BACKGROUND_LOCATION` | Location when app is minimized | Continuous tracking during walks |
+
+### After Adding Permissions
+
+```bash
+# Rebuild the app
+npx cap sync android
+npx cap run android
+```
+
+Now when you request location permission in the app, Android will show the system permission dialog, and "Location" will appear in your app's permission settings.
 
 ---
 
@@ -259,6 +318,56 @@ npx cap add android
 npx cap sync android
 ```
 
+### 📍 Location Permission Not Appearing in App Settings
+
+**Symptom:** When you go to Settings > Apps > [Your App] > Permissions, "Location" is not listed.
+
+**Cause:** Missing `<uses-permission>` declarations in `AndroidManifest.xml`.
+
+**Solution:**
+1. Open `android/app/src/main/AndroidManifest.xml`
+2. Add the location permissions from the [Geolocation Setup](#-geolocation-setup-critical) section
+3. Rebuild: `npx cap sync android && npx cap run android`
+
+### 📍 App Never Asks for Location Permission
+
+**Symptom:** The onboarding or Active Session never shows a location permission dialog.
+
+**Cause:** Same as above - missing AndroidManifest.xml declarations.
+
+**Solution:** Follow the [Geolocation Setup](#-geolocation-setup-critical) section.
+
+### 📍 GPS Not Working in Active Session
+
+**Symptom:** Active Session starts but shows "Unable to get GPS location" or the map doesn't show your position.
+
+**Possible Causes & Solutions:**
+
+1. **Permissions not granted:**
+   - Go to Settings > Apps > [Your App] > Permissions > Location
+   - Select "Allow all the time" or "Allow only while using the app"
+
+2. **GPS disabled on device:**
+   - Enable Location/GPS in device quick settings or Settings > Location
+
+3. **Missing manifest permissions:**
+   - Verify you have ALL three location permissions in AndroidManifest.xml
+   - Check for typos in permission names
+
+4. **Indoor/weak GPS signal:**
+   - Go outside or near a window for better GPS reception
+
+### 📍 Background Location Not Working
+
+**Symptom:** GPS tracking stops when you minimize the app.
+
+**Cause:** `ACCESS_BACKGROUND_LOCATION` not granted or not declared.
+
+**Solution:**
+1. Ensure `ACCESS_BACKGROUND_LOCATION` is in AndroidManifest.xml
+2. On Android 10+, go to Settings > Apps > [Your App] > Permissions > Location
+3. Select "Allow all the time" (not just "While using the app")
+
 ---
 
 ## Complete `AndroidManifest.xml` Example
@@ -267,23 +376,38 @@ npx cap sync android
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Health Connect -->
+    <!-- ===================== -->
+    <!-- HEALTH CONNECT        -->
+    <!-- ===================== -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_DISTANCE" />
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
     <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
     
-    <!-- Activity Recognition -->
+    <!-- ===================== -->
+    <!-- ACTIVITY RECOGNITION  -->
+    <!-- ===================== -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     
-    <!-- Location -->
+    <!-- ============================================== -->
+    <!-- LOCATION - MUST BE ADDED MANUALLY!            -->
+    <!-- Without these, location features won't work   -->
+    <!-- ============================================== -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     
-    <!-- Battery -->
+    <!-- GPS hardware declaration -->
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    
+    <!-- ===================== -->
+    <!-- BATTERY               -->
+    <!-- ===================== -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     
-    <!-- Internet -->
+    <!-- ===================== -->
+    <!-- INTERNET              -->
+    <!-- ===================== -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
@@ -324,4 +448,5 @@ npx cap sync android
 
 | Date | Changes |
 |------|---------|
+| 2025-01-XX | Added critical location permission section with troubleshooting |
 | 2025-01-XX | Initial guide created |
