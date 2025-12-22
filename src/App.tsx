@@ -22,6 +22,7 @@ import GoalsSettings from "./pages/GoalsSettings";
 import PrivacySettings from "./pages/PrivacySettings";
 import AppSettings from "./pages/AppSettings";
 import NotFound from "./pages/NotFound";
+import MapTest from "./pages/MapTest";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,11 @@ const AnimatedRoutes = () => {
               <ActiveSession />
             </PageTransition>
           </ProtectedRoute>
+        } />
+        <Route path="/map-test" element={
+          <PageTransition>
+            <MapTest />
+          </PageTransition>
         } />
         <Route path="/leaderboard" element={
           <ProtectedRoute>
