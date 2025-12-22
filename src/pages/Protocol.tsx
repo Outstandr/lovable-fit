@@ -66,7 +66,7 @@ const Protocol = () => {
         </p>
       </motion.header>
 
-      <RubberBandScroll className="flex-1 overflow-y-auto">
+      <RubberBandScroll className="flex-1 overflow-y-auto" contentClassName="pb-24">
         {/* Progress Bar */}
         <motion.div
         className="px-4 mb-6"

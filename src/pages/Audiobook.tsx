@@ -82,7 +82,7 @@ const Audiobook = () => {
         <h1 className="text-lg font-bold text-foreground">Audiobook</h1>
       </motion.header>
 
-      <RubberBandScroll className="flex-1 overflow-y-auto" contentClassName="px-4 pb-8">
+      <RubberBandScroll className="flex-1 overflow-y-auto" contentClassName="px-4 pb-24">
         {/* Now Playing Card */}
         <motion.div
           className="tactical-card mb-6"

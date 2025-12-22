@@ -87,7 +87,7 @@ const Profile = () => {
 
   return (
     <div className="h-screen flex flex-col page-with-bottom-nav relative">
-      <RubberBandScroll className="flex-1" contentClassName="pb-8">
+      <RubberBandScroll className="flex-1" contentClassName="pb-24">
       {/* Background gradient */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/5 rounded-full blur-[100px]" />

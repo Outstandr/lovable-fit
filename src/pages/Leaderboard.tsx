@@ -169,7 +169,7 @@ const Leaderboard = () => {
 
   return (
     <div className="h-screen flex flex-col page-with-bottom-nav relative">
-      <RubberBandScroll className="flex-1" contentClassName="pb-8">
+      <RubberBandScroll className="flex-1" contentClassName="pb-24">
       <PullToRefresh onRefresh={handleRefresh} className="h-full">
 
       {/* Offline Banner with safe area */}
