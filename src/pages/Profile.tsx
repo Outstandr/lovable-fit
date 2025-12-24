@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { User, Settings, Bell, Shield, LogOut, ChevronRight, Zap, Target, Calendar, Heart, TrendingUp } from "lucide-react";
+import { User, Settings, Bell, Shield, LogOut, ChevronRight, Zap, Target, Calendar, Heart, TrendingUp, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
 import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
@@ -261,6 +261,23 @@ const Profile = () => {
               <LogOut className="h-5 w-5 text-destructive" />
             </div>
             <span className="text-sm font-semibold text-destructive">Log Out</span>
+          </div>
+          <ChevronRight className="h-4 w-4 text-destructive/50" />
+        </motion.button>
+
+        {/* Delete Account Button - Required for App Store Compliance */}
+        <motion.button
+          onClick={() => navigate('/privacy')}
+          className="w-full tactical-card flex items-center justify-between hover:border-destructive/50 transition-all duration-300 touch-target press-scale mt-4"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.5 + (menuItems.length + 1) * 0.08 }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-destructive/15">
+              <Trash2 className="h-5 w-5 text-destructive" />
+            </div>
+            <span className="text-sm font-semibold text-destructive">Delete Account</span>
           </div>
           <ChevronRight className="h-4 w-4 text-destructive/50" />
         </motion.button>
