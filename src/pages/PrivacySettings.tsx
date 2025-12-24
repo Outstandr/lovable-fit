@@ -312,7 +312,7 @@ const PrivacySettings = () => {
                 information with third parties for marketing purposes.
               </p>
               <p className="text-xs text-muted-foreground">
-                For support or data inquiries, contact: <a href="mailto:support@hotstepper.app" className="text-primary hover:underline">support@hotstepper.app</a>
+                For support or data inquiries, contact: <a href="mailto:info@outstandr.com" className="text-primary hover:underline">info@outstandr.com</a>
               </p>
             </div>
           </div>

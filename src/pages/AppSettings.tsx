@@ -189,7 +189,7 @@ const AppSettings = () => {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Build</span>
-              <span className="text-foreground font-medium">2024.12.18</span>
+              <span className="text-foreground font-medium">2025.12.24</span>
             </div>
           </div>
         </motion.div>
@@ -206,7 +206,7 @@ const AppSettings = () => {
             <span className="text-lg font-bold text-primary tracking-wider">HOTSTEPPER</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            © 2024 Hotstepper. All rights reserved.
+            © 2025 Outstandr. All rights reserved.
           </p>
         </motion.div>
       </div>
