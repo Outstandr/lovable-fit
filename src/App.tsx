@@ -21,6 +21,7 @@ import NotificationSettings from "./pages/NotificationSettings";
 import GoalsSettings from "./pages/GoalsSettings";
 import PrivacySettings from "./pages/PrivacySettings";
 import AppSettings from "./pages/AppSettings";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import NotFound from "./pages/NotFound";
 import MapTest from "./pages/MapTest";
 
@@ -125,6 +126,11 @@ const AnimatedRoutes = () => {
               <AppSettings />
             </PageTransition>
           </ProtectedRoute>
+        } />
+        <Route path="/privacy-policy" element={
+          <PageTransition>
+            <PrivacyPolicy />
+          </PageTransition>
         } />
         <Route path="*" element={
           <PageTransition>

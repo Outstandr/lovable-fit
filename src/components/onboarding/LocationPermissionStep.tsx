@@ -70,14 +70,14 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
           Enable Location Access
         </motion.h1>
 
-        {/* Description */}
+        {/* Description - Apple Guideline 5.1.1 Compliant */}
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
           className="text-muted-foreground text-center mb-8"
         >
-          Allow Hotstepper to access your location for GPS tracking during active sessions
+          We need access to your location so that you can track your walking routes with GPS accuracy during active sessions.
         </motion.p>
 
         {/* Benefits */}

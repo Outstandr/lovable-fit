@@ -71,13 +71,14 @@ export function NotificationStep({ onNext }: NotificationStepProps) {
           Goal Reminder
         </motion.h1>
 
+        {/* Description - Apple Guideline 5.1.1 Compliant */}
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
           className="text-muted-foreground text-center max-w-xs leading-relaxed"
         >
-          Activating reminders boosts goal achievement by 89%!
+          We need to send you notifications so that you can receive daily reminders and goal achievements.
         </motion.p>
 
         {/* Benefits */}

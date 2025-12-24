@@ -60,13 +60,14 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
           Health Data Access
         </motion.h1>
 
+        {/* Description - Apple Guideline 5.1.1 Compliant */}
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
           className="text-muted-foreground text-center max-w-xs leading-relaxed"
         >
-          Hotstepper needs access to {platformLabel} to accurately count your steps and track your progress.
+          We need access to {platformLabel} so that you can see your step count and activity progress in real-time.
         </motion.p>
 
         {/* Benefits list */}
