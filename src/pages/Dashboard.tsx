@@ -248,25 +248,35 @@ const Dashboard = () => {
         <RubberBandScroll className="flex-1 overflow-y-auto" contentClassName="pb-32">
           {/* Header */}
           <motion.header
-        className="flex items-center justify-between px-4 pb-2 header-safe relative z-content"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <button 
-          onClick={() => { haptics.light(); navigate('/profile'); }}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
-        >
-          <Settings className="h-5 w-5" />
-        </button>
-        
-        <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
-        
-        <button 
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
-        >
-          <MoreHorizontal className="h-5 w-5" />
-        </button>
-      </motion.header>
+            className="px-4 pb-2 header-safe relative z-content"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            {/* Title Row */}
+            <div className="flex items-center justify-between mb-3">
+              <button 
+                onClick={() => { haptics.light(); navigate('/profile'); }}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
+              >
+                <Settings className="h-5 w-5" />
+              </button>
+              
+              <h1 className="text-lg font-bold tracking-widest text-primary uppercase">
+                Hotstepper
+              </h1>
+              
+              <button 
+                className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
+              >
+                <MoreHorizontal className="h-5 w-5" />
+              </button>
+            </div>
+            
+            {/* Tabs Row */}
+            <div className="flex justify-center">
+              <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
+            </div>
+          </motion.header>
 
       {/* Main Content */}
       <main className="px-4 relative z-content">
