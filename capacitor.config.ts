@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'app.lovable.hotstepper',
-  appName: 'Hotstepper',
+  appName: 'Lionel X',
   webDir: 'dist',
   // Uncomment below for development hot-reload:
   // server: {
