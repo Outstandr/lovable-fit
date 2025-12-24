@@ -50,14 +50,14 @@ We never sell your data or share it with third parties for advertising.`
 • You can delete your account at any time
 • Account deletion removes all your data from our servers
 • To delete your account, go to Privacy & Security settings
-• You can also email us at support@hotstepper.app for assistance`
+• You can also email us at info@outstandr.com for assistance`
     },
     {
       icon: Mail,
       title: "Contact Us",
       content: `If you have questions about this privacy policy or your data:
 
-Email: support@hotstepper.app
+Email: info@outstandr.com
 
 We aim to respond within 48 hours.`
     }
@@ -100,9 +100,9 @@ We aim to respond within 48 hours.`
             className="tactical-card p-4"
           >
             <p className="text-foreground text-sm leading-relaxed">
-              Hotstepper ("we", "our", or "us") is committed to protecting your privacy. 
+              Outstandr ("we", "our", or "us") is committed to protecting your privacy. 
               This policy explains how we collect, use, and safeguard your information when 
-              you use our mobile application.
+              you use our Hotstepper mobile application.
             </p>
           </motion.div>
 
@@ -133,7 +133,7 @@ We aim to respond within 48 hours.`
             className="pt-4 border-t border-border"
           >
             <p className="text-xs text-muted-foreground text-center">
-              By using Hotstepper, you agree to this privacy policy.
+              By using Hotstepper, you agree to this privacy policy. Hotstepper is developed by Outstandr.
             </p>
           </motion.div>
         </div>
