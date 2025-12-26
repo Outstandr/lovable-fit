@@ -3,10 +3,14 @@ import { User, Settings, Bell, Shield, LogOut, ChevronRight, Zap, Target, Calend
 import { useNavigate } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
 import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SkeletonCard, SkeletonCircle, SkeletonText } from "@/components/ui/SkeletonCard";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { useLocalCache } from "@/hooks/useLocalCache";
+import { useEffect } from "react";
 
 const menuItems = [
   { icon: Heart, label: "Health Profile", action: "health-profile", color: "text-red-400" },
@@ -19,11 +23,20 @@ const menuItems = [
 const Profile = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { isOnline } = useOfflineSync();
+  const { getCachedProfile, setCachedProfile, getCachedStreak, setCachedStreak } = useLocalCache();
 
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
+      
+      // Return cached data if offline
+      if (!isOnline) {
+        const cached = getCachedProfile(user.id);
+        if (cached) return cached;
+      }
+      
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
@@ -31,6 +44,18 @@ const Profile = () => {
         .maybeSingle();
       
       if (error) throw error;
+      
+      // Cache the profile data
+      if (data) {
+        setCachedProfile({
+          id: data.id,
+          display_name: data.display_name,
+          avatar_initials: data.avatar_initials,
+          daily_step_goal: data.daily_step_goal || 10000,
+          created_at: data.created_at,
+        }, user.id);
+      }
+      
       return data;
     },
     enabled: !!user?.id,
@@ -40,6 +65,13 @@ const Profile = () => {
     queryKey: ["streak", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
+      
+      // Return cached data if offline
+      if (!isOnline) {
+        const cached = getCachedStreak(user.id);
+        if (cached) return cached;
+      }
+      
       const { data, error } = await supabase
         .from("streaks")
         .select("*")
@@ -47,6 +79,16 @@ const Profile = () => {
         .maybeSingle();
       
       if (error) throw error;
+      
+      // Cache the streak data
+      if (data) {
+        setCachedStreak({
+          current_streak: data.current_streak,
+          longest_streak: data.longest_streak,
+          last_target_hit_date: data.last_target_hit_date,
+        }, user.id);
+      }
+      
       return data;
     },
     enabled: !!user?.id,
@@ -87,6 +129,9 @@ const Profile = () => {
 
   return (
     <div className="h-screen flex flex-col page-with-bottom-nav relative">
+      {/* Offline Banner */}
+      <OfflineBanner />
+      
       <RubberBandScroll className="flex-1" contentClassName="pb-24">
       {/* Background gradient */}
       <div className="absolute inset-0 pointer-events-none">

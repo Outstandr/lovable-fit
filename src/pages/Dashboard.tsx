@@ -10,9 +10,12 @@ import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { DayView } from "@/components/dashboard/DayView";
 import { WeekView } from "@/components/dashboard/WeekView";
 import { MonthView } from "@/components/dashboard/MonthView";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { useHealth } from "@/hooks/useHealth";
 import { useStreak } from "@/hooks/useStreak";
 import { useAudiobook } from "@/hooks/useAudiobook";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { useLocalCache } from "@/hooks/useLocalCache";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,6 +31,8 @@ const Dashboard = () => {
   const { steps, distance, calories, dataSource, syncToDatabase } = useHealth();
   const { streak, updateStreakOnTargetHit } = useStreak();
   const { isPlaying, currentChapter, currentTime, duration, togglePlay, formatTime, isLoading: audiobookLoading } = useAudiobook();
+  const { isOnline } = useOfflineSync();
+  const { getCachedWeekData, setCachedWeekData, getCachedMonthData, setCachedMonthData, setLastSyncTime } = useLocalCache();
   
   const [activeTab, setActiveTab] = useState<TabType>("day");
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -60,6 +65,27 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchWeeklyData = async () => {
       if (!user) return;
+      
+      // Try to load from cache first when offline
+      if (!isOnline) {
+        const cachedData = getCachedWeekData(user.id);
+        if (cachedData) {
+          setWeekData(cachedData);
+          const trendArr = cachedData.map(d => ({ label: d.day, value: d.steps }));
+          setWeeklyTrend(trendArr);
+          const totalSteps = cachedData.reduce((sum, d) => sum + d.steps, 0);
+          setWeekStats({
+            totalSteps,
+            avgSteps: Math.round(totalSteps / 7),
+            prevWeekAvg: Math.round(totalSteps / 7),
+            calories: 0,
+            distance: 0,
+            activeMinutes: Math.round(totalSteps / 120)
+          });
+          return;
+        }
+      }
+      
       try {
         const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
         const today = new Date();
@@ -96,6 +122,10 @@ const Dashboard = () => {
         setWeekData(weekDataArr);
         setWeeklyTrend(trendArr);
         
+        // Cache the data
+        setCachedWeekData(weekDataArr, user.id);
+        setLastSyncTime(user.id);
+        
         // Calculate week stats
         const totalSteps = weekDataArr.reduce((sum, d) => sum + d.steps, 0);
         const avgSteps = Math.round(totalSteps / 7);
@@ -112,18 +142,46 @@ const Dashboard = () => {
         });
       } catch (error) {
         console.error('[Dashboard] Error fetching weekly data:', error);
+        // Try to load from cache on error
+        const cachedData = getCachedWeekData(user.id);
+        if (cachedData) {
+          setWeekData(cachedData);
+          const trendArr = cachedData.map(d => ({ label: d.day, value: d.steps }));
+          setWeeklyTrend(trendArr);
+        }
       }
     };
     
     fetchWeeklyData();
     const interval = setInterval(fetchWeeklyData, 60000);
     return () => clearInterval(interval);
-  }, [user, dailyGoal, steps]);
+  }, [user, dailyGoal, steps, isOnline, getCachedWeekData, setCachedWeekData, setLastSyncTime]);
 
   // Fetch monthly data
   useEffect(() => {
     const fetchMonthlyData = async () => {
       if (!user) return;
+      
+      // Try to load from cache first when offline
+      if (!isOnline) {
+        const cachedData = getCachedMonthData(user.id);
+        if (cachedData) {
+          setCalendarData(cachedData);
+          const totalSteps = cachedData.reduce((sum, d) => sum + d.steps, 0);
+          const daysHitGoal = cachedData.filter(d => d.hitGoal).length;
+          setMonthStats({
+            totalSteps,
+            avgSteps: Math.round(totalSteps / Math.max(cachedData.filter(d => !d.isFuture).length, 1)),
+            prevMonthAvg: 0,
+            daysHitGoal,
+            calories: 0,
+            distance: 0,
+            activeMinutes: Math.round(totalSteps / 120)
+          });
+          return;
+        }
+      }
+      
       try {
         const today = new Date();
         const year = today.getFullYear();
@@ -157,6 +215,9 @@ const Dashboard = () => {
         }
         
         setCalendarData(calData);
+        
+        // Cache the data
+        setCachedMonthData(calData, user.id);
         
         // Calculate month stats
         const totalSteps = data?.reduce((sum, d) => sum + (d.steps || 0), 0) || 0;
@@ -193,11 +254,16 @@ const Dashboard = () => {
         setYearlyTrend(yearTrend);
       } catch (error) {
         console.error('[Dashboard] Error fetching monthly data:', error);
+        // Try to load from cache on error
+        const cachedData = getCachedMonthData(user.id);
+        if (cachedData) {
+          setCalendarData(cachedData);
+        }
       }
     };
     
     fetchMonthlyData();
-  }, [user, dailyGoal, steps]);
+  }, [user, dailyGoal, steps, isOnline, getCachedMonthData, setCachedMonthData]);
 
   // Update streak when target is hit
   useEffect(() => {
@@ -239,6 +305,9 @@ const Dashboard = () => {
 
   return (
     <div className="h-screen flex flex-col page-with-bottom-nav relative">
+      {/* Offline Banner */}
+      <OfflineBanner />
+      
       {/* Background gradient */}
       <div className="absolute inset-0 pointer-events-none" style={{
         background: 'radial-gradient(circle at top center, hsl(186, 100%, 50%, 0.05), transparent 60%)'
