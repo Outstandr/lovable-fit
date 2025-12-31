@@ -38,7 +38,7 @@ export const GoalStep = forwardRef<HTMLDivElement, GoalStepProps>(
         if (profile?.daily_step_goal) {
           const goal = profile.daily_step_goal;
           const isPreset = PRESET_GOALS.some(p => p.value === goal);
-          
+
           if (isPreset) {
             setSelectedGoal(goal);
           } else {
@@ -65,22 +65,27 @@ export const GoalStep = forwardRef<HTMLDivElement, GoalStepProps>(
 
     const handleContinue = async () => {
       if (!user) return;
-      
+
       const goal = showCustom ? parseInt(customGoal) : selectedGoal;
       if (!goal || goal < 1000 || goal > 50000) return;
 
-      setIsSaving(true);
-
-      await supabase
-        .from('profiles')
-        .update({ daily_step_goal: goal })
-        .eq('id', user.id);
-
-      setIsSaving(false);
+      // Optimistic navigation: Move to next step immediately
       onNext();
+
+      try {
+        // Save in background
+        await supabase
+          .from('profiles')
+          .update({ daily_step_goal: goal })
+          .eq('id', user.id);
+      } catch (error) {
+        console.error('Error saving goal:', error);
+        // Fail silent as we already moved on. 
+        // Data can be retried or synced later.
+      }
     };
 
-    const isValid = showCustom 
+    const isValid = showCustom
       ? customGoal && parseInt(customGoal) >= 1000 && parseInt(customGoal) <= 50000
       : selectedGoal !== null;
 
@@ -119,11 +124,10 @@ export const GoalStep = forwardRef<HTMLDivElement, GoalStepProps>(
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 + index * 0.1 }}
               onClick={() => handleSelectGoal(goal.value)}
-              className={`w-full p-5 rounded-2xl border-2 text-left transition-all ${
-                selectedGoal === goal.value
+              className={`w-full p-5 rounded-2xl border-2 text-left transition-all ${selectedGoal === goal.value
                   ? 'border-primary bg-primary/10'
                   : 'border-border bg-secondary/50 hover:border-primary/50'
-              }`}
+                }`}
             >
               <span className="text-lg font-semibold text-foreground">
                 {goal.label}
@@ -137,11 +141,10 @@ export const GoalStep = forwardRef<HTMLDivElement, GoalStepProps>(
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.5 }}
             onClick={handleCustomGoal}
-            className={`w-full p-5 rounded-2xl border-2 text-left transition-all flex items-center justify-between ${
-              showCustom
+            className={`w-full p-5 rounded-2xl border-2 text-left transition-all flex items-center justify-between ${showCustom
                 ? 'border-primary bg-primary/10'
                 : 'border-border bg-secondary/50 hover:border-primary/50'
-            }`}
+              }`}
           >
             <span className="text-lg font-semibold text-foreground">
               Custom Goal

@@ -7,7 +7,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 
 import {
@@ -38,7 +37,7 @@ const PrivacySettings = () => {
         .select("show_on_leaderboard")
         .eq("id", user.id)
         .maybeSingle();
-      
+
       if (error) throw error;
       return data;
     },
@@ -51,12 +50,12 @@ const PrivacySettings = () => {
         .from("profiles")
         .update({ show_on_leaderboard: showOnLeaderboard })
         .eq("id", user?.id);
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
-      toast.success("Privacy settings updated");
+      console.log("Privacy settings updated");
     },
   });
 
@@ -94,11 +93,10 @@ const PrivacySettings = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      
-      toast.success("Data exported successfully");
+
+      console.log("Data exported successfully");
     } catch (error) {
       console.error("Failed to export data:", error);
-      toast.error("Failed to export data");
     } finally {
       setIsExporting(false);
     }
@@ -109,23 +107,21 @@ const PrivacySettings = () => {
     try {
       // Call the edge function to delete all user data
       const { data, error } = await supabase.functions.invoke('delete-user-data');
-      
+
       if (error) {
         console.error("Delete account error:", error);
-        toast.error("Failed to delete account. Please try again or contact support.");
+        console.error("Delete account error:", error);
         setIsDeleting(false);
         return;
       }
 
       console.log("Account deletion result:", data);
-      toast.success("Account deleted successfully");
-      
+
       // Sign out and navigate to auth
       await signOut();
       navigate("/auth");
     } catch (error) {
       console.error("Failed to delete account:", error);
-      toast.error("Failed to delete account. Please contact support.");
       setIsDeleting(false);
     }
   };
@@ -133,12 +129,12 @@ const PrivacySettings = () => {
   return (
     <div className="min-h-screen-safe bg-background safe-area-pb">
       {/* Header */}
-      <motion.header 
+      <motion.header
         className="flex items-center gap-4 p-4 border-b border-border header-safe"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <button 
+        <button
           onClick={() => navigate("/profile")}
           className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-smooth"
         >
@@ -159,15 +155,17 @@ const PrivacySettings = () => {
         </motion.div>
 
         {/* Leaderboard Visibility */}
-        <motion.div 
-          className="tactical-card p-4"
+        <motion.div
+          className="tactical-card p-4 hover:border-primary/30 transition-colors"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Eye className="h-5 w-5 text-primary" />
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Eye className="h-5 w-5 text-primary" />
+              </div>
               <div>
                 <p className="text-sm font-semibold text-foreground">Show on Leaderboard</p>
                 <p className="text-xs text-muted-foreground">Let others see your progress</p>
@@ -176,30 +174,34 @@ const PrivacySettings = () => {
             <Switch
               checked={profile?.show_on_leaderboard ?? true}
               onCheckedChange={(checked) => updatePrivacyMutation.mutate(checked)}
+              aria-label="Toggle Leaderboard Visibility"
             />
           </div>
         </motion.div>
 
         {/* Export Data */}
-        <motion.div 
-          className="tactical-card p-4"
+        <motion.div
+          className="tactical-card p-4 hover:border-primary/30 transition-colors"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Download className="h-5 w-5 text-primary" />
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Download className="h-5 w-5 text-primary" />
+              </div>
               <div>
                 <p className="text-sm font-semibold text-foreground">Export My Data</p>
                 <p className="text-xs text-muted-foreground">Download all your data as JSON</p>
               </div>
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={handleExportData}
               disabled={isExporting}
+              aria-label="Export Data"
             >
               {isExporting ? (
                 <>
@@ -214,39 +216,37 @@ const PrivacySettings = () => {
         </motion.div>
 
         {/* Privacy Policy Link */}
-        <motion.div 
-          className="tactical-card p-4"
+        <motion.button
+          onClick={() => window.open('/privacypolicy.html', '_blank')}
+          className="w-full tactical-card p-4 flex items-center justify-between hover:bg-secondary/30 hover:border-primary/30 transition-all text-left group"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
         >
-          <a 
-            href="/privacypolicy.html" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="flex items-center justify-between"
-          >
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
               <Shield className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-sm font-semibold text-foreground">Privacy Policy</p>
-                <p className="text-xs text-muted-foreground">View our full privacy policy</p>
-              </div>
             </div>
-            <ExternalLink className="h-4 w-4 text-muted-foreground" />
-          </a>
-        </motion.div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">Privacy Policy</p>
+              <p className="text-xs text-muted-foreground">View our full privacy policy</p>
+            </div>
+          </div>
+          <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+        </motion.button>
 
         {/* Delete Account */}
-        <motion.div 
-          className="tactical-card p-4 border-destructive/30"
+        <motion.div
+          className="tactical-card p-4 border-destructive/30 hover:border-destructive/60 transition-colors"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Trash2 className="h-5 w-5 text-destructive" />
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="h-5 w-5 text-destructive" />
+              </div>
               <div>
                 <p className="text-sm font-semibold text-foreground">Delete Account</p>
                 <p className="text-xs text-muted-foreground">Permanently delete all data</p>
@@ -284,7 +284,7 @@ const PrivacySettings = () => {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction 
+                  <AlertDialogAction
                     onClick={handleDeleteAccount}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     disabled={isDeleting}
@@ -298,7 +298,7 @@ const PrivacySettings = () => {
         </motion.div>
 
         {/* Security Info */}
-        <motion.div 
+        <motion.div
           className="p-4 rounded-lg bg-secondary/50"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -308,7 +308,7 @@ const PrivacySettings = () => {
             <Shield className="h-5 w-5 text-primary flex-shrink-0" />
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">
-                Your data is encrypted and stored securely. We never share your personal 
+                Your data is encrypted and stored securely. We never share your personal
                 information with third parties for marketing purposes.
               </p>
               <p className="text-xs text-muted-foreground">

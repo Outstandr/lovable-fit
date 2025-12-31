@@ -13,12 +13,12 @@ export function BatteryOptimizationStep({ onNext }: BatteryOptimizationStepProps
 
   const handleContinue = async () => {
     setIsRequesting(true);
-    
+
     try {
       if (Capacitor.getPlatform() === 'android') {
         // Check if battery optimization is currently enabled for this app
         const { enabled } = await BatteryOptimization.isBatteryOptimizationEnabled();
-        
+
         if (enabled) {
           // Request the user to disable battery optimization
           await BatteryOptimization.requestIgnoreBatteryOptimization();
@@ -30,7 +30,7 @@ export function BatteryOptimizationStep({ onNext }: BatteryOptimizationStepProps
     } catch (error) {
       console.log('[Onboarding] Battery optimization error:', error);
     }
-    
+
     setIsRequesting(false);
     onNext();
   };
@@ -79,7 +79,7 @@ export function BatteryOptimizationStep({ onNext }: BatteryOptimizationStepProps
           transition={{ delay: 0.3 }}
           className="text-muted-foreground text-center max-w-xs leading-relaxed"
         >
-          Allow Hotstepper to run in the background to count your steps when you don't have the app open.
+          Allow Lionel X to run in the background to count your steps when you don't have the app open.
         </motion.p>
 
         {/* Info box */}
@@ -90,7 +90,7 @@ export function BatteryOptimizationStep({ onNext }: BatteryOptimizationStepProps
           className="mt-8 p-4 rounded-xl bg-secondary/50 max-w-xs"
         >
           <p className="text-sm text-foreground/80 text-center">
-            When prompted, select <span className="font-semibold text-primary">"Allow"</span> to let Hotstepper run in the background without battery restrictions.
+            When prompted, select <span className="font-semibold text-primary">"Allow"</span> to let Lionel X run in the background without battery restrictions.
           </p>
         </motion.div>
       </div>

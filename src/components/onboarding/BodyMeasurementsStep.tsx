@@ -1,120 +1,153 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { User, Ruler, Scale, Calendar } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Ruler, Scale, User, Calendar, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BodyMeasurementsStepProps {
   onNext: () => void;
 }
 
-type UnitSystem = 'metric' | 'imperial';
-type Gender = 'male' | 'female' | 'other' | null;
-
 export function BodyMeasurementsStep({ onNext }: BodyMeasurementsStepProps) {
   const { user } = useAuth();
-  const [units, setUnits] = useState<UnitSystem>('metric');
-  const [gender, setGender] = useState<Gender>(null);
-  const [heightCm, setHeightCm] = useState<number>(170);
-  const [weightKg, setWeightKg] = useState<number>(70);
-  const [birthYear, setBirthYear] = useState<number>(1990);
   const [isSaving, setIsSaving] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Form state
+  const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
+  const [gender, setGender] = useState<string>('');
+
+  // Metric values (always stored in metric)
+  const [heightCm, setHeightCm] = useState<string>('170');
+  const [weightKg, setWeightKg] = useState<string>('70');
+  const [birthYear, setBirthYear] = useState<string>('2000');
 
   // Imperial display values
-  const [heightFt, setHeightFt] = useState<number>(5);
-  const [heightIn, setHeightIn] = useState<number>(7);
-  const [weightLbs, setWeightLbs] = useState<number>(154);
-
-  // Pre-fill from existing profile data
-  useEffect(() => {
-    const loadExistingProfile = async () => {
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('height_cm, weight_kg, age, gender, unit_preference')
-        .eq('id', user.id)
-        .single();
-
-      if (profile) {
-        if (profile.height_cm) setHeightCm(profile.height_cm);
-        if (profile.weight_kg) setWeightKg(profile.weight_kg);
-        if (profile.age) {
-          const currentYear = new Date().getFullYear();
-          setBirthYear(currentYear - profile.age);
-        }
-        if (profile.gender) setGender(profile.gender as Gender);
-        if (profile.unit_preference) setUnits(profile.unit_preference as UnitSystem);
-      }
-      setIsLoaded(true);
-    };
-
-    loadExistingProfile();
-  }, [user]);
+  const [heightFt, setHeightFt] = useState<string>('5');
+  const [heightIn, setHeightIn] = useState<string>('7');
+  const [weightLbs, setWeightLbs] = useState<string>('154');
 
   // Convert metric to imperial for display
-  useEffect(() => {
-    if (!isLoaded) return;
-    const totalInches = heightCm / 2.54;
-    setHeightFt(Math.floor(totalInches / 12));
-    setHeightIn(Math.round(totalInches % 12));
-    setWeightLbs(Math.round(weightKg * 2.205));
-  }, [heightCm, weightKg, isLoaded]);
-
-  const handleHeightChange = (value: number) => {
-    if (units === 'metric') {
-      setHeightCm(value);
-    } else {
-      // Convert imperial to metric
-      const totalInches = heightFt * 12 + value;
-      setHeightCm(Math.round(totalInches * 2.54));
-      setHeightIn(value);
+  const updateImperialFromMetric = () => {
+    if (heightCm) {
+      const totalInches = parseFloat(heightCm) / 2.54;
+      setHeightFt(Math.floor(totalInches / 12).toString());
+      setHeightIn(Math.round(totalInches % 12).toString());
+    }
+    if (weightKg) {
+      setWeightLbs(Math.round(parseFloat(weightKg) * 2.205).toString());
     }
   };
 
-  const handleWeightChange = (value: number) => {
-    if (units === 'metric') {
-      setWeightKg(value);
-    } else {
-      setWeightKg(Math.round(value / 2.205));
-      setWeightLbs(value);
+  // Convert imperial to metric for storage
+  const updateMetricFromImperial = () => {
+    if (heightFt && heightIn) {
+      const totalInches = (parseInt(heightFt) * 12) + parseInt(heightIn);
+      setHeightCm(Math.round(totalInches * 2.54).toString());
+    }
+    if (weightLbs) {
+      setWeightKg(Math.round(parseFloat(weightLbs) / 2.205).toString());
     }
   };
 
-  const handleContinue = async () => {
+  // Handle unit toggle
+  const handleUnitsChange = (newUnits: 'metric' | 'imperial') => {
+    if (newUnits === 'imperial' && units === 'metric') {
+      updateImperialFromMetric();
+    } else if (newUnits === 'metric' && units === 'imperial') {
+      updateMetricFromImperial();
+    }
+    setUnits(newUnits);
+  };
+
+  // Handle imperial height change
+  const handleImperialHeightChange = (feet: string, inches: string) => {
+    setHeightFt(feet);
+    setHeightIn(inches);
+    if (feet && inches) {
+      const totalInches = (parseInt(feet || '0') * 12) + parseInt(inches || '0');
+      setHeightCm(Math.round(totalInches * 2.54).toString());
+    }
+  };
+
+  // Handle imperial weight change
+  const handleImperialWeightChange = (lbs: string) => {
+    setWeightLbs(lbs);
+    if (lbs) {
+      setWeightKg(Math.round(parseFloat(lbs) / 2.205).toString());
+    }
+  };
+
+  // Add error state
+  const [error, setError] = useState<string | null>(null);
+
+  const handleContinue = () => {
+    setError(null);
+
+    // Validate gender selection
+    if (!gender) {
+      setError("Please select your gender to continue");
+      return;
+    }
+
+    // Validate inputs
+    const height = parseFloat(heightCm);
+    const weight = parseFloat(weightKg);
+    const year = parseInt(birthYear);
+    const currentYear = new Date().getFullYear();
+
+    if (isNaN(height) || height < 140 || height > 220) {
+      setError("Please enter a valid height (140-220 cm)");
+      return;
+    }
+
+    if (isNaN(weight) || weight < 30 || weight > 200) {
+      setError("Please enter a valid weight (30-200 kg)");
+      return;
+    }
+
+    if (isNaN(year) || year < 1930 || year > currentYear - 13) {
+      setError("Please enter a valid birth year");
+      return;
+    }
+
+    // If no user, just proceed to next step
     if (!user) {
       onNext();
       return;
     }
-    
-    setIsSaving(true);
-    
-    try {
-      const currentYear = new Date().getFullYear();
-      const age = currentYear - birthYear;
 
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          height_cm: heightCm,
-          weight_kg: weightKg,
-          age,
-          gender,
-          unit_preference: units,
-        })
-        .eq('id', user.id);
+    // OPTIMISTIC NAVIGATION: Proceed immediately
+    onNext();
 
-      if (error) {
-        console.error('[BodyMeasurements] Error saving:', error);
+    // Fire and forget save operation
+    const saveProfile = async () => {
+      try {
+        const age = currentYear - year;
+
+        const { error: saveError } = await supabase
+          .from('profiles')
+          .update({
+            height_cm: height,
+            weight_kg: weight,
+            age,
+            gender,
+            unit_preference: units,
+          })
+          .eq('id', user.id);
+
+        if (saveError) {
+          console.error('[BodyMeasurements] Error saving:', saveError);
+        } else {
+          console.log("Profile saved successfully!");
+        }
+      } catch (err) {
+        console.error('[BodyMeasurements] Exception:', err);
       }
-    } catch (error) {
-      console.error('[BodyMeasurements] Exception:', error);
-    } finally {
-      setIsSaving(false);
-      onNext();
-    }
+    };
+
+    saveProfile();
   };
 
   return (
@@ -125,22 +158,9 @@ export function BodyMeasurementsStep({ onNext }: BodyMeasurementsStepProps) {
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-          className="relative"
+          className="p-4 rounded-full bg-primary/10"
         >
-          <div className="w-20 h-32 flex flex-col items-center">
-            {/* Person icon */}
-            <div className="w-4 h-4 rounded-full border-2 border-foreground mb-1" />
-            <div className="w-8 h-px bg-foreground" />
-            <div className="w-px h-10 bg-foreground" />
-            <div className="flex">
-              <div className="w-px h-8 bg-foreground transform -rotate-12 origin-top" />
-              <div className="w-4" />
-              <div className="w-px h-8 bg-foreground transform rotate-12 origin-top" />
-            </div>
-          </div>
-          {/* Measurement lines */}
-          <div className="absolute -left-4 top-0 w-px h-full bg-muted-foreground/50" />
-          <div className="absolute -right-4 top-0 w-px h-full bg-muted-foreground/50" />
+          <User className="w-12 h-12 text-primary" />
         </motion.div>
       </div>
 
@@ -159,7 +179,7 @@ export function BodyMeasurementsStep({ onNext }: BodyMeasurementsStepProps) {
         transition={{ delay: 0.2 }}
         className="text-muted-foreground text-center text-sm mb-8"
       >
-        Your body measurements are important for accurate steps, distance, and calories tracking.
+        Help us personalize your fitness tracking
       </motion.p>
 
       {/* Form */}
@@ -167,32 +187,32 @@ export function BodyMeasurementsStep({ onNext }: BodyMeasurementsStepProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="flex-1 space-y-5"
+        className="flex-1 space-y-6"
       >
-        {/* Units */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Ruler className="w-5 h-5 text-primary" />
-            <span className="text-foreground">Units</span>
+        {/* Units Toggle */}
+        <div className="tactical-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Ruler className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground">Unit System</span>
+            </div>
           </div>
-          <div className="flex rounded-full bg-secondary p-1">
+          <div className="flex rounded-lg bg-secondary p-1">
             <button
-              onClick={() => setUnits('metric')}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                units === 'metric'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground'
-              }`}
+              onClick={() => handleUnitsChange('metric')}
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${units === 'metric'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               Metric
             </button>
             <button
-              onClick={() => setUnits('imperial')}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                units === 'imperial'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground'
-              }`}
+              onClick={() => handleUnitsChange('imperial')}
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${units === 'imperial'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               Imperial
             </button>
@@ -200,29 +220,27 @@ export function BodyMeasurementsStep({ onNext }: BodyMeasurementsStepProps) {
         </div>
 
         {/* Gender */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <User className="w-5 h-5 text-primary" />
-            <span className="text-foreground">Sex</span>
+        <div className="tactical-card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <User className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold text-foreground">Sex</span>
           </div>
-          <div className="flex rounded-full bg-secondary p-1">
+          <div className="flex rounded-lg bg-secondary p-1">
             <button
               onClick={() => setGender('male')}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                gender === 'male'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground'
-              }`}
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${gender === 'male'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               Male
             </button>
             <button
               onClick={() => setGender('female')}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                gender === 'female'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground'
-              }`}
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${gender === 'female'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               Female
             </button>
@@ -230,64 +248,93 @@ export function BodyMeasurementsStep({ onNext }: BodyMeasurementsStepProps) {
         </div>
 
         {/* Height */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Ruler className="w-5 h-5 text-primary" />
-            <div>
-              <span className="text-foreground block">Height</span>
-              <span className="text-muted-foreground text-sm">
-                {units === 'metric' ? `${heightCm} cm` : `${heightFt}'${heightIn}"`}
+        <div className="tactical-card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Ruler className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold text-foreground">Height</span>
+          </div>
+          {units === 'metric' ? (
+            <div className="relative">
+              <Input
+                type="number"
+                value={heightCm}
+                onChange={(e) => setHeightCm(e.target.value)}
+                placeholder="170"
+                className="pr-12 h-12 text-lg bg-secondary border-border/50 focus:border-primary"
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
+                cm
               </span>
             </div>
-          </div>
-          <input
-            type="range"
-            min={units === 'metric' ? 140 : 0}
-            max={units === 'metric' ? 220 : 11}
-            value={units === 'metric' ? heightCm : heightIn}
-            onChange={(e) => handleHeightChange(parseInt(e.target.value))}
-            className="w-32 accent-primary"
-          />
+          ) : (
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  type="number"
+                  value={heightFt}
+                  onChange={(e) => handleImperialHeightChange(e.target.value, heightIn)}
+                  placeholder="5"
+                  className="pr-10 h-12 text-lg bg-secondary border-border/50 focus:border-primary"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
+                  ft
+                </span>
+              </div>
+              <div className="relative flex-1">
+                <Input
+                  type="number"
+                  value={heightIn}
+                  onChange={(e) => handleImperialHeightChange(heightFt, e.target.value)}
+                  placeholder="7"
+                  className="pr-10 h-12 text-lg bg-secondary border-border/50 focus:border-primary"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
+                  in
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Weight */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Scale className="w-5 h-5 text-primary" />
-            <div>
-              <span className="text-foreground block">Body Weight</span>
-              <span className="text-muted-foreground text-sm">
-                {units === 'metric' ? `${weightKg} kg` : `${weightLbs} lbs`}
-              </span>
-            </div>
+        <div className="tactical-card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Scale className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold text-foreground">Weight</span>
           </div>
-          <input
-            type="range"
-            min={units === 'metric' ? 30 : 66}
-            max={units === 'metric' ? 200 : 440}
-            value={units === 'metric' ? weightKg : weightLbs}
-            onChange={(e) => handleWeightChange(parseInt(e.target.value))}
-            className="w-32 accent-primary"
-          />
+          <div className="relative">
+            <Input
+              type="number"
+              value={units === 'metric' ? weightKg : weightLbs}
+              onChange={(e) =>
+                units === 'metric'
+                  ? setWeightKg(e.target.value)
+                  : handleImperialWeightChange(e.target.value)
+              }
+              placeholder={units === 'metric' ? '70' : '154'}
+              className="pr-14 h-12 text-lg bg-secondary border-border/50 focus:border-primary"
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
+              {units === 'metric' ? 'kg' : 'lbs'}
+            </span>
+          </div>
         </div>
 
         {/* Birth Year */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Calendar className="w-5 h-5 text-primary" />
-            <div>
-              <span className="text-foreground block">Year of birth</span>
-              <span className="text-muted-foreground text-sm">{birthYear}</span>
-            </div>
+        <div className="tactical-card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Calendar className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold text-foreground">Year of Birth</span>
           </div>
-          <input
-            type="range"
-            min={1930}
-            max={2015}
-            value={birthYear}
-            onChange={(e) => setBirthYear(parseInt(e.target.value))}
-            className="w-32 accent-primary"
-          />
+          <div className="relative">
+            <Input
+              type="number"
+              value={birthYear}
+              onChange={(e) => setBirthYear(e.target.value)}
+              placeholder="2000"
+              className="h-12 text-lg bg-secondary border-border/50 focus:border-primary"
+            />
+          </div>
         </div>
       </motion.div>
 
@@ -298,12 +345,22 @@ export function BodyMeasurementsStep({ onNext }: BodyMeasurementsStepProps) {
         transition={{ delay: 0.4 }}
         className="safe-area-pb mt-6"
       >
+        <div className="text-center mb-4">
+          {error && <p className="text-sm text-destructive font-medium">{error}</p>}
+        </div>
         <Button
           onClick={handleContinue}
-          disabled={isSaving}
-          className="w-full h-14 rounded-full bg-primary text-primary-foreground font-semibold text-base"
+          disabled={isSaving || !gender}
+          className="w-full h-14 rounded-full bg-primary text-primary-foreground font-semibold text-base shadow-glow-sm hover:shadow-glow-md transition-all disabled:opacity-50"
         >
-          {isSaving ? 'Saving...' : 'Continue'}
+          {isSaving ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Saving...</span>
+            </div>
+          ) : (
+            'Continue'
+          )}
         </Button>
       </motion.div>
     </div>

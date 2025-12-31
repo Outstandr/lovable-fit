@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
-import { User, Share2, Settings, MoreHorizontal, Play, AlertCircle, RefreshCw, PersonStanding, Headphones, Pause } from "lucide-react";
+import { User, Share2, Settings, Play, AlertCircle, RefreshCw, PersonStanding } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
 import { OnboardingPrompt } from "@/components/OnboardingPrompt";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
+import { StandardHeader } from "@/components/StandardHeader";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { DayView } from "@/components/dashboard/DayView";
 import { WeekView } from "@/components/dashboard/WeekView";
@@ -13,7 +14,6 @@ import { MonthView } from "@/components/dashboard/MonthView";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { useHealth } from "@/hooks/useHealth";
 import { useStreak } from "@/hooks/useStreak";
-import { useAudiobook } from "@/hooks/useAudiobook";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useLocalCache } from "@/hooks/useLocalCache";
 import { useEffect, useState, useCallback } from "react";
@@ -21,23 +21,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
 import { haptics } from '@/utils/haptics';
-import { Progress } from "@/components/ui/progress";
+import { SkeletonCard } from "@/components/ui/SkeletonCard";
 
 type TabType = "day" | "week" | "month";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { steps, distance, calories, dataSource, syncToDatabase } = useHealth();
+  const { steps, distance, calories, dataSource, syncToDatabase, isInitializing } = useHealth();
   const { streak, updateStreakOnTargetHit } = useStreak();
-  const { isPlaying, currentChapter, currentTime, duration, togglePlay, formatTime, isLoading: audiobookLoading } = useAudiobook();
   const { isOnline } = useOfflineSync();
   const { getCachedWeekData, setCachedWeekData, getCachedMonthData, setCachedMonthData, setLastSyncTime } = useLocalCache();
-  
+
   const [activeTab, setActiveTab] = useState<TabType>("day");
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [dailyGoal, setDailyGoal] = useState(10000);
-  
+
   // Data states
   const [weeklyTrend, setWeeklyTrend] = useState<{ label: string; value: number }[]>([]);
   const [weekData, setWeekData] = useState<{ day: string; steps: number; isToday: boolean; hitGoal: boolean }[]>([]);
@@ -65,7 +64,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchWeeklyData = async () => {
       if (!user) return;
-      
+
       // Try to load from cache first when offline
       if (!isOnline) {
         const cachedData = getCachedWeekData(user.id);
@@ -85,53 +84,53 @@ const Dashboard = () => {
           return;
         }
       }
-      
+
       try {
         const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
         const today = new Date();
         const startDate = new Date(today);
         startDate.setDate(startDate.getDate() - 6);
-        
+
         const { data } = await supabase
           .from('daily_steps')
           .select('date, steps, distance_km, calories')
           .eq('user_id', user.id)
           .gte('date', startDate.toISOString().split('T')[0])
           .lte('date', today.toISOString().split('T')[0]);
-        
+
         const weekDataArr: typeof weekData = [];
         const trendArr: typeof weeklyTrend = [];
-        
+
         for (let i = 0; i < 7; i++) {
           const date = new Date(startDate);
           date.setDate(date.getDate() + i);
           const dateStr = date.toISOString().split('T')[0];
           const record = data?.find(d => d.date === dateStr);
           const stepsVal = record?.steps || 0;
-          
+
           weekDataArr.push({
             day: days[date.getDay()],
             steps: stepsVal,
             isToday: i === 6,
             hitGoal: stepsVal >= dailyGoal
           });
-          
+
           trendArr.push({ label: days[date.getDay()], value: stepsVal });
         }
-        
+
         setWeekData(weekDataArr);
         setWeeklyTrend(trendArr);
-        
+
         // Cache the data
         setCachedWeekData(weekDataArr, user.id);
         setLastSyncTime(user.id);
-        
+
         // Calculate week stats
         const totalSteps = weekDataArr.reduce((sum, d) => sum + d.steps, 0);
         const avgSteps = Math.round(totalSteps / 7);
         const totalCalories = data?.reduce((sum, d) => sum + (d.calories || 0), 0) || 0;
         const totalDistance = data?.reduce((sum, d) => sum + (d.distance_km || 0), 0) || 0;
-        
+
         setWeekStats({
           totalSteps,
           avgSteps,
@@ -151,7 +150,7 @@ const Dashboard = () => {
         }
       }
     };
-    
+
     fetchWeeklyData();
     const interval = setInterval(fetchWeeklyData, 60000);
     return () => clearInterval(interval);
@@ -161,7 +160,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchMonthlyData = async () => {
       if (!user) return;
-      
+
       // Try to load from cache first when offline
       if (!isOnline) {
         const cachedData = getCachedMonthData(user.id);
@@ -181,30 +180,30 @@ const Dashboard = () => {
           return;
         }
       }
-      
+
       try {
         const today = new Date();
         const year = today.getFullYear();
         const month = today.getMonth();
         const startOfMonth = new Date(year, month, 1);
-        
+
         const { data } = await supabase
           .from('daily_steps')
           .select('date, steps, distance_km, calories')
           .eq('user_id', user.id)
           .gte('date', startOfMonth.toISOString().split('T')[0])
           .lte('date', today.toISOString().split('T')[0]);
-        
+
         // Build calendar data
         const calData: typeof calendarData = [];
         const daysInMonth = new Date(year, month + 1, 0).getDate();
-        
+
         for (let day = 1; day <= daysInMonth; day++) {
           const date = new Date(year, month, day);
           const dateStr = date.toISOString().split('T')[0];
           const record = data?.find(d => d.date === dateStr);
           const stepsVal = record?.steps || 0;
-          
+
           calData.push({
             date: day,
             steps: stepsVal,
@@ -213,12 +212,12 @@ const Dashboard = () => {
             isFuture: day > today.getDate()
           });
         }
-        
+
         setCalendarData(calData);
-        
+
         // Cache the data
         setCachedMonthData(calData, user.id);
-        
+
         // Calculate month stats
         const totalSteps = data?.reduce((sum, d) => sum + (d.steps || 0), 0) || 0;
         const daysWithData = data?.length || 1;
@@ -226,7 +225,7 @@ const Dashboard = () => {
         const daysHitGoal = calData.filter(d => d.hitGoal).length;
         const totalCalories = data?.reduce((sum, d) => sum + (d.calories || 0), 0) || 0;
         const totalDistance = data?.reduce((sum, d) => sum + (d.distance_km || 0), 0) || 0;
-        
+
         setMonthStats({
           totalSteps,
           avgSteps,
@@ -236,7 +235,7 @@ const Dashboard = () => {
           distance: totalDistance,
           activeMinutes: Math.round(totalSteps / 120)
         });
-        
+
         // Monthly trend (last 2 months)
         const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
         const trendData: { label: string; value: number }[] = [];
@@ -245,7 +244,7 @@ const Dashboard = () => {
           trendData.push({ label: monthNames[m.getMonth()], value: i === 0 ? totalSteps : 0 });
         }
         setMonthlyTrend(trendData);
-        
+
         // Yearly trend (by month)
         const yearTrend: { label: string; value: number }[] = monthNames.slice(0, month + 1).map((m, i) => ({
           label: m,
@@ -261,7 +260,7 @@ const Dashboard = () => {
         }
       }
     };
-    
+
     fetchMonthlyData();
   }, [user, dailyGoal, steps, isOnline, getCachedMonthData, setCachedMonthData]);
 
@@ -279,7 +278,7 @@ const Dashboard = () => {
       try {
         const onboardingDone = localStorage.getItem('onboarding_completed');
         if (onboardingDone === 'true') return;
-        
+
         const { data } = await supabase.from('profiles').select('profile_completed').eq('id', user.id).single();
         if (!data?.profile_completed) {
           setTimeout(() => setShowOnboarding(true), 2000);
@@ -307,164 +306,117 @@ const Dashboard = () => {
     <div className="h-screen flex flex-col page-with-bottom-nav relative">
       {/* Offline Banner */}
       <OfflineBanner />
-      
+
       {/* Background gradient */}
       <div className="absolute inset-0 pointer-events-none" style={{
         background: 'radial-gradient(circle at top center, hsl(186, 100%, 50%, 0.05), transparent 60%)'
       }} />
 
       <PullToRefresh onRefresh={handleRefresh} className="flex-1 flex flex-col overflow-hidden">
-        <RubberBandScroll className="flex-1 overflow-y-auto" contentClassName="pb-32">
+        <RubberBandScroll className="flex-1 overflow-y-auto" contentClassName="pb-8">
           {/* Header */}
-          <motion.header
-            className="px-4 pb-2 header-safe relative z-content"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            {/* Title Row */}
-            <div className="flex items-center justify-between mb-3">
-              <button 
-                onClick={() => { haptics.light(); navigate('/profile'); }}
+          {/* Standard Header */}
+          <StandardHeader
+            title="Lionel X"
+            rightAction={
+              <button
+                onClick={() => { haptics.light(); navigate('/settings'); }} // Direct to /settings
                 className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
               >
                 <Settings className="h-5 w-5" />
               </button>
-              
-              <h1 className="text-lg font-bold tracking-widest text-primary uppercase">
-                Hotstepper
-              </h1>
-              
-              <button 
-                className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
-              >
-                <MoreHorizontal className="h-5 w-5" />
-              </button>
-            </div>
-            
-            {/* Tabs Row */}
-            <div className="flex justify-center">
+            }
+          />
+
+          <div className="px-4 pb-2 relative z-content">
+            {/* Tabs Row - Moved slightly up to sit under header */}
+            <div className="flex justify-center -mt-2 mb-2">
               <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
             </div>
-          </motion.header>
-
-      {/* Main Content */}
-      <main className="px-4 relative z-content">
-        {activeTab === "day" && (
-          <DayView
-            steps={steps}
-            goal={dailyGoal}
-            calories={calories}
-            distance={displayDistance}
-            activeMinutes={activeMinutes}
-            streak={streak.currentStreak}
-            weeklyTrend={weeklyTrend}
-          />
-        )}
-        
-        {activeTab === "week" && (
-          <WeekView
-            totalSteps={weekStats.totalSteps}
-            avgSteps={weekStats.avgSteps}
-            prevWeekAvg={weekStats.prevWeekAvg}
-            goal={dailyGoal}
-            weekData={weekData}
-            calories={weekStats.calories}
-            distance={weekStats.distance}
-            activeMinutes={weekStats.activeMinutes}
-            streak={streak.currentStreak}
-            monthlyTrend={monthlyTrend}
-          />
-        )}
-        
-        {activeTab === "month" && (
-          <MonthView
-            year={today.getFullYear()}
-            month={today.getMonth()}
-            totalSteps={monthStats.totalSteps}
-            avgSteps={monthStats.avgSteps}
-            prevMonthAvg={monthStats.prevMonthAvg}
-            goal={dailyGoal}
-            daysHitGoal={monthStats.daysHitGoal}
-            calendarData={calendarData}
-            calories={monthStats.calories}
-            distance={monthStats.distance}
-            activeMinutes={monthStats.activeMinutes}
-            streak={streak.currentStreak}
-            yearlyTrend={yearlyTrend}
-          />
-        )}
-
-        {/* Audiobook Mini Player */}
-        <motion.div
-          className="pt-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-        >
-          <div 
-            className="tactical-card cursor-pointer"
-            onClick={() => navigate('/audiobook')}
-          >
-            <div className="flex items-center gap-3">
-              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20 flex-shrink-0">
-                <Headphones className="h-6 w-6 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-muted-foreground">
-                  {currentChapter ? 'Now Playing' : 'Audiobook'}
-                </p>
-                <p className="text-sm font-semibold text-foreground truncate">
-                  {currentChapter?.title || 'Reset Body & Diet'}
-                </p>
-                {duration > 0 && (
-                  <div className="mt-1.5">
-                    <Progress value={(currentTime / duration) * 100} className="h-1" />
-                    <p className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
-                      {formatTime(currentTime)} / {formatTime(duration)}
-                    </p>
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); haptics.medium(); togglePlay(); }}
-                disabled={audiobookLoading}
-                className="h-10 w-10 rounded-full flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-smooth flex-shrink-0"
-              >
-                {audiobookLoading ? (
-                  <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                ) : isPlaying ? (
-                  <Pause className="h-4 w-4" />
-                ) : (
-                  <Play className="h-4 w-4 ml-0.5" />
-                )}
-              </button>
-            </div>
           </div>
-          </motion.div>
-        </main>
+
+          {/* Main Content */}
+          <main className="px-4 relative z-content">
+            {activeTab === "day" && (
+              <DayView
+                steps={steps}
+                goal={dailyGoal}
+                calories={calories}
+                distance={displayDistance}
+                activeMinutes={activeMinutes}
+                streak={streak.currentStreak}
+                weeklyTrend={weeklyTrend}
+                isLoading={isInitializing}
+              />
+            )}
+
+            {activeTab === "week" && (
+              <WeekView
+                totalSteps={weekStats.totalSteps}
+                avgSteps={weekStats.avgSteps}
+                prevWeekAvg={weekStats.prevWeekAvg}
+                goal={dailyGoal}
+                weekData={weekData}
+                calories={weekStats.calories}
+                distance={weekStats.distance}
+                activeMinutes={weekStats.activeMinutes}
+                streak={streak.currentStreak}
+                monthlyTrend={monthlyTrend}
+                isLoading={isInitializing}
+              />
+            )}
+
+            {activeTab === "month" && (
+              <MonthView
+                year={today.getFullYear()}
+                month={today.getMonth()}
+                totalSteps={monthStats.totalSteps}
+                avgSteps={monthStats.avgSteps}
+                prevMonthAvg={monthStats.prevMonthAvg}
+                goal={dailyGoal}
+                daysHitGoal={monthStats.daysHitGoal}
+                calendarData={calendarData}
+                calories={monthStats.calories}
+                distance={monthStats.distance}
+                activeMinutes={monthStats.activeMinutes}
+                streak={streak.currentStreak}
+                yearlyTrend={yearlyTrend}
+                isLoading={isInitializing}
+              />
+            )}
+          </main>
         </RubberBandScroll>
       </PullToRefresh>
 
       {/* Action Button */}
       <div className="fixed left-4 right-4 z-fixed fixed-above-nav" style={{ marginBottom: '1rem' }}>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}>
-          <Button 
-            variant="tactical" 
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7 }}
+        >
+          <Button
+            variant="tactical"
             size="full"
             onClick={() => { haptics.medium(); navigate('/active'); }}
-            className="h-14 text-sm font-bold uppercase tracking-widest shadow-lg press-scale"
-            style={{ boxShadow: '0 8px 24px hsl(186, 100%, 50%, 0.35)' }}
+            className="h-14 text-sm font-bold uppercase tracking-widest shadow-glow-lg hover:shadow-glow-lg press-scale relative overflow-hidden group"
           >
-            <Play className="mr-2 h-5 w-5" />
-            Start Active Session
+            {/* Animated background shimmer */}
+            <div className="absolute inset-0 bg-gradient-shimmer opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-shimmer" />
+
+            {/* Button content */}
+            <div className="relative z-10 flex items-center justify-center">
+              <Play className="mr-2 h-5 w-5" />
+              Start Active Session
+            </div>
           </Button>
         </motion.div>
       </div>
 
       <BottomNav />
 
-      <OnboardingPrompt 
-        isOpen={showOnboarding} 
+      <OnboardingPrompt
+        isOpen={showOnboarding}
         onClose={() => setShowOnboarding(false)}
         onSkip={() => localStorage.setItem('onboarding_completed', 'true')}
       />

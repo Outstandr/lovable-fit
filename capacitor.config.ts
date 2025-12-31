@@ -4,11 +4,7 @@ const config: CapacitorConfig = {
   appId: 'app.lovable.hotstepper',
   appName: 'Lionel X',
   webDir: 'dist',
-  // Uncomment below for development hot-reload:
-  // server: {
-  //   url: 'https://5220bb0a-2720-4ce5-ad2f-a5b6636b045c.lovableproject.com?forceHideBadge=true',
-  //   cleartext: true
-  // },
+  // Dev server removed for production release
   android: {
     minWebViewVersion: 55,
     buildOptions: {

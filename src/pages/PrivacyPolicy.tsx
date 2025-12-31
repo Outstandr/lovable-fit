@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, Shield, Lock, Eye, Trash2, Mail } from "lucide-react";
+import { Shield, Lock, Eye, Trash2, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
+import { StandardHeader } from "@/components/StandardHeader";
 
 const PrivacyPolicy = () => {
   const navigate = useNavigate();
@@ -66,22 +67,12 @@ We aim to respond within 48 hours.`
   return (
     <div className="min-h-screen bg-background">
       <RubberBandScroll className="h-screen" contentClassName="pb-8">
-        {/* Header */}
-        <motion.header 
-          className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="flex items-center gap-4 px-4 py-4 header-safe">
-            <button 
-              onClick={() => navigate(-1)}
-              className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            <h1 className="text-xl font-bold text-foreground">Privacy Policy</h1>
-          </div>
-        </motion.header>
+
+        {/* Standard Header */}
+        <StandardHeader
+          title="Privacy Policy"
+          showBack={true}
+        />
 
         {/* Content */}
         <div className="px-4 py-6 space-y-6">
@@ -100,9 +91,9 @@ We aim to respond within 48 hours.`
             className="tactical-card p-4"
           >
             <p className="text-foreground text-sm leading-relaxed">
-              Outstandr ("we", "our", or "us") is committed to protecting your privacy. 
-              This policy explains how we collect, use, and safeguard your information when 
-              you use our Hotstepper mobile application.
+              Outstandr ("we", "our", or "us") is committed to protecting your privacy.
+              This policy explains how we collect, use, and safeguard your information when
+              you use our Lionel X mobile application.
             </p>
           </motion.div>
 
@@ -133,7 +124,7 @@ We aim to respond within 48 hours.`
             className="pt-4 border-t border-border"
           >
             <p className="text-xs text-muted-foreground text-center">
-              By using Hotstepper, you agree to this privacy policy. Hotstepper is developed by Outstandr.
+              By using Lionel X, you agree to this privacy policy. Lionel X is developed by Outstandr.
             </p>
           </motion.div>
         </div>

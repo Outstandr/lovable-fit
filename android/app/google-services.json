@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "909393783978",
+    "project_id": "hotstepper-76098",
+    "storage_bucket": "hotstepper-76098.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:909393783978:android:f41a216f5257108fa434d3",
+        "android_client_info": {
+          "package_name": "app.lovable.hotstepper"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBTu8RZErOH9Q3LDorqVfznqJd9cnCKjwo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

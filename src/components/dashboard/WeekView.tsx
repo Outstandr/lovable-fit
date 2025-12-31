@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown } from "lucide-react";
 import { StatsRow } from "./StatsRow";
 import { WeekBarChart } from "./WeekBarChart";
 import { TrendChart } from "./TrendChart";
+import { SkeletonCard, SkeletonText } from "@/components/ui/SkeletonCard";
 
 interface WeekViewProps {
   totalSteps: number;
@@ -15,21 +16,39 @@ interface WeekViewProps {
   activeMinutes: number;
   streak: number;
   monthlyTrend: { label: string; value: number }[];
+  isLoading?: boolean;
 }
 
-export const WeekView = ({ 
-  totalSteps, avgSteps, prevWeekAvg, goal, weekData, 
-  calories, distance, activeMinutes, streak, monthlyTrend 
+export const WeekView = ({
+  totalSteps, avgSteps, prevWeekAvg, goal, weekData,
+  calories, distance, activeMinutes, streak, monthlyTrend, isLoading
 }: WeekViewProps) => {
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="px-4 space-y-2">
+          <SkeletonText width="w-20" className="h-4" />
+          <div className="flex justify-between items-center">
+            <SkeletonText width="w-32" className="h-10" />
+            <SkeletonText width="w-24" className="h-8 rounded-full" />
+          </div>
+        </div>
+        <SkeletonCard className="h-[200px]" />
+        <SkeletonCard className="h-[80px]" />
+        <SkeletonCard className="h-[150px]" />
+      </div>
+    );
+  }
+
   const trendUp = avgSteps >= prevWeekAvg;
-  const trendPercent = prevWeekAvg > 0 
+  const trendPercent = prevWeekAvg > 0
     ? Math.abs(((avgSteps - prevWeekAvg) / prevWeekAvg) * 100).toFixed(0)
     : 0;
 
   return (
     <div className="space-y-6">
       {/* Header Stats */}
-      <motion.div 
+      <motion.div
         className="px-4"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -54,7 +73,7 @@ export const WeekView = ({
       </motion.div>
 
       {/* Week Bar Chart */}
-      <motion.div 
+      <motion.div
         className="tactical-card"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -64,7 +83,7 @@ export const WeekView = ({
       </motion.div>
 
       {/* Stats Row */}
-      <StatsRow 
+      <StatsRow
         streak={streak}
         calories={calories}
         distance={distance}

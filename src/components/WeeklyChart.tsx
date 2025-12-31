@@ -8,6 +8,7 @@ interface DayData {
   day: string;
   steps: number;
   isToday: boolean;
+  dateStr?: string;
 }
 
 export const WeeklyChart = () => {
@@ -25,11 +26,11 @@ export const WeeklyChart = () => {
       // Get last 7 days including today
       const startDate = new Date(today);
       startDate.setDate(startDate.getDate() - 6);
-      
+
       for (let i = 0; i < 7; i++) {
         const date = new Date(startDate);
         date.setDate(date.getDate() + i);
-        
+
         weekData.push({
           day: days[date.getDay()],
           steps: 0,
@@ -47,13 +48,16 @@ export const WeeklyChart = () => {
 
       if (stepsData) {
         stepsData.forEach(record => {
-          const recordDate = new Date(record.date + 'T00:00:00');
-          const startDateTime = new Date(startDate.toISOString().split('T')[0] + 'T00:00:00');
-          const diffTime = recordDate.getTime() - startDateTime.getTime();
-          const dayIndex = Math.round(diffTime / (1000 * 60 * 60 * 24));
-          if (dayIndex >= 0 && dayIndex < 7) {
-            weekData[dayIndex].steps = record.steps;
-          }
+          // Create local date string for comparison to avoid timezone shifts
+          // record.date is expected to be YYYY-MM-DD from database
+          const recordDateStr = record.date;
+
+          weekData.forEach(day => {
+            // Compare YYYY-MM-DD strings directly
+            if (day.dateStr === recordDateStr) {
+              day.steps = record.steps;
+            }
+          });
         });
       }
 
@@ -61,7 +65,7 @@ export const WeeklyChart = () => {
     };
 
     fetchWeeklyData();
-    
+
     // Refresh every minute for real-time updates
     const interval = setInterval(fetchWeeklyData, 60000);
     return () => clearInterval(interval);
@@ -102,29 +106,29 @@ export const WeeklyChart = () => {
                 <stop offset="100%" stopColor="hsl(186, 100%, 50%)" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <XAxis 
-              dataKey="day" 
+            <XAxis
+              dataKey="day"
               axisLine={false}
               tickLine={false}
-              tick={{ 
-                fill: 'hsl(215, 30%, 65%)', 
-                fontSize: 10, 
-                fontWeight: 500 
+              tick={{
+                fill: 'hsl(215, 30%, 65%)',
+                fontSize: 10,
+                fontWeight: 500
               }}
               dy={10}
             />
             <Tooltip content={<CustomTooltip />} />
-            <ReferenceLine 
-              y={10000} 
-              stroke="hsl(142, 76%, 36%)" 
-              strokeDasharray="4 4" 
+            <ReferenceLine
+              y={10000}
+              stroke="hsl(142, 76%, 36%)"
+              strokeDasharray="4 4"
               strokeWidth={1.5}
-              label={{ 
-                value: "10K", 
-                position: "right", 
-                fill: "hsl(142, 76%, 36%)", 
+              label={{
+                value: "10K",
+                position: "right",
+                fill: "hsl(142, 76%, 36%)",
                 fontSize: 10,
-                fontWeight: 600 
+                fontWeight: 600
               }}
             />
             <Area

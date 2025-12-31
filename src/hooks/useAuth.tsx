@@ -24,17 +24,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const initializeAuth = async () => {
       try {
         // Add timeout to prevent infinite loading on cold start
-        const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) => 
+        const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
           setTimeout(() => {
             console.log('[Auth] Session fetch timeout - proceeding without session');
             resolve({ data: { session: null } });
           }, 10000)
         );
-        
+
         const sessionPromise = supabase.auth.getSession();
-        
+
         const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
-        
+
         if (isMounted) {
           console.log('[Auth] Initial session:', session?.user?.id);
           setSession(session);
@@ -57,9 +57,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return;
-        
+
         console.log('[Auth] State change:', event, session?.user?.id);
-        
+
         // Don't log out on SIGNED_OUT event if we still have a valid session
         if (event === 'SIGNED_OUT') {
           const { data } = await supabase.auth.getSession();
@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             return;
           }
         }
-        
+
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -123,8 +123,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Mark access code as used
         await supabase
           .from("access_codes")
-          .update({ 
-            is_used: true, 
+          .update({
+            is_used: true,
             used_by: data.user.id,
             used_at: new Date().toISOString()
           })
@@ -158,6 +158,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
+    // Explicitly clear local state immediately to prevent race conditions
+    setSession(null);
+    setUser(null);
+    setLoading(false);
+
+    // Perform Supabase sign out
     await supabase.auth.signOut();
   };
 

@@ -10,14 +10,15 @@ import { BatteryOptimizationStep } from '@/components/onboarding/BatteryOptimiza
 import { NotificationStep } from '@/components/onboarding/NotificationStep';
 import { GoalStep } from '@/components/onboarding/GoalStep';
 import { SetupCompleteStep } from '@/components/onboarding/SetupCompleteStep';
+import { LoadingScreen } from '@/components/LoadingScreen';
 
-export type OnboardingStep = 
-  | 'activity' 
+export type OnboardingStep =
+  | 'activity'
   | 'location'
-  | 'body' 
-  | 'battery' 
-  | 'notification' 
-  | 'goal' 
+  | 'body'
+  | 'battery'
+  | 'notification'
+  | 'goal'
   | 'complete';
 
 const ONBOARDING_KEY = 'device_onboarding_completed';
@@ -69,11 +70,7 @@ const Onboarding = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen-safe flex items-center justify-center bg-background">
-        <div className="animate-pulse text-primary">Loading...</div>
-      </div>
-    );
+    return <LoadingScreen variant="protocol" message="Initializing Onboarding..." />;
   }
 
   return (

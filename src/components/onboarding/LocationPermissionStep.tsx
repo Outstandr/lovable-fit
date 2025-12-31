@@ -15,7 +15,7 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
 
   const handleContinue = async () => {
     setIsRequesting(true);
-    
+
     try {
       if (Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('Geolocation')) {
         // First check if permission is already granted
@@ -26,7 +26,7 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
           setTimeout(() => onNext(), 1000);
           return;
         }
-        
+
         // Request permission - this triggers the native system dialog
         const result = await Geolocation.requestPermissions();
         console.log('[Onboarding] Location permission result:', result);
@@ -36,28 +36,28 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
     } catch (error) {
       console.log('[Onboarding] Location permission error:', error);
     }
-    
+
     setIsRequesting(false);
     onNext();
   };
 
   const benefits = [
-    { icon: Navigation, text: 'Track your walking routes in real-time' },
-    { icon: Route, text: 'Record your path for session history' },
-    { icon: Gauge, text: 'Calculate accurate distance & speed' },
+    { icon: Navigation, text: 'Track walking routes' },
+    { icon: Route, text: 'Record session history' },
+    { icon: Gauge, text: 'Accurate distance & speed' },
   ];
 
   return (
-    <div className="flex flex-col min-h-screen-safe p-6 safe-area-x">
-      <div className="flex-1 flex flex-col items-center justify-center max-w-md mx-auto w-full">
+    <div className="flex flex-col h-screen overflow-hidden p-6 safe-area-x">
+      <div className="flex-1 flex flex-col items-center justify-center w-full max-w-sm mx-auto">
         {/* Icon */}
         <motion.div
           initial={{ scale: 0, rotate: -180 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ type: "spring", duration: 0.8, bounce: 0.4 }}
-          className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mb-8"
+          className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6"
         >
-          <MapPin className="w-12 h-12 text-primary" />
+          <MapPin className="w-10 h-10 text-primary" />
         </motion.div>
 
         {/* Title */}
@@ -65,7 +65,7 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="text-2xl font-bold text-foreground text-center mb-3"
+          className="text-xl font-bold text-foreground text-center mb-2"
         >
           Enable Location Access
         </motion.h1>
@@ -75,9 +75,9 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="text-muted-foreground text-center mb-8"
+          className="text-muted-foreground text-center text-sm mb-6 px-4"
         >
-          We need access to your location so that you can track your walking routes with GPS accuracy during active sessions.
+          We need access to your location to track your walking routes with GPS accuracy during workouts.
         </motion.p>
 
         {/* Benefits */}
@@ -85,7 +85,7 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="w-full space-y-4 mb-8"
+          className="w-full space-y-3 mb-6"
         >
           {benefits.map((benefit, index) => (
             <motion.div
@@ -93,12 +93,12 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.5 + index * 0.1 }}
-              className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border"
+              className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border"
             >
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <benefit.icon className="w-5 h-5 text-primary" />
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <benefit.icon className="w-4 h-4 text-primary" />
               </div>
-              <span className="text-foreground">{benefit.text}</span>
+              <span className="text-sm text-foreground font-medium">{benefit.text}</span>
             </motion.div>
           ))}
         </motion.div>
@@ -108,9 +108,9 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
-          className="text-xs text-muted-foreground text-center mb-6"
+          className="text-[10px] text-muted-foreground text-center mb-4"
         >
-          Location is only used during active sessions and is never shared with third parties
+          Location is only used during active sessions and is never shared with third parties.
         </motion.p>
       </div>
 
@@ -119,17 +119,16 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.9 }}
-        className="safe-area-bottom space-y-3"
+        className="safe-area-bottom space-y-3 w-full"
       >
         <Button
           onClick={handleContinue}
           disabled={isRequesting || alreadyGranted}
-          className="w-full h-14 text-lg font-semibold"
-          size="lg"
+          className="w-full h-12 text-base font-semibold"
         >
           {alreadyGranted ? (
             <>
-              <Check className="mr-2 h-5 w-5" />
+              <Check className="mr-2 h-4 w-4" />
               Permission Granted
             </>
           ) : isRequesting ? (
@@ -143,8 +142,7 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
             onClick={onNext}
             disabled={isRequesting}
             variant="ghost"
-            className="w-full h-12 text-muted-foreground"
-            size="lg"
+            className="w-full h-10 text-sm text-muted-foreground hover:text-foreground"
           >
             Skip for now
           </Button>

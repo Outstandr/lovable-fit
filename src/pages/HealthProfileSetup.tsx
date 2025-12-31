@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { supabase } from "@/integrations/supabase/client";
+import { LoadingScreen } from '@/components/LoadingScreen';
 import { useAuth } from "@/hooks/useAuth";
 
 type UnitSystem = 'metric' | 'imperial';
@@ -31,22 +32,22 @@ export default function HealthProfileSetup() {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Unit system
   const [heightUnit, setHeightUnit] = useState<UnitSystem>('metric');
   const [weightUnit, setWeightUnit] = useState<UnitSystem>('metric');
-  
+
   // Form values (stored in metric)
   const [heightCm, setHeightCm] = useState<string>('');
   const [weightKg, setWeightKg] = useState<string>('');
   const [age, setAge] = useState<string>('');
   const [gender, setGender] = useState<string>('');
-  
+
   // Display values for imperial
   const [heightFeet, setHeightFeet] = useState<string>('');
   const [heightInches, setHeightInches] = useState<string>('');
   const [weightLbs, setWeightLbs] = useState<string>('');
-  
+
   const [errors, setErrors] = useState<FormErrors>({});
   const [existingProfile, setExistingProfile] = useState<HealthProfile | null>(null);
 
@@ -54,7 +55,7 @@ export default function HealthProfileSetup() {
   useEffect(() => {
     const loadProfile = async () => {
       if (!user) return;
-      
+
       setIsLoading(true);
       try {
         const { data, error } = await supabase
@@ -62,9 +63,9 @@ export default function HealthProfileSetup() {
           .select('height_cm, weight_kg, age, gender')
           .eq('id', user.id)
           .maybeSingle();
-        
+
         if (error) throw error;
-        
+
         if (data) {
           setExistingProfile(data);
           if (data.height_cm) setHeightCm(String(data.height_cm));
@@ -78,7 +79,7 @@ export default function HealthProfileSetup() {
         setIsLoading(false);
       }
     };
-    
+
     loadProfile();
   }, [user]);
 
@@ -164,27 +165,27 @@ export default function HealthProfileSetup() {
   // Validation
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
-    
+
     const height = parseFloat(heightCm);
     const weight = parseFloat(weightKg);
     const ageNum = parseInt(age);
-    
+
     if (!heightCm || isNaN(height) || height < 140 || height > 220) {
       newErrors.height = 'Height must be between 140-220 cm';
     }
-    
+
     if (!weightKg || isNaN(weight) || weight < 30 || weight > 200) {
       newErrors.weight = 'Weight must be between 30-200 kg';
     }
-    
+
     if (!age || isNaN(ageNum) || ageNum < 13 || ageNum > 99) {
       newErrors.age = 'Age must be between 13-99';
     }
-    
+
     if (!gender) {
       newErrors.gender = 'Please select a gender';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -193,7 +194,7 @@ export default function HealthProfileSetup() {
     const height = parseFloat(heightCm);
     const weight = parseFloat(weightKg);
     const ageNum = parseInt(age);
-    
+
     return (
       heightCm && !isNaN(height) && height >= 140 && height <= 220 &&
       weightKg && !isNaN(weight) && weight >= 30 && weight <= 200 &&
@@ -204,8 +205,11 @@ export default function HealthProfileSetup() {
 
   const handleSave = async () => {
     if (!validate() || !user) return;
-    
-    setIsSaving(true);
+
+    // OPTIMISTIC NAVIGATION: Proceed immediately
+    navigate('/');
+
+    // Perform save in background
     try {
       const { error } = await supabase
         .from('profiles')
@@ -219,14 +223,14 @@ export default function HealthProfileSetup() {
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
-      
-      if (error) throw error;
-      
-      navigate('/');
+
+      if (error) {
+        console.error('Error saving profile:', error);
+        // We navigated away, so we can't show error easily, 
+        // but user can update in settings later.
+      }
     } catch (error) {
       console.error('Error saving profile:', error);
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -235,11 +239,7 @@ export default function HealthProfileSetup() {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen-safe bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
-      </div>
-    );
+    return <LoadingScreen variant="default" message="Loading Profile..." />;
   }
 
   return (
@@ -247,14 +247,14 @@ export default function HealthProfileSetup() {
       {/* Header */}
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border/30 header-safe">
         <div className="flex items-center justify-between px-4 py-3">
-          <button 
+          <button
             onClick={() => navigate(-1)}
             className="p-2 -ml-2 text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <h1 className="text-lg font-bold tracking-wide text-foreground">YOUR STATS</h1>
-          <button 
+          <button
             onClick={handleSave}
             disabled={!isFormValid() || isSaving}
             className="p-2 -mr-2 text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
@@ -266,7 +266,7 @@ export default function HealthProfileSetup() {
 
       <div className="px-4 py-6 space-y-6">
         {/* Intro text */}
-        <motion.p 
+        <motion.p
           className="text-sm text-muted-foreground text-center"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -277,7 +277,7 @@ export default function HealthProfileSetup() {
         {/* Form fields */}
         <div className="space-y-5">
           {/* Height */}
-          <motion.div 
+          <motion.div
             className="space-y-2"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -347,7 +347,7 @@ export default function HealthProfileSetup() {
           </motion.div>
 
           {/* Weight */}
-          <motion.div 
+          <motion.div
             className="space-y-2"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -364,8 +364,8 @@ export default function HealthProfileSetup() {
                 <Input
                   type="number"
                   value={weightUnit === 'metric' ? weightKg : weightLbs}
-                  onChange={(e) => weightUnit === 'metric' 
-                    ? setWeightKg(e.target.value) 
+                  onChange={(e) => weightUnit === 'metric'
+                    ? setWeightKg(e.target.value)
                     : handleImperialWeightChange(e.target.value)
                   }
                   placeholder={weightUnit === 'metric' ? '70' : '154'}
@@ -391,7 +391,7 @@ export default function HealthProfileSetup() {
           </motion.div>
 
           {/* Age */}
-          <motion.div 
+          <motion.div
             className="space-y-2"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -421,7 +421,7 @@ export default function HealthProfileSetup() {
           </motion.div>
 
           {/* Gender */}
-          <motion.div 
+          <motion.div
             className="space-y-2"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -464,7 +464,7 @@ export default function HealthProfileSetup() {
           >
             {isSaving ? 'SAVING...' : 'SAVE & CONTINUE'}
           </Button>
-          
+
           <button
             onClick={handleSkip}
             className="w-full py-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -475,7 +475,7 @@ export default function HealthProfileSetup() {
 
         {/* Last updated info */}
         {existingProfile?.height_cm && (
-          <motion.p 
+          <motion.p
             className="text-xs text-muted-foreground text-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

@@ -5,7 +5,6 @@ import { Eye, EyeOff, Key, Mail, User, ShieldCheck, Footprints } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 
 const signUpSchema = z.object({
@@ -34,7 +33,6 @@ const Auth = () => {
 
   const navigate = useNavigate();
   const { user, signUp, signIn } = useAuth();
-  const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
@@ -75,16 +73,9 @@ const Auth = () => {
         );
 
         if (error) {
-          toast({
-            title: "Registration Failed",
-            description: error,
-            variant: "destructive",
-          });
+          setErrors({ general: error });
         } else {
-          toast({
-            title: "Welcome to the Protocol",
-            description: "Your account has been created successfully.",
-          });
+          console.log("Registration successful");
         }
       } else {
         const result = signInSchema.safeParse(formData);
@@ -103,19 +94,11 @@ const Auth = () => {
         const { error } = await signIn(formData.email, formData.password);
 
         if (error) {
-          toast({
-            title: "Login Failed",
-            description: error,
-            variant: "destructive",
-          });
+          setErrors({ general: error });
         }
       }
     } catch (err) {
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred",
-        variant: "destructive",
-      });
+      setErrors({ general: "An unexpected error occurred" });
     } finally {
       setLoading(false);
     }
@@ -130,7 +113,7 @@ const Auth = () => {
       </div>
 
       {/* Header */}
-      <motion.div 
+      <motion.div
         className="text-center mb-10 relative z-10"
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -146,15 +129,15 @@ const Auth = () => {
           <Footprints className="h-10 w-10 text-primary" />
         </motion.div>
 
-        <motion.h1 
+        <motion.h1
           className="text-4xl font-bold uppercase tracking-[0.2em] text-gradient-cyan mb-2"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
         >
-          Hotstepper
+          Lionel X
         </motion.h1>
-        <motion.p 
+        <motion.p
           className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -165,7 +148,7 @@ const Auth = () => {
       </motion.div>
 
       {/* Auth Card */}
-      <motion.div 
+      <motion.div
         className="tactical-card max-w-sm mx-auto w-full relative z-10"
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -176,22 +159,20 @@ const Auth = () => {
           <button
             type="button"
             onClick={() => setIsSignUp(false)}
-            className={`flex-1 py-2.5 text-sm font-bold uppercase tracking-wider rounded-lg transition-all duration-300 touch-target ${
-              !isSignUp 
-                ? 'bg-gradient-to-r from-primary to-cyan-dark text-primary-foreground shadow-glow-sm' 
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
+            className={`flex-1 py-2.5 text-sm font-bold uppercase tracking-wider rounded-lg transition-all duration-300 touch-target ${!isSignUp
+              ? 'bg-gradient-to-r from-primary to-cyan-dark text-primary-foreground shadow-glow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+              }`}
           >
             Sign In
           </button>
           <button
             type="button"
             onClick={() => setIsSignUp(true)}
-            className={`flex-1 py-2.5 text-sm font-bold uppercase tracking-wider rounded-lg transition-all duration-300 touch-target ${
-              isSignUp 
-                ? 'bg-gradient-to-r from-primary to-cyan-dark text-primary-foreground shadow-glow-sm' 
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
+            className={`flex-1 py-2.5 text-sm font-bold uppercase tracking-wider rounded-lg transition-all duration-300 touch-target ${isSignUp
+              ? 'bg-gradient-to-r from-primary to-cyan-dark text-primary-foreground shadow-glow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+              }`}
           >
             Register
           </button>
@@ -306,6 +287,17 @@ const Auth = () => {
             )}
           </AnimatePresence>
 
+          {/* General Error Message */}
+          {errors.general && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-center"
+            >
+              <p className="text-sm text-destructive font-semibold">{errors.general}</p>
+            </motion.div>
+          )}
+
           {/* Submit Button */}
           <motion.div
             className="pt-2"
@@ -334,13 +326,13 @@ const Auth = () => {
       </motion.div>
 
       {/* Footer */}
-      <motion.p 
+      <motion.p
         className="text-center mt-8 text-xs text-muted-foreground/70 relative z-10"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
       >
-        {isSignUp 
+        {isSignUp
           ? "Already have access? Switch to Sign In above."
           : "Need access? Purchase the Protocol to receive your code."}
       </motion.p>

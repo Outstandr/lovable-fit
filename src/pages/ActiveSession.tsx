@@ -21,20 +21,20 @@ const ActiveSession = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { steps, dataSource } = useHealth();
-  
-  const { 
-    currentPosition, 
-    routePoints, 
-    gpsDistance, 
+
+  const {
+    currentPosition,
+    routePoints,
+    gpsDistance,
     currentSpeed,
     avgSpeed,
     maxSpeed,
     gpsAccuracy,
-    isTracking: isGpsTracking, 
+    isTracking: isGpsTracking,
     isAcquiringGPS,
     hasPermission: hasGpsPermission,
     error: gpsError,
-    startTracking, 
+    startTracking,
     stopTracking,
     retryGPS
   } = useLocationTracking();
@@ -42,7 +42,7 @@ const ActiveSession = () => {
   // Audiobook state
   const { isPlaying: isAudioPlaying, getButtonText, togglePlay, allChaptersComplete, stop: stopAudio } = useAudiobook();
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
-  
+
   const [duration, setDuration] = useState(0);
   const [isRunning, setIsRunning] = useState(true);
   const [startSteps, setStartSteps] = useState<number | null>(null);
@@ -104,7 +104,7 @@ const ActiveSession = () => {
   const stepBasedDistance = (sessionSteps * 0.762) / 1000;
   const sessionDistance = gpsDistance > 0 ? gpsDistance : stepBasedDistance;
   const usingGps = gpsDistance > 0;
-  
+
   const calculatePace = () => {
     if (sessionDistance <= 0 || duration <= 0) return "--:--";
     const paceSeconds = duration / sessionDistance;
@@ -124,7 +124,7 @@ const ActiveSession = () => {
     setIsRunning(false);
     stopTracking();
     stopAudio(); // Stop audiobook when session ends
-    
+
     if (!user) {
       navigate('/');
       return;
@@ -199,12 +199,12 @@ const ActiveSession = () => {
   return (
     <div className="h-screen flex flex-col">
       {/* Header with safe area */}
-      <motion.header 
+      <motion.header
         className="flex-shrink-0 flex items-center gap-4 px-4 pb-4 header-safe"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <button 
+        <button
           onClick={() => navigate('/')}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-foreground hover:bg-secondary/80 transition-smooth touch-target press-scale"
         >
@@ -220,16 +220,15 @@ const ActiveSession = () => {
         </div>
       </motion.header>
 
-      <RubberBandScroll className="flex-1 overflow-y-auto" contentClassName="flex flex-col">
-        {/* Map Area */}
-        <motion.div
-        className="flex-1 mx-4 rounded-xl overflow-hidden bg-secondary/50 relative min-h-[300px]"
+      {/* Map Area - fills remaining space */}
+      <motion.div
+        className="flex-1 mx-4 rounded-xl overflow-hidden bg-secondary/50 relative min-h-0"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.2 }}
       >
         {showMap ? (
-          <LiveMap 
+          <LiveMap
             currentPosition={currentPosition}
             routePoints={routePoints}
             isTracking={isGpsTracking}
@@ -238,7 +237,7 @@ const ActiveSession = () => {
             sessionDistance={stepBasedDistance}
           />
         ) : (
-          <MapPlaceholder 
+          <MapPlaceholder
             message={gpsUnavailable ? "GPS unavailable - using step distance" : "Waiting for GPS..."}
             sessionSteps={sessionSteps}
             sessionDistance={stepBasedDistance}
@@ -256,11 +255,11 @@ const ActiveSession = () => {
               className="absolute inset-0 z-overlay flex flex-col items-center justify-center bg-background/95 backdrop-blur-md"
             >
               <motion.div
-                animate={{ 
+                animate={{
                   scale: [1, 1.2, 1],
                   opacity: [0.7, 1, 0.7]
                 }}
-                transition={{ 
+                transition={{
                   duration: 2,
                   repeat: Infinity,
                   ease: "easeInOut"
@@ -269,14 +268,14 @@ const ActiveSession = () => {
               >
                 <Satellite className="h-16 w-16 text-primary" />
               </motion.div>
-              
+
               <h3 className="text-lg font-bold uppercase tracking-widest text-foreground mb-2">
                 Acquiring GPS Signal
               </h3>
               <p className="text-sm text-muted-foreground text-center px-8 mb-4">
                 This may take up to 30 seconds. Make sure you're near a window or outdoors for best results.
               </p>
-              
+
               {gpsAccuracy && (
                 <div className="flex items-center gap-2 mb-6">
                   <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
@@ -316,7 +315,7 @@ const ActiveSession = () => {
               <div className="mb-6 p-4 rounded-full bg-destructive/20">
                 <Satellite className="h-12 w-12 text-destructive" />
               </div>
-              
+
               <h3 className="text-lg font-bold uppercase tracking-widest text-foreground mb-2">
                 GPS Signal Not Available
               </h3>
@@ -334,7 +333,7 @@ const ActiveSession = () => {
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Try Again
                 </Button>
-                
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -344,7 +343,7 @@ const ActiveSession = () => {
                   <Settings className="h-4 w-4 mr-2" />
                   Open Settings
                 </Button>
-                
+
                 <Button
                   variant="ghost"
                   size="sm"
@@ -360,26 +359,26 @@ const ActiveSession = () => {
         </AnimatePresence>
       </motion.div>
 
-      {/* Stats Panel */}
-      <motion.div 
-        className="px-4 py-6"
+      {/* Compact Stats Panel */}
+      <motion.div
+        className="px-4 py-3 flex-shrink-0"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
       >
-        <div className="tactical-card relative overflow-hidden">
+        <div className="tactical-card relative overflow-hidden py-3">
           {/* Background pulse when running */}
           {isRunning && (
             <div className="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent animate-pulse pointer-events-none" />
           )}
 
-          {/* Duration - Large with glow */}
-          <div className="mb-5 text-center relative z-10">
-            <span className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+          {/* Duration - Compact */}
+          <div className="mb-3 text-center relative z-10">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
               Duration
             </span>
-            <motion.div 
-              className="text-6xl font-bold tracking-tight text-foreground tabular-nums mt-1"
+            <motion.div
+              className="text-4xl font-bold tracking-tight text-foreground tabular-nums"
               style={{ textShadow: isRunning ? '0 0 30px hsl(186 100% 50% / 0.3)' : 'none' }}
               key={duration}
               animate={isRunning ? { scale: [1, 1.01, 1] } : {}}
@@ -389,87 +388,74 @@ const ActiveSession = () => {
             </motion.div>
           </div>
 
-          {/* Main stats row */}
-          <div className="grid grid-cols-4 gap-2 border-t border-border/40 pt-5 relative z-10">
-            <motion.div 
-              className="flex flex-col items-center gap-1.5"
-              whileHover={{ scale: 1.05 }}
-            >
-              <div className={`p-1.5 rounded-lg ${usingGps ? 'bg-primary/15' : 'bg-muted/30'}`}>
-                <MapPin className={`h-4 w-4 ${usingGps ? 'text-primary' : 'text-muted-foreground'}`} />
+          {/* Main stats row - Compact */}
+          <div className="grid grid-cols-4 gap-2 border-t border-border/40 pt-3 relative z-10">
+            <div className="flex flex-col items-center gap-1">
+              <div className={`p-1 rounded-lg ${usingGps ? 'bg-primary/15' : 'bg-muted/30'}`}>
+                <MapPin className={`h-3.5 w-3.5 ${usingGps ? 'text-primary' : 'text-muted-foreground'}`} />
               </div>
-              <span className="text-2xl font-bold text-foreground tabular-nums">{sessionData.distance}</span>
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="text-xl font-bold text-foreground tabular-nums">{sessionData.distance}</span>
+              <span className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
                 KM {usingGps ? '(GPS)' : '(est)'}
               </span>
-            </motion.div>
-            <motion.div 
-              className="flex flex-col items-center gap-1.5"
-              whileHover={{ scale: 1.05 }}
-            >
-              <div className="p-1.5 rounded-lg bg-primary/15">
-                <Gauge className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <div className="p-1 rounded-lg bg-primary/15">
+                <Gauge className="h-3.5 w-3.5 text-primary" />
               </div>
-              <span className="text-2xl font-bold text-foreground tabular-nums">{sessionData.pace}</span>
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Pace /km</span>
-            </motion.div>
-            <motion.div 
-              className="flex flex-col items-center gap-1.5"
-              whileHover={{ scale: 1.05 }}
-            >
-              <div className="p-1.5 rounded-lg bg-primary/15">
-                <Zap className="h-4 w-4 text-primary" />
+              <span className="text-xl font-bold text-foreground tabular-nums">{sessionData.pace}</span>
+              <span className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">Pace /km</span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <div className="p-1 rounded-lg bg-primary/15">
+                <Zap className="h-3.5 w-3.5 text-primary" />
               </div>
-              <span className="text-2xl font-bold text-foreground tabular-nums">{sessionData.speed}</span>
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">km/h</span>
-            </motion.div>
-            <motion.div 
-              className="flex flex-col items-center gap-1.5"
-              whileHover={{ scale: 1.05 }}
-            >
-              <div className="p-1.5 rounded-lg bg-primary/15">
-                <Footprints className="h-4 w-4 text-primary" />
+              <span className="text-xl font-bold text-foreground tabular-nums">{sessionData.speed}</span>
+              <span className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">km/h</span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <div className="p-1 rounded-lg bg-primary/15">
+                <Footprints className="h-3.5 w-3.5 text-primary" />
               </div>
-              <span className="text-2xl font-bold text-foreground tabular-nums">{sessionData.steps}</span>
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Steps</span>
-            </motion.div>
+              <span className="text-xl font-bold text-foreground tabular-nums">{sessionData.steps}</span>
+              <span className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">Steps</span>
+            </div>
           </div>
         </div>
       </motion.div>
 
       {/* Bottom Buttons with safe area */}
-      <div className="px-4 safe-area-pb space-y-3 pb-4">
+      <div className="px-4 safe-area-pb space-y-2 pb-3 flex-shrink-0">
         {/* Audiobook Button */}
         <motion.div whileTap={{ scale: 0.98 }}>
-          <Button 
+          <Button
             variant="tactical"
             size="full"
             onClick={() => isAudioPlaying ? togglePlay() : setIsPlayerOpen(true)}
             disabled={allChaptersComplete}
-            className="h-14 text-sm font-bold uppercase tracking-widest shadow-glow-sm hover:shadow-glow-md transition-all"
+            className="h-12 text-xs font-bold uppercase tracking-widest shadow-glow-sm hover:shadow-glow-md transition-all"
           >
-            <Headphones className="mr-2 h-5 w-5" />
+            <Headphones className="mr-2 h-4 w-4" />
             {getButtonText()}
           </Button>
         </motion.div>
 
         {/* Stop Button */}
         <motion.div whileTap={{ scale: 0.98 }}>
-          <Button 
-            variant="tacticalStop" 
+          <Button
+            variant="tacticalStop"
             size="full"
             onClick={handleStop}
-            className="h-14 text-sm font-bold uppercase tracking-widest shadow-[0_0_20px_hsl(0_85%_55%_/_0.3)] hover:shadow-[0_0_30px_hsl(0_85%_55%_/_0.4)] transition-all"
+            className="h-12 text-xs font-bold uppercase tracking-widest shadow-[0_0_20px_hsl(0_85%_55%_/_0.3)] hover:shadow-[0_0_30px_hsl(0_85%_55%_/_0.4)] transition-all"
           >
-            <Square className="mr-2 h-5 w-5 fill-current" />
+            <Square className="mr-2 h-4 w-4 fill-current" />
             Stop / Finish
           </Button>
         </motion.div>
       </div>
-      </RubberBandScroll>
 
       {/* Audiobook Mini Player */}
-      <AudiobookPlayer 
+      <AudiobookPlayer
         isOpen={isPlayerOpen}
         onClose={() => setIsPlayerOpen(false)}
       />

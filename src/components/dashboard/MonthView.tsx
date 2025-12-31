@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown, ChevronDown } from "lucide-react";
 import { StatsRow } from "./StatsRow";
 import { MonthCalendar } from "./MonthCalendar";
 import { TrendChart } from "./TrendChart";
+import { SkeletonCard, SkeletonText } from "@/components/ui/SkeletonCard";
 
 interface MonthViewProps {
   year: number;
@@ -18,21 +19,39 @@ interface MonthViewProps {
   activeMinutes: number;
   streak: number;
   yearlyTrend: { label: string; value: number }[];
+  isLoading?: boolean;
 }
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-export const MonthView = ({ 
+export const MonthView = ({
   year, month, totalSteps, avgSteps, prevMonthAvg, goal, daysHitGoal,
-  calendarData, calories, distance, activeMinutes, streak, yearlyTrend 
+  calendarData, calories, distance, activeMinutes, streak, yearlyTrend, isLoading
 }: MonthViewProps) => {
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="px-4 space-y-2">
+          <SkeletonText width="w-24" className="h-4" />
+          <div className="flex justify-between items-center">
+            <SkeletonText width="w-32" className="h-10" />
+            <SkeletonText width="w-24" className="h-8 rounded-full" />
+          </div>
+        </div>
+        <SkeletonCard className="h-[280px]" />
+        <SkeletonCard className="h-[80px]" />
+        <SkeletonCard className="h-[150px]" />
+      </div>
+    );
+  }
+
   const trendUp = avgSteps >= prevMonthAvg;
   const monthName = monthNames[month];
 
   return (
     <div className="space-y-6">
       {/* Header Stats */}
-      <motion.div 
+      <motion.div
         className="px-4"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -60,22 +79,22 @@ export const MonthView = ({
       </motion.div>
 
       {/* Month Calendar */}
-      <motion.div 
+      <motion.div
         className="tactical-card"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <MonthCalendar 
-          year={year} 
-          month={month} 
-          data={calendarData} 
+        <MonthCalendar
+          year={year}
+          month={month}
+          data={calendarData}
           goal={goal}
         />
       </motion.div>
 
       {/* Stats Row */}
-      <StatsRow 
+      <StatsRow
         streak={streak}
         calories={calories}
         distance={distance}

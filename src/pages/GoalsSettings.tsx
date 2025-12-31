@@ -13,7 +13,7 @@ const GoalsSettings = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  
+
   const [dailyGoal, setDailyGoal] = useState(10000);
 
   const { data: profile, isLoading } = useQuery({
@@ -25,7 +25,7 @@ const GoalsSettings = () => {
         .select("daily_step_goal")
         .eq("id", user.id)
         .maybeSingle();
-      
+
       if (error) throw error;
       return data;
     },
@@ -38,18 +38,25 @@ const GoalsSettings = () => {
     }
   }, [profile]);
 
+  const [isSaved, setIsSaved] = useState(false);
+
   const updateGoalMutation = useMutation({
     mutationFn: async (goal: number) => {
       const { error } = await supabase
         .from("profiles")
         .update({ daily_step_goal: goal })
         .eq("id", user?.id);
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2000);
     },
+    onError: (error) => {
+      console.error("Failed to save goal:", error);
+    }
   });
 
   const handleSave = () => {
@@ -61,12 +68,12 @@ const GoalsSettings = () => {
   return (
     <div className="min-h-screen-safe bg-background safe-area-pb">
       {/* Header */}
-      <motion.header 
+      <motion.header
         className="flex items-center gap-4 p-4 border-b border-border header-safe"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <button 
+        <button
           onClick={() => navigate("/profile")}
           className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-smooth"
         >
@@ -79,7 +86,7 @@ const GoalsSettings = () => {
 
       <div className="p-4 space-y-6">
         {/* Daily Step Goal */}
-        <motion.div 
+        <motion.div
           className="tactical-card p-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -104,7 +111,10 @@ const GoalsSettings = () => {
           <div className="mb-6">
             <Slider
               value={[dailyGoal]}
-              onValueChange={(value) => setDailyGoal(value[0])}
+              onValueChange={(value) => {
+                setDailyGoal(value[0]);
+                setIsSaved(false);
+              }}
               min={3000}
               max={25000}
               step={500}
@@ -121,12 +131,14 @@ const GoalsSettings = () => {
             {presets.map((preset) => (
               <button
                 key={preset}
-                onClick={() => setDailyGoal(preset)}
-                className={`py-2 px-3 rounded-lg text-sm font-medium transition-smooth ${
-                  dailyGoal === preset 
-                    ? "bg-primary text-primary-foreground" 
-                    : "bg-secondary text-foreground hover:bg-secondary/80"
-                }`}
+                onClick={() => {
+                  setDailyGoal(preset);
+                  setIsSaved(false);
+                }}
+                className={`py-2 px-3 rounded-lg text-sm font-medium transition-smooth ${dailyGoal === preset
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-foreground hover:bg-secondary/80"
+                  }`}
               >
                 {(preset / 1000).toFixed(preset % 1000 === 0 ? 0 : 1)}K
               </button>
@@ -145,13 +157,20 @@ const GoalsSettings = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <Button 
+          <Button
             onClick={handleSave}
-            disabled={updateGoalMutation.isPending}
-            className="w-full"
-            variant="tactical"
+            disabled={updateGoalMutation.isPending || isSaved}
+            className={`w-full transition-all duration-300 ${isSaved ? "bg-green-500 hover:bg-green-600 text-white" : ""
+              }`}
+            variant={isSaved ? "default" : "tactical"}
           >
-            {updateGoalMutation.isPending ? "Saving..." : "Save Goal"}
+            {updateGoalMutation.isPending ? (
+              "Saving..."
+            ) : isSaved ? (
+              "Saved Successfully!"
+            ) : (
+              "Save Goal"
+            )}
           </Button>
         </motion.div>
       </div>

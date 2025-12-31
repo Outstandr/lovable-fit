@@ -1,4 +1,4 @@
-# Hotstepper - App Store Submission Guide
+# Lionel X - App Store Submission Guide
 
 ## Apple App Store
 
@@ -9,9 +9,9 @@ Walk your way to better health! Track steps, earn streaks, compete globally. The
 
 ### App Description (4000 characters max)
 ```
-HOTSTEPPER - Your Ultimate Walking Companion
+LIONEL X - Your Ultimate Walking Companion
 
-Transform your daily walks into an engaging fitness journey. Hotstepper combines precise step tracking, GPS route mapping, and gamified challenges to keep you motivated every day.
+Transform your daily walks into an engaging fitness journey. Lionel X combines precise step tracking, GPS route mapping, and gamified challenges to keep you motivated every day.
 
 KEY FEATURES:
 
