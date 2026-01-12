@@ -278,6 +278,16 @@
   .page-with-bottom-nav {
     padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px) + 0.5rem);
   }
+  /* Page layout for pages with top header */
+  .page-with-top-header {
+    padding-top: calc(4.5rem + env(safe-area-inset-top, 0px));
+  }
+
+  /* Combined - for pages with both fixed header and bottom nav */
+  .page-with-both-fixed {
+    padding-top: calc(4.5rem + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px) + 0.5rem);
+  }
 
   /* Enhanced transition utilities */
   .transition-smooth {
@@ -456,6 +466,21 @@
   .touch-target {
     min-width: 44px;
     min-height: 44px;
+  }
+  /* Top Header - Fixed at top */
+  .top-header {
+    @apply fixed top-0 left-0 right-0;
+    z-index: 50;
+    background: linear-gradient(180deg, hsl(220 50% 15% / 0.95) 0%, hsl(220 55% 12% / 0.98) 100%);
+    border-bottom: 1px solid hsl(var(--border) / 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .top-header-inner {
+    @apply w-full max-w-lg mx-auto px-4 flex items-center justify-between;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 1rem);
+    padding-bottom: 1rem;
   }
 
   /* Fixed above bottom nav */

@@ -4,30 +4,31 @@ const config: CapacitorConfig = {
   appId: 'app.lovable.hotstepper',
   appName: 'Lionel X',
   webDir: 'dist',
-  // Dev server removed for production release
+  
   android: {
     minWebViewVersion: 55,
-    buildOptions: {
-      keystorePath: undefined,
-      keystorePassword: undefined,
-      keystoreAlias: undefined,
-      keystoreAliasPassword: undefined,
-      signingType: 'apksigner'
-    }
+    
   },
+  
   ios: {
-    // iOS deployment target - iOS 15.0 for Health Connect API parity
     scheme: 'App',
-    // Content inset behavior for safe areas
     contentInset: 'automatic',
-    // Allow mixed content for development
     allowsLinkPreview: true,
-    // Scroll behavior
     scrollEnabled: true,
-    // Background modes handled in Info.plist
-    // HealthKit, Push Notifications, Location configured in Xcode
   },
+  
   plugins: {
+    SplashScreen: {
+      launchShowDuration: 2000,
+      launchAutoHide: true,
+      launchFadeOutDuration: 500,
+      backgroundColor: "#0a0a0a",
+      androidSplashResourceName: "splash",
+      androidScaleType: "CENTER_CROP",
+      showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true,
+    },
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert']
     },

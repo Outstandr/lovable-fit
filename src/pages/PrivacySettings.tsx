@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Shield, Eye, Download, Trash2, Loader2, ExternalLink } from "lucide-react";
+import { ArrowLeft, Shield, Eye, Download, Trash2, Loader2, ExternalLink, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
+import { Browser } from '@capacitor/browser';
 
 import {
   AlertDialog,
@@ -59,6 +60,34 @@ const PrivacySettings = () => {
     },
   });
 
+  const openPrivacyPolicy = async () => {
+    try {
+      // ⚠️ REPLACE WITH YOUR ACTUAL PRIVACY POLICY URL
+      await Browser.open({ 
+        url: 'https://outstandr.github.io/lionelx-legal/privacy.html', // Update this!
+        presentationStyle: 'popover',
+        toolbarColor: '#0a0a0a'
+      });
+    } catch (error) {
+      console.error('Error opening privacy policy:', error);
+      // Fallback to window.open if Browser plugin fails
+      window.open('/privacypolicy.html', '_blank');
+    }
+  };
+
+  const openTermsOfService = async () => {
+    try {
+      // ⚠️ REPLACE WITH YOUR ACTUAL TERMS URL
+      await Browser.open({ 
+        url: 'https://outstandr.github.io/lionelx-legal/terms.html', // Update this!
+        presentationStyle: 'popover',
+        toolbarColor: '#0a0a0a'
+      });
+    } catch (error) {
+      console.error('Error opening terms:', error);
+    }
+  };
+
   const handleExportData = async () => {
     setIsExporting(true);
     try {
@@ -88,7 +117,7 @@ const PrivacySettings = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `hotstepper-data-${new Date().toISOString().split("T")[0]}.json`;
+      a.download = `lionelx-data-${new Date().toISOString().split("T")[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -109,7 +138,6 @@ const PrivacySettings = () => {
       const { data, error } = await supabase.functions.invoke('delete-user-data');
 
       if (error) {
-        console.error("Delete account error:", error);
         console.error("Delete account error:", error);
         setIsDeleting(false);
         return;
@@ -215,25 +243,55 @@ const PrivacySettings = () => {
           </div>
         </motion.div>
 
-        {/* Privacy Policy Link */}
-        <motion.button
-          onClick={() => window.open('/privacypolicy.html', '_blank')}
-          className="w-full tactical-card p-4 flex items-center justify-between hover:bg-secondary/30 hover:border-primary/30 transition-all text-left group"
+        {/* Legal Documents Section */}
+        <motion.div
+          className="space-y-2"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
         >
-          <div className="flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
-              <Shield className="h-5 w-5 text-primary" />
+          <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold px-2">
+            Legal Documents
+          </h3>
+
+          {/* Privacy Policy Link */}
+          <motion.button
+            onClick={openPrivacyPolicy}
+            className="w-full tactical-card p-4 flex items-center justify-between hover:bg-secondary/30 hover:border-primary/30 transition-all text-left group"
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+          >
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+                <Shield className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Privacy Policy</p>
+                <p className="text-xs text-muted-foreground">View our full privacy policy</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">Privacy Policy</p>
-              <p className="text-xs text-muted-foreground">View our full privacy policy</p>
+            <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </motion.button>
+
+          {/* Terms of Service Link */}
+          <motion.button
+            onClick={openTermsOfService}
+            className="w-full tactical-card p-4 flex items-center justify-between hover:bg-secondary/30 hover:border-primary/30 transition-all text-left group"
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+          >
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+                <FileText className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Terms of Service</p>
+                <p className="text-xs text-muted-foreground">View terms and conditions</p>
+              </div>
             </div>
-          </div>
-          <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-        </motion.button>
+            <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </motion.button>
+        </motion.div>
 
         {/* Delete Account */}
         <motion.div

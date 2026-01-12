@@ -303,9 +303,22 @@ const Dashboard = () => {
   const today = new Date();
 
   return (
-    <div className="h-screen flex flex-col page-with-bottom-nav relative">
+    <div className="h-screen flex flex-col page-with-both-fixed relative">
       {/* Offline Banner */}
       <OfflineBanner />
+
+      {/* Fixed Header - Outside scroll container */}
+      <StandardHeader
+        title="Lionel X"
+        rightAction={
+          <button
+            onClick={() => { haptics.light(); navigate('/settings'); }}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
+          >
+            <Settings className="h-5 w-5" />
+          </button>
+        }
+      />
 
       {/* Background gradient */}
       <div className="absolute inset-0 pointer-events-none" style={{
@@ -314,23 +327,9 @@ const Dashboard = () => {
 
       <PullToRefresh onRefresh={handleRefresh} className="flex-1 flex flex-col overflow-hidden">
         <RubberBandScroll className="flex-1 overflow-y-auto" contentClassName="pb-8">
-          {/* Header */}
-          {/* Standard Header */}
-          <StandardHeader
-            title="Lionel X"
-            rightAction={
-              <button
-                onClick={() => { haptics.light(); navigate('/settings'); }} // Direct to /settings
-                className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
-              >
-                <Settings className="h-5 w-5" />
-              </button>
-            }
-          />
-
           <div className="px-4 pb-2 relative z-content">
-            {/* Tabs Row - Moved slightly up to sit under header */}
-            <div className="flex justify-center -mt-2 mb-2">
+            {/* Tabs Row */}
+            <div className="flex justify-center mb-2">
               <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
             </div>
           </div>

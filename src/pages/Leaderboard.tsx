@@ -5,13 +5,11 @@ import { SkeletonCard, SkeletonCircle, SkeletonText } from "@/components/ui/Skel
 import { BottomNav } from "@/components/BottomNav";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
-import { StandardHeader } from "@/components/StandardHeader";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useNavigate } from "react-router-dom";
-
 
 type TabType = 'today' | 'week' | 'month';
 
@@ -62,7 +60,6 @@ const Leaderboard = () => {
     try {
       setLoading(true);
 
-      // Parallel fetch: Leaderboard Data AND Hidden Users AND Current User Profile
       const [leaderboardResult, hiddenUsersResult, currentUserProfileResult] = await Promise.all([
         (async () => {
           if (tab === 'today') return supabase.rpc('get_today_leaderboard');
@@ -82,16 +79,12 @@ const Leaderboard = () => {
         return;
       }
 
-      // Create a Set of hidden User IDs
       const hiddenUserIds = new Set((hiddenUsers || []).map(u => u.id));
 
-      // Explicitly add current user to hidden set if their profile says so 
-      // (Safety net in case the bulk fetch didn't catch the update yet)
       if (user?.id && currentUserProfile?.show_on_leaderboard === false) {
         hiddenUserIds.add(user.id);
       }
 
-      // 1. Transform
       let entries: LeaderboardEntry[] = (data || []).map((row: any) => ({
         rank: Number(row.rank),
         name: row.display_name || 'Unknown',
@@ -102,7 +95,6 @@ const Leaderboard = () => {
         streak: row.current_streak || 0
       }));
 
-      // 2. Deduplicate (Keep first occurrence)
       const uniqueEntriesMap = new Map();
       entries.forEach(entry => {
         if (!uniqueEntriesMap.has(entry.userId)) {
@@ -111,10 +103,8 @@ const Leaderboard = () => {
       });
       entries = Array.from(uniqueEntriesMap.values());
 
-      // 3. Filter Hidden Users
       entries = entries.filter((entry: LeaderboardEntry) => !hiddenUserIds.has(entry.userId));
 
-      // 4. Recalculate Ranks
       entries = entries.map((entry, index) => ({
         ...entry,
         rank: index + 1
@@ -129,7 +119,6 @@ const Leaderboard = () => {
     }
   }, [activeTab, user?.id]);
 
-  // Safety timeout to prevent infinite loading
   useEffect(() => {
     if (loading) {
       const timer = setTimeout(() => {
@@ -137,7 +126,7 @@ const Leaderboard = () => {
           console.warn('[Leaderboard] Force stopping loading after timeout');
           setLoading(false);
         }
-      }, 5000); // 5 seconds safety timeout
+      }, 5000);
       return () => clearTimeout(timer);
     }
   }, [loading]);
@@ -154,7 +143,6 @@ const Leaderboard = () => {
   useEffect(() => {
     fetchLeaderboard();
 
-    // Set up real-time subscription for daily_steps changes
     const channel = supabase
       .channel('leaderboard-realtime')
       .on(
@@ -168,11 +156,8 @@ const Leaderboard = () => {
           fetchLeaderboard();
         }
       )
-      .subscribe((status) => {
-        // Subscription status
-      });
+      .subscribe((status) => {});
 
-    // Auto-refresh every 30 seconds
     const refreshInterval = setInterval(() => fetchLeaderboard(), 30000);
 
     return () => {
@@ -181,7 +166,6 @@ const Leaderboard = () => {
     };
   }, [user, fetchLeaderboard]);
 
-  // Refetch when coming back online
   useEffect(() => {
     if (isOnline) {
       fetchLeaderboard();
@@ -196,14 +180,11 @@ const Leaderboard = () => {
   if (loading && leaderboard.length === 0) {
     return (
       <div className="min-h-screen-safe flex flex-col p-4 animate-in fade-in duration-500">
-        {/* Title Skeleton */}
         <div className="flex items-center gap-2 mb-2">
           <SkeletonCircle size="h-6 w-6" />
           <SkeletonText width="w-40" className="h-6" />
         </div>
         <SkeletonText width="w-60" className="h-4 mb-6" />
-
-        {/* Podium Skeleton */}
         <div className="flex items-end justify-center gap-2 mb-8 mt-4">
           <div className="flex flex-col items-center gap-2">
             <SkeletonCircle size="h-16 w-16" />
@@ -221,8 +202,6 @@ const Leaderboard = () => {
             <div className="h-12 w-20 rounded-t-lg bg-secondary/50 skeleton-shimmer" />
           </div>
         </div>
-
-        {/* List Skeleton */}
         <div className="space-y-3">
           {[...Array(6)].map((_, i) => (
             <SkeletonCard key={i} variant="list" />
@@ -234,28 +213,34 @@ const Leaderboard = () => {
 
   return (
     <div className="h-screen flex flex-col page-with-bottom-nav relative">
-      <RubberBandScroll className="flex-1" contentClassName="pb-8">
+      {/* Offline Banner */}
+      {!isOnline && (
+        <div className="bg-yellow-500/20 border-b border-yellow-500/30 px-4 py-2 safe-area-pt flex-shrink-0">
+          <div className="flex items-center gap-2 text-yellow-400">
+            <WifiOff className="h-4 w-4" />
+            <span className="text-xs font-medium uppercase tracking-wider">
+              Offline Mode - Showing cached data
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Header - Inside scroll area */}
+      <motion.header 
+        className="px-4 pb-4 header-safe flex-shrink-0"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <h1 className="text-xl font-bold uppercase tracking-[0.2em] text-gradient-cyan animate-glow-pulse">
+          Leaderboard
+        </h1>
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mt-1">
+          {activeTabConfig.subtitle} • {leaderboard.length} Participants
+        </p>
+      </motion.header>
+
+      <RubberBandScroll className="flex-1 overflow-y-auto" contentClassName="pb-24">
         <PullToRefresh onRefresh={handleRefresh} className="h-full">
-
-          {/* Offline Banner with safe area */}
-          {!isOnline && (
-            <div className="bg-yellow-500/20 border-b border-yellow-500/30 px-4 py-2 safe-area-pt">
-              <div className="flex items-center gap-2 text-yellow-400">
-                <WifiOff className="h-4 w-4" />
-                <span className="text-xs font-medium uppercase tracking-wider">
-                  Offline Mode - Showing cached data
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Standard Header */}
-          <StandardHeader
-            title="Leaderboard"
-            showBack={true}
-            subtitle={`${activeTabConfig.subtitle} • ${leaderboard.length} Participants`}
-          />
-
           {/* Tab Switcher */}
           <div className="px-4 pb-4">
             <div className="flex rounded-lg bg-secondary p-1 gap-1">
@@ -281,7 +266,7 @@ const Leaderboard = () => {
             </div>
           )}
 
-          {/* Empty State - Improved */}
+          {/* Empty State */}
           {!loading && leaderboard.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 px-4">
               <Footprints className="h-16 w-16 text-primary/50 mb-4" />
@@ -301,7 +286,7 @@ const Leaderboard = () => {
             </div>
           )}
 
-          {/* Top 3 Podium - Only show if exactly 3+ users */}
+          {/* Top 3 Podium */}
           {!loading && top3.length >= 3 && (
             <motion.div
               className="flex items-end justify-center gap-3 px-4 py-6"
