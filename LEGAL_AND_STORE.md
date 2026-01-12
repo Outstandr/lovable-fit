@@ -48,12 +48,12 @@ LEADERS PERFORMANCE MANAGEMENT CONSULTANCIES L.L.C ("we," "our," or "us") operat
 
 ### 4. Data Retention Policy
 
-| Data Type | Retention Period | Justification |
-|-----------|------------------|---------------|
-| Step History | Indefinite (until account deletion) | Required for streak tracking and leaderboards |
-| Location/Route Data | 90 days | Verification purposes; automatically purged |
-| Account Data | Until account deletion | Required for service operation |
-| Push Tokens | Until logout or token refresh | Required for notifications |
+| Data Type | Retention Period | Justification | Implementation |
+|-----------|------------------|---------------|----------------|
+| Step History | Indefinite (until account deletion) | Required for streak tracking and leaderboards | Manual deletion via account settings |
+| Location/Route Data | 90 days | Verification purposes; automatically purged | **Automated daily cron job at 03:00 UTC** |
+| Account Data | Until account deletion | Required for service operation | Manual deletion via account settings |
+| Push Tokens | Until logout or token refresh | Required for notifications | Automatic on logout/token refresh |
 
 ### 5. Health Data Usage
 
