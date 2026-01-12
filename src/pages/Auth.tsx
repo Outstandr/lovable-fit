@@ -270,13 +270,13 @@ const Auth = () => {
                     transition={{ duration: 0.2 }}
                   >
                     <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                      Access Code
+                      Verification Code
                     </label>
                     <div className="relative">
                       <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" />
                       <Input
                         type="text"
-                        placeholder="ENTER CODE"
+                        placeholder="XXXX-XXXX"
                         value={formData.accessCode}
                         onChange={(e) => handleInputChange("accessCode", e.target.value.toUpperCase())}
                         className="pl-10 bg-secondary/50 border-border/60 text-foreground placeholder:text-muted-foreground/50 uppercase tracking-widest focus:border-primary/50 focus:ring-primary/20 transition-all relative z-10"
@@ -286,7 +286,7 @@ const Auth = () => {
                       <p className="mt-1.5 text-xs text-destructive">{errors.accessCode}</p>
                     )}
                     <p className="mt-1.5 text-[10px] text-muted-foreground/70">
-                      Access codes are provided with your purchase
+                      Enter the code sent through email
                     </p>
                   </motion.div>
                 )}

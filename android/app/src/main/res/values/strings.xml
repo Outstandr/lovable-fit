@@ -4,4 +4,9 @@
     <string name="title_activity_main">Lionel X</string>
     <string name="package_name">app.lovable.hotstepper</string>
     <string name="custom_url_scheme">app.lovable.hotstepper</string>
+    
+    <!-- Permission Rationale Strings for Store Compliance -->
+    <string name="location_permission_rationale">Lionel X requires your location during active sessions to track your route distance and verify your daily discipline target. Location is not accessed when the session is paused or stopped.</string>
+    <string name="notification_permission_rationale">Lionel X sends daily reminders and discipline updates to keep you on track with your walking goals.</string>
+    <string name="activity_permission_rationale">Lionel X uses Health Connect to verify your daily 10,000 step count requirement as part of the discipline protocol.</string>
 </resources>
