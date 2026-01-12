@@ -170,9 +170,14 @@ const Protocol = () => {
             <span className="text-sm font-bold text-foreground">Unlock Elite Masterclass</span>
             <p className="text-xs text-muted-foreground">Advanced protocols for peak performance</p>
           </div>
-          <button className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors">
+          <a 
+            href="https://links.eersteling.ae/elite-self-discipline"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors"
+          >
             Learn More
-          </button>
+          </a>
         </div>
       </motion.div>
       </RubberBandScroll>
