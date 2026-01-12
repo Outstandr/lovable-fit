@@ -326,7 +326,7 @@ const Dashboard = () => {
       }} />
 
       <PullToRefresh onRefresh={handleRefresh} className="flex-1 flex flex-col overflow-hidden">
-        <RubberBandScroll className="flex-1 overflow-y-auto" contentClassName="pb-8">
+        <RubberBandScroll className="flex-1 overflow-y-auto">
           <div className="px-4 pb-2 relative z-content">
             {/* Tabs Row */}
             <div className="flex justify-center mb-2">

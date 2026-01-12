@@ -162,7 +162,7 @@ const Profile = () => {
       </motion.header>
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto pb-24 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto scrollbar-hide">
 
         {/* Avatar Section */}
         <motion.div
