@@ -84,7 +84,7 @@ const AppSettings = () => {
   const currentUnit = profile?.unit_preference || "metric";
 
   return (
-    <div className="min-h-screen-safe bg-background safe-area-pb">
+    <div className="min-h-screen-safe bg-background safe-area-pb overflow-y-auto">
       {/* Standard Header */}
       <StandardHeader
         title="App Settings"
@@ -255,7 +255,7 @@ const AppSettings = () => {
         >
           <div className="flex items-center justify-center gap-2 mb-2">
             <Settings className="h-5 w-5 text-primary" />
-            <span className="text-lg font-bold text-primary tracking-wider">LIONEL X</span>
+            <span className="text-lg font-bold text-primary tracking-wider">HOTSTEPPER</span>
           </div>
           <p className="text-xs text-muted-foreground">
             © 2025 Outstandr. All rights reserved.
