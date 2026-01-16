@@ -147,7 +147,7 @@ const Auth = () => {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
             >
-              Protocol Access
+              The Hotstepper Challenge
             </motion.p>
           </motion.div>
 
