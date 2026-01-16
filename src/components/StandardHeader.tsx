@@ -64,7 +64,7 @@ export const StandardHeader = ({
                         {logo ? (
                             <img 
                                 src={logo} 
-                                alt="Lionel X" 
+                                alt="Hotstepper" 
                                 className="h-8 object-contain"
                             />
                         ) : title ? (
