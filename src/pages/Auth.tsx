@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
-import hotstepperLogo from "@/assets/hotstepper_logo.png";
+
 
 const signUpSchema = z.object({
   displayName: z.string().min(2, "Name must be at least 2 characters").max(20, "Name must be less than 20 characters"),
@@ -133,14 +133,14 @@ const Auth = () => {
               <Footprints className="h-10 w-10 text-primary" />
             </motion.div>
 
-            <motion.img
-              src={hotstepperLogo}
-              alt="Hotstepper"
-              className="h-12 mb-2"
+            <motion.h1
+              className="text-3xl font-bold tracking-[0.2em] uppercase text-gradient-cyan mb-2"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
-            />
+            >
+              HOTSTEPPER
+            </motion.h1>
             <motion.p
               className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground"
               initial={{ opacity: 0 }}
