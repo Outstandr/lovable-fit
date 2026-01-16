@@ -22,7 +22,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 import { haptics } from '@/utils/haptics';
 import { SkeletonCard } from "@/components/ui/SkeletonCard";
-import lxLogo from "@/assets/lx_logo.png";
+import hotstepperLogo from "@/assets/hotstepper_logo.png";
 
 type TabType = "day" | "week" | "month";
 
@@ -310,7 +310,7 @@ const Dashboard = () => {
 
       {/* Fixed Header - Outside scroll container */}
       <StandardHeader
-        logo={lxLogo}
+        logo={hotstepperLogo}
         rightAction={
           <button
             onClick={() => { haptics.light(); navigate('/settings'); }}
