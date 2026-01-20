@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
 
 export interface PedometerData {
   steps: number;
@@ -9,7 +10,6 @@ export type PedometerCallback = (data: PedometerData) => void;
 
 class PedometerService {
   private isNativePlatform: boolean;
-  private plugin: any = null;
   private listener: any = null;
   private isStarted: boolean = false;
 
@@ -25,33 +25,6 @@ class PedometerService {
     return Capacitor.getPlatform();
   }
 
-  async loadPlugin(): Promise<boolean> {
-    if (!this.isNativePlatform) {
-      console.log('[PedometerService] Web platform - skipping plugin load');
-      return false;
-    }
-
-    if (this.plugin) {
-      console.log('[PedometerService] Plugin already loaded');
-      return true;
-    }
-
-    try {
-      console.log('[PedometerService] Loading plugin...');
-      const loadPromise = import('@capgo/capacitor-pedometer').then(m => m.CapacitorPedometer);
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Plugin load timeout')), 5000)
-      );
-      
-      this.plugin = await Promise.race([loadPromise, timeoutPromise]);
-      console.log('[PedometerService] Plugin loaded successfully');
-      return true;
-    } catch (error) {
-      console.error('[PedometerService] Failed to load plugin:', error);
-      return false;
-    }
-  }
-
   async isAvailable(): Promise<boolean> {
     if (!this.isNativePlatform) {
       console.log('[PedometerService] Web platform - step counting not available');
@@ -59,11 +32,7 @@ class PedometerService {
     }
 
     try {
-      if (!this.plugin && !(await this.loadPlugin())) {
-        return false;
-      }
-
-      const result = await this.plugin.isAvailable();
+      const result = await CapacitorPedometer.isAvailable();
       console.log('[PedometerService] Availability check:', result);
       return result.stepCounting === true;
     } catch (error) {
@@ -76,12 +45,8 @@ class PedometerService {
     if (!this.isNativePlatform) return true;
 
     try {
-      if (!this.plugin && !(await this.loadPlugin())) return false;
-
-      const result = await this.plugin.checkPermissions();
+      const result = await CapacitorPedometer.checkPermissions();
       console.log('[PedometerService] Permission check result:', result);
-      
-      // Official API uses "activityRecognition" property
       return result.activityRecognition === 'granted';
     } catch (error) {
       console.error('[PedometerService] Permission check error:', error);
@@ -93,16 +58,9 @@ class PedometerService {
     if (!this.isNativePlatform) return true;
 
     try {
-      if (!this.plugin && !(await this.loadPlugin())) {
-        console.error('[PedometerService] Plugin not available for permission request');
-        return false;
-      }
-
       console.log('[PedometerService] Requesting permission...');
-      const result = await this.plugin.requestPermissions();
+      const result = await CapacitorPedometer.requestPermissions();
       console.log('[PedometerService] Permission request result:', result);
-      
-      // Official API uses "activityRecognition" property
       return result.activityRecognition === 'granted';
     } catch (error) {
       console.error('[PedometerService] Permission request error:', error);
@@ -122,11 +80,6 @@ class PedometerService {
     }
 
     try {
-      if (!this.plugin && !(await this.loadPlugin())) {
-        console.error('[PedometerService] Plugin not available');
-        return false;
-      }
-
       // Check permission first
       const hasPermission = await this.checkPermission();
       if (!hasPermission) {
@@ -138,19 +91,19 @@ class PedometerService {
         }
       }
 
-      // Official API order: addListener THEN startMeasurementUpdates
+      // Step 1: Add listener FIRST (per official docs)
       console.log('[PedometerService] Registering measurement listener...');
-      this.listener = await this.plugin.addListener('measurement', (data: any) => {
+      this.listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
         console.log('[PedometerService] Measurement event:', data);
         callback({
-          steps: data.numberOfSteps || data.steps || 0,
+          steps: data.numberOfSteps || 0,
           distance: data.distance || 0
         });
       });
 
-      // Start measurement updates
+      // Step 2: Start measurement updates
       console.log('[PedometerService] Starting measurement updates...');
-      await this.plugin.startMeasurementUpdates();
+      await CapacitorPedometer.startMeasurementUpdates();
       
       this.isStarted = true;
       console.log('[PedometerService] Started successfully');
@@ -165,10 +118,8 @@ class PedometerService {
     if (!this.isNativePlatform || !this.isStarted) return;
 
     try {
-      if (this.plugin) {
-        console.log('[PedometerService] Stopping measurement updates...');
-        await this.plugin.stopMeasurementUpdates();
-      }
+      console.log('[PedometerService] Stopping measurement updates...');
+      await CapacitorPedometer.stopMeasurementUpdates();
 
       if (this.listener) {
         console.log('[PedometerService] Removing listener...');

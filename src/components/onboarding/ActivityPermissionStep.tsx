@@ -17,12 +17,8 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
     
     if (Capacitor.isNativePlatform()) {
       try {
-        // Load plugin first
-        console.log('[Onboarding] Loading pedometer plugin...');
-        await pedometerService.loadPlugin();
-        
         // Request permission immediately - this shows the native dialog
-        console.log('[Onboarding] Requesting permission...');
+        console.log('[Onboarding] Requesting activity recognition permission...');
         const granted = await pedometerService.requestPermission();
         console.log('[Onboarding] Permission granted:', granted);
       } catch (error) {
