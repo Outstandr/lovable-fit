@@ -32,8 +32,27 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
         const granted = await Promise.race([permissionPromise, timeoutPromise]);
         console.log('[Onboarding] Permission result:', granted);
         
+        // If permission granted, start tracking immediately to avoid sync issues
+        if (granted) {
+          console.log('[Onboarding] Starting pedometer tracking immediately...');
+          
+          const startPromise = pedometerService.start((data) => {
+            console.log('[Onboarding] Pedometer data received:', data);
+          });
+          
+          const startTimeout = new Promise<boolean>((resolve) => {
+            setTimeout(() => {
+              console.log('[Onboarding] Pedometer start timed out after 5s');
+              resolve(false);
+            }, 5000);
+          });
+          
+          const started = await Promise.race([startPromise, startTimeout]);
+          console.log('[Onboarding] Pedometer tracking started:', started);
+        }
+        
       } catch (error) {
-        console.log('[Onboarding] Permission error:', error);
+        console.log('[Onboarding] Permission/start error:', error);
       }
     }
     
