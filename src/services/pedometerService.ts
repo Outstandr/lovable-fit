@@ -31,10 +31,13 @@ class PedometerService {
       return false;
     }
 
-    if (this.plugin) return true; // Already loaded
+    if (this.plugin) {
+      console.log('[PedometerService] Plugin already loaded');
+      return true;
+    }
 
     try {
-      // Add timeout to prevent hanging
+      console.log('[PedometerService] Loading plugin...');
       const loadPromise = import('@capgo/capacitor-pedometer').then(m => m.CapacitorPedometer);
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Plugin load timeout')), 5000)
@@ -49,6 +52,26 @@ class PedometerService {
     }
   }
 
+  async isAvailable(): Promise<boolean> {
+    if (!this.isNativePlatform) {
+      console.log('[PedometerService] Web platform - step counting not available');
+      return false;
+    }
+
+    try {
+      if (!this.plugin && !(await this.loadPlugin())) {
+        return false;
+      }
+
+      const result = await this.plugin.isAvailable();
+      console.log('[PedometerService] Availability check:', result);
+      return result.stepCounting === true;
+    } catch (error) {
+      console.error('[PedometerService] isAvailable error:', error);
+      return false;
+    }
+  }
+
   async checkPermission(): Promise<boolean> {
     if (!this.isNativePlatform) return true;
 
@@ -58,11 +81,8 @@ class PedometerService {
       const result = await this.plugin.checkPermissions();
       console.log('[PedometerService] Permission check result:', result);
       
-      // Check multiple possible property names for compatibility
-      return result.receive === 'granted' || 
-             result.motion === 'granted' || 
-             result.pedometer === 'granted' ||
-             result.activity === 'granted';
+      // Official API uses "activityRecognition" property
+      return result.activityRecognition === 'granted';
     } catch (error) {
       console.error('[PedometerService] Permission check error:', error);
       return false;
@@ -73,15 +93,17 @@ class PedometerService {
     if (!this.isNativePlatform) return true;
 
     try {
-      if (!this.plugin) {
-        await this.loadPlugin();
+      if (!this.plugin && !(await this.loadPlugin())) {
+        console.error('[PedometerService] Plugin not available for permission request');
+        return false;
       }
-      if (!this.plugin) return false;
 
       console.log('[PedometerService] Requesting permission...');
       const result = await this.plugin.requestPermissions();
       console.log('[PedometerService] Permission request result:', result);
-      return result.receive === 'granted';
+      
+      // Official API uses "activityRecognition" property
+      return result.activityRecognition === 'granted';
     } catch (error) {
       console.error('[PedometerService] Permission request error:', error);
       return false;
@@ -100,59 +122,43 @@ class PedometerService {
     }
 
     try {
-      // Add timeout to entire start operation
-      const startPromise = this._startInternal(callback);
-      const timeoutPromise = new Promise<boolean>((resolve) => 
-        setTimeout(() => {
-          console.error('[PedometerService] Start timeout after 10s');
-          resolve(false);
-        }, 10000)
-      );
-
-      const success = await Promise.race([startPromise, timeoutPromise]);
-      if (success) {
-        this.isStarted = true;
-        console.log('[PedometerService] Started successfully');
+      if (!this.plugin && !(await this.loadPlugin())) {
+        console.error('[PedometerService] Plugin not available');
+        return false;
       }
-      return success;
+
+      // Check permission first
+      const hasPermission = await this.checkPermission();
+      if (!hasPermission) {
+        console.log('[PedometerService] No permission - requesting...');
+        const granted = await this.requestPermission();
+        if (!granted) {
+          console.error('[PedometerService] Permission denied');
+          return false;
+        }
+      }
+
+      // Official API order: addListener THEN startMeasurementUpdates
+      console.log('[PedometerService] Registering measurement listener...');
+      this.listener = await this.plugin.addListener('measurement', (data: any) => {
+        console.log('[PedometerService] Measurement event:', data);
+        callback({
+          steps: data.numberOfSteps || data.steps || 0,
+          distance: data.distance || 0
+        });
+      });
+
+      // Start measurement updates
+      console.log('[PedometerService] Starting measurement updates...');
+      await this.plugin.startMeasurementUpdates();
+      
+      this.isStarted = true;
+      console.log('[PedometerService] Started successfully');
+      return true;
     } catch (error) {
       console.error('[PedometerService] Start error:', error);
       return false;
     }
-  }
-
-  private async _startInternal(callback: PedometerCallback): Promise<boolean> {
-    if (!this.plugin && !(await this.loadPlugin())) {
-      console.error('[PedometerService] Plugin not available');
-      return false;
-    }
-
-    // Check permission first
-    const hasPermission = await this.checkPermission();
-    if (!hasPermission) {
-      console.log('[PedometerService] No permission - requesting...');
-      const granted = await this.requestPermission();
-      if (!granted) {
-        console.error('[PedometerService] Permission denied');
-        return false;
-      }
-    }
-
-    // Register listener BEFORE starting updates
-    console.log('[PedometerService] Registering listener...');
-    this.listener = await this.plugin.addListener('measurement', (data: any) => {
-      console.log('[PedometerService] Measurement event:', data);
-      callback({
-        steps: data.numberOfSteps || data.steps || 0,
-        distance: data.distance || 0
-      });
-    });
-
-    // Start measurement updates
-    console.log('[PedometerService] Starting measurement updates...');
-    await this.plugin.startMeasurementUpdates();
-    
-    return true;
   }
 
   async stop(): Promise<void> {

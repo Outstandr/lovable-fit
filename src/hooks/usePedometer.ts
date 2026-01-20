@@ -107,22 +107,46 @@ export function usePedometer() {
     }
 
     const initPedometer = async () => {
-      console.log('[usePedometer] Initializing pedometer...');
+      console.log('[usePedometer] Starting pedometer initialization...');
 
-      // Set a max timeout for the entire initialization
-      const initTimeout = setTimeout(() => {
-        console.error('[usePedometer] Init timeout after 15s');
+      // Step 1: Check if step counting hardware is available
+      const available = await pedometerService.isAvailable();
+      if (!available) {
+        console.warn('[usePedometer] Step sensor not available on this device');
         setState(prev => ({
           ...prev,
           isInitializing: false,
-          error: 'Pedometer initialization timeout'
+          error: 'Step sensor not available on this device'
         }));
-      }, 15000);
+        return;
+      }
+      console.log('[usePedometer] Step sensor is available');
+
+      // Step 2: Check if we have permission
+      const hasPermission = await pedometerService.checkPermission();
+      if (!hasPermission) {
+        console.warn('[usePedometer] Activity permission not granted');
+        setState(prev => ({
+          ...prev,
+          isInitializing: false,
+          hasPermission: false,
+          error: 'Activity permission required'
+        }));
+        return;
+      }
+      console.log('[usePedometer] Permission granted');
+
+      // Step 3: Start tracking with timeout protection
+      const initTimeout = setTimeout(() => {
+        console.error('[usePedometer] Start timeout after 10s');
+        setState(prev => ({
+          ...prev,
+          isInitializing: false,
+          error: 'Pedometer start timeout'
+        }));
+      }, 10000);
 
       try {
-        // Small delay for app stability
-        await new Promise(resolve => setTimeout(resolve, 500));
-
         const success = await pedometerService.start((data) => {
           // Calculate total steps (base from DB + new steps from sensor)
           const totalSteps = baseSteps.current + data.steps;
@@ -150,9 +174,9 @@ export function usePedometer() {
           ...prev,
           isInitializing: false,
           isTracking: success,
-          hasPermission: success,
+          hasPermission: true,
           dataSource: success ? 'pedometer' : 'unavailable',
-          error: success ? null : 'Pedometer unavailable'
+          error: success ? null : 'Pedometer failed to start'
         }));
 
         console.log('[usePedometer] Initialization result:', success ? 'success' : 'failed');
