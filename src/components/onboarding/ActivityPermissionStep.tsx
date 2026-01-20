@@ -15,40 +15,21 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
   const handleContinue = async () => {
     setIsRequesting(true);
     
-    try {
-      if (Capacitor.isNativePlatform()) {
-        // Step 1: Load the plugin first
+    if (Capacitor.isNativePlatform()) {
+      try {
+        // Load plugin first
         console.log('[Onboarding] Loading pedometer plugin...');
-        const pluginLoaded = await pedometerService.loadPlugin();
-        console.log('[Onboarding] Plugin loaded:', pluginLoaded);
+        await pedometerService.loadPlugin();
         
-        if (pluginLoaded) {
-          // Step 2: Check if step counting hardware is available
-          const available = await pedometerService.isAvailable();
-          console.log('[Onboarding] Step counting available:', available);
-          
-          if (available) {
-            // Step 3: Request permission - this shows the native Android dialog
-            console.log('[Onboarding] Requesting permission...');
-            const granted = await Promise.race([
-              pedometerService.requestPermission(),
-              new Promise<boolean>((resolve) => setTimeout(() => {
-                console.log('[Onboarding] Permission request timeout');
-                resolve(false);
-              }, 8000))
-            ]);
-            console.log('[Onboarding] Permission granted:', granted);
-          } else {
-            console.log('[Onboarding] Step sensor not available on this device');
-          }
-        }
+        // Request permission immediately - this shows the native dialog
+        console.log('[Onboarding] Requesting permission...');
+        const granted = await pedometerService.requestPermission();
+        console.log('[Onboarding] Permission granted:', granted);
+      } catch (error) {
+        console.log('[Onboarding] Permission error:', error);
       }
-    } catch (error) {
-      console.log('[Onboarding] Permission error (continuing anyway):', error);
     }
     
-    // Small delay then proceed
-    await new Promise(resolve => setTimeout(resolve, 300));
     setIsRequesting(false);
     onNext();
   };
