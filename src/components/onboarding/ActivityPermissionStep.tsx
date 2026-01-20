@@ -17,42 +17,25 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
     
     if (Capacitor.isNativePlatform()) {
       try {
-        console.log('[Onboarding] Requesting activity recognition permission...');
+        console.log('[Onboarding] Single-step: request permission + start tracking...');
         
-        // Wrap permission request in a timeout to prevent hanging
-        const permissionPromise = pedometerService.requestPermission();
-        const timeoutPromise = new Promise<boolean>((resolve) => {
-          setTimeout(() => {
-            console.log('[Onboarding] Permission request timed out after 5s');
-            resolve(false);
-          }, 5000);
+        // One atomic operation with timeout
+        const promise = pedometerService.requestAndStart((data) => {
+          console.log('[Onboarding] Step data:', data);
         });
         
-        // Race between permission result and timeout
-        const granted = await Promise.race([permissionPromise, timeoutPromise]);
-        console.log('[Onboarding] Permission result:', granted);
+        const timeout = new Promise<{ granted: boolean; tracking: boolean }>((resolve) => {
+          setTimeout(() => {
+            console.log('[Onboarding] Timed out after 10s');
+            resolve({ granted: false, tracking: false });
+          }, 10000);
+        });
         
-        // If permission granted, start tracking immediately to avoid sync issues
-        if (granted) {
-          console.log('[Onboarding] Starting pedometer tracking immediately...');
-          
-          const startPromise = pedometerService.start((data) => {
-            console.log('[Onboarding] Pedometer data received:', data);
-          });
-          
-          const startTimeout = new Promise<boolean>((resolve) => {
-            setTimeout(() => {
-              console.log('[Onboarding] Pedometer start timed out after 5s');
-              resolve(false);
-            }, 5000);
-          });
-          
-          const started = await Promise.race([startPromise, startTimeout]);
-          console.log('[Onboarding] Pedometer tracking started:', started);
-        }
+        const result = await Promise.race([promise, timeout]);
+        console.log('[Onboarding] Result:', result);
         
       } catch (error) {
-        console.log('[Onboarding] Permission/start error:', error);
+        console.log('[Onboarding] Error:', error);
       }
     }
     
