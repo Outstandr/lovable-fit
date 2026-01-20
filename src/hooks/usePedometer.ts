@@ -165,22 +165,11 @@ export function usePedometer() {
           return;
         }
 
-        // Check permission
-        const hasPermission = await pedometerService.checkPermission();
-        console.log('[usePedometer] Has permission:', hasPermission);
-        
-        if (!hasPermission) {
-          console.log('[usePedometer] No permission - using DB data only');
-          if (isMounted) {
-            setState(prev => ({ ...prev, hasPermission: false, dataSource: 'database' }));
-          }
-          return;
-        }
+        // Skip permission check - forceStart will use Android's real permission state
+        console.log('[usePedometer] Starting with forceStart() (bypasses permission cache)...');
 
-        console.log('[usePedometer] Permission granted, starting with startOnly()...');
-
-        // Use startOnly() - doesn't re-request permission (fixes Android 16 caching)
-        const success = await pedometerService.startOnly((data) => {
+        // Use forceStart() - bypasses broken permission cache on Android 16
+        const success = await pedometerService.forceStart((data) => {
           if (!isMounted) return;
           
           const totalSteps = baseSteps.current + data.steps;

@@ -83,32 +83,24 @@ class PedometerService {
   }
 
   /**
-   * Start tracking WITHOUT re-requesting permission.
-   * Use this after onboarding when permission is already granted.
-   * Only checks permission status, then starts sensor.
+   * Force start tracking WITHOUT any permission checks.
+   * Bypasses Capacitor's permission cache which can be desynchronized on Android 16.
+   * The native sensor manager will use Android's real permission state.
    */
-  async startOnly(callback: PedometerCallback): Promise<boolean> {
+  async forceStart(callback: PedometerCallback): Promise<boolean> {
     if (!this.isNativePlatform) {
       console.log('[PedometerService] Web platform - cannot start');
       return false;
     }
 
     if (this.isStarted) {
-      console.log('[PedometerService] Already started');
-      return true;
+      console.log('[PedometerService] Already started - attaching callback');
+      return this.attachCallback(callback);
     }
 
     try {
-      // Just CHECK permission, don't request it (avoids Android 16 caching issue)
-      console.log('[PedometerService] Checking permission (not requesting)...');
-      const permCheck = await CapacitorPedometer.checkPermissions();
-      console.log('[PedometerService] Permission status:', permCheck);
+      console.log('[PedometerService] === FORCE START (bypassing permission check) ===');
       
-      if (permCheck.activityRecognition !== 'granted') {
-        console.log('[PedometerService] Permission not granted - cannot start');
-        return false;
-      }
-
       // Add listener FIRST (per official docs)
       console.log('[PedometerService] Registering measurement listener...');
       this.listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
@@ -119,17 +111,35 @@ class PedometerService {
         });
       });
 
-      // Start measurement updates
+      // Start measurement updates - this uses Android's REAL permission state
       console.log('[PedometerService] Starting measurement updates...');
       await CapacitorPedometer.startMeasurementUpdates();
       
       this.isStarted = true;
-      console.log('[PedometerService] ✓ Started successfully (startOnly)');
+      console.log('[PedometerService] ✓ Force start successful - sensor active!');
       return true;
     } catch (error) {
-      console.error('[PedometerService] startOnly error:', error);
+      console.error('[PedometerService] Force start failed:', error);
+      // Clean up listener if it was added
+      if (this.listener) {
+        try {
+          await this.listener.remove();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+        this.listener = null;
+      }
       return false;
     }
+  }
+
+  /**
+   * Start tracking WITHOUT re-requesting permission.
+   * @deprecated Use forceStart() instead - it bypasses the broken permission cache.
+   */
+  async startOnly(callback: PedometerCallback): Promise<boolean> {
+    console.log('[PedometerService] startOnly() called - delegating to forceStart()');
+    return this.forceStart(callback);
   }
 
   /**
