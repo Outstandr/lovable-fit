@@ -24,6 +24,7 @@ import AppSettings from "./pages/AppSettings";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import NotFound from "./pages/NotFound";
 import MapTest from "./pages/MapTest";
+import PedometerDebug from "./pages/PedometerDebug";
 
 const queryClient = new QueryClient();
 
@@ -131,6 +132,13 @@ const AnimatedRoutes = () => {
           <PageTransition>
             <PrivacyPolicy />
           </PageTransition>
+        } />
+        <Route path="/pedometer-debug" element={
+          <ProtectedRoute>
+            <PageTransition>
+              <PedometerDebug />
+            </PageTransition>
+          </ProtectedRoute>
         } />
         <Route path="*" element={
           <PageTransition>
