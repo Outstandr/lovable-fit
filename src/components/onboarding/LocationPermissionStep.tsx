@@ -28,7 +28,7 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
         }
 
         // Request permission - this triggers the native system dialog
-        const result = await Geolocation.requestPermissions();
+        const result = await Geolocation.requestPermissions({ permissions: ['location'] });
         console.log('[Onboarding] Location permission result:', result);
       } else {
         console.log('[Onboarding] Geolocation plugin not available on this platform');

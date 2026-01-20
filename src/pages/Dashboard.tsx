@@ -304,7 +304,7 @@ const Dashboard = () => {
   const today = new Date();
 
   return (
-    <div className="h-screen flex flex-col page-with-both-fixed relative">
+    <div className="min-h-screen flex flex-col page-with-both-fixed relative">
       {/* Offline Banner */}
       <OfflineBanner />
 
@@ -327,7 +327,7 @@ const Dashboard = () => {
       }} />
 
       <PullToRefresh onRefresh={handleRefresh} className="flex-1 flex flex-col overflow-hidden">
-        <RubberBandScroll className="flex-1 overflow-y-auto">
+        <RubberBandScroll className="flex-1 overflow-y-auto pb-32">
           <div className="px-4 pb-2 relative z-content">
             {/* Tabs Row */}
             <div className="flex justify-center mb-2">

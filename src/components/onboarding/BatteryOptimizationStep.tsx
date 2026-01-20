@@ -41,7 +41,7 @@ export function BatteryOptimizationStep({ onNext }: BatteryOptimizationStepProps
   };
 
   return (
-    <div className="min-h-screen-safe flex flex-col px-6 py-8">
+    <div className="h-screen flex flex-col px-6 py-8 overflow-hidden">
       {/* Icon */}
       <div className="flex-1 flex flex-col items-center justify-center">
         <motion.div
@@ -79,7 +79,7 @@ export function BatteryOptimizationStep({ onNext }: BatteryOptimizationStepProps
           transition={{ delay: 0.3 }}
           className="text-muted-foreground text-center max-w-xs leading-relaxed"
         >
-          Allow Lionel X to run in the background to count your steps when you don't have the app open.
+          Allow Hotstepper to run in the background to count your steps when you don't have the app open.
         </motion.p>
 
         {/* Info box */}
@@ -90,7 +90,7 @@ export function BatteryOptimizationStep({ onNext }: BatteryOptimizationStepProps
           className="mt-8 p-4 rounded-xl bg-secondary/50 max-w-xs"
         >
           <p className="text-sm text-foreground/80 text-center">
-            When prompted, select <span className="font-semibold text-primary">"Allow"</span> to let Lionel X run in the background without battery restrictions.
+            When prompted, select <span className="font-semibold text-primary">"Allow"</span> to let Hotstepper run in the background without battery restrictions.
           </p>
         </motion.div>
       </div>

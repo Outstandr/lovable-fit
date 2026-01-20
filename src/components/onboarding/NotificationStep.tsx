@@ -38,7 +38,7 @@ export function NotificationStep({ onNext }: NotificationStepProps) {
   };
 
   return (
-    <div className="min-h-screen-safe flex flex-col px-6 py-8">
+    <div className="h-screen flex flex-col px-6 py-8 overflow-hidden">
       {/* Icon */}
       <div className="flex-1 flex flex-col items-center justify-center">
         <motion.div
