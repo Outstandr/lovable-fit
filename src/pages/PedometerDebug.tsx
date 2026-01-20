@@ -111,8 +111,17 @@ export default function PedometerDebug() {
       return;
     }
 
-    addLog('Adding measurement listener...', 'info');
     try {
+      // Step 1: Force permission refresh before starting (fixes Android sync issue)
+      addLog('Refreshing permission state...', 'info');
+      const permResult = await CapacitorPedometer.requestPermissions();
+      addLog(`Permission refresh result: ${JSON.stringify(permResult)}`, 'info');
+      
+      // Step 2: Small delay to let Android sync permission state
+      await new Promise(r => setTimeout(r, 200));
+
+      // Step 3: Add measurement listener
+      addLog('Adding measurement listener...', 'info');
       const newListener = await CapacitorPedometer.addListener('measurement', (data: any) => {
         addLog(`Measurement received: steps=${data.numberOfSteps}, distance=${data.distance}m`, 'success');
         setState(prev => ({
@@ -126,6 +135,7 @@ export default function PedometerDebug() {
       setListener(newListener);
       addLog('Listener added successfully', 'success');
 
+      // Step 4: Start measurement updates
       addLog('Calling startMeasurementUpdates()...', 'info');
       await CapacitorPedometer.startMeasurementUpdates();
       addLog('startMeasurementUpdates() completed - tracking active!', 'success');

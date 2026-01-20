@@ -80,18 +80,14 @@ class PedometerService {
     }
 
     try {
-      // Check permission first
-      const hasPermission = await this.checkPermission();
-      if (!hasPermission) {
-        console.log('[PedometerService] No permission - requesting...');
-        const granted = await this.requestPermission();
-        if (!granted) {
-          console.error('[PedometerService] Permission denied');
-          return false;
-        }
-      }
+      // Force permission refresh (this syncs Android's native state)
+      console.log('[PedometerService] Refreshing permission state...');
+      await CapacitorPedometer.requestPermissions();
+      
+      // Small delay to let Android sync
+      await new Promise(r => setTimeout(r, 200));
 
-      // Step 1: Add listener FIRST (per official docs)
+      // Add listener FIRST (per official docs)
       console.log('[PedometerService] Registering measurement listener...');
       this.listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
         console.log('[PedometerService] Measurement event:', data);
@@ -101,7 +97,7 @@ class PedometerService {
         });
       });
 
-      // Step 2: Start measurement updates
+      // Start measurement updates
       console.log('[PedometerService] Starting measurement updates...');
       await CapacitorPedometer.startMeasurementUpdates();
       
