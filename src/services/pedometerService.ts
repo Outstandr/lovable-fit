@@ -133,6 +133,44 @@ class PedometerService {
   isTracking(): boolean {
     return this.isStarted;
   }
+
+  /**
+   * Attach a new callback to an already-running pedometer.
+   * Used when Dashboard mounts after onboarding already started tracking.
+   */
+  async attachCallback(callback: PedometerCallback): Promise<boolean> {
+    if (!this.isNativePlatform) return false;
+
+    // If not started, just start normally
+    if (!this.isStarted) {
+      console.log('[PedometerService] Not started - calling start() instead');
+      return this.start(callback);
+    }
+
+    try {
+      // Remove old listener
+      if (this.listener) {
+        console.log('[PedometerService] Removing old listener before attaching new callback...');
+        await this.listener.remove();
+      }
+
+      // Add new listener with the new callback
+      console.log('[PedometerService] Attaching new callback...');
+      this.listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
+        console.log('[PedometerService] Measurement event (attached):', data);
+        callback({
+          steps: data.numberOfSteps || 0,
+          distance: data.distance || 0
+        });
+      });
+
+      console.log('[PedometerService] New callback attached successfully');
+      return true;
+    } catch (error) {
+      console.error('[PedometerService] attachCallback error:', error);
+      return false;
+    }
+  }
 }
 
 export const pedometerService = new PedometerService();

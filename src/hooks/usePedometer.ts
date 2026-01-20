@@ -118,6 +118,41 @@ export function usePedometer() {
       console.log('[usePedometer] Starting pedometer initialization...');
 
       try {
+        // Check if pedometer was already started during onboarding
+        if (pedometerService.isTracking()) {
+          console.log('[usePedometer] Pedometer already running from onboarding - attaching callback');
+          
+          const success = await pedometerService.attachCallback((data) => {
+            const totalSteps = baseSteps.current + data.steps;
+            const distanceKm = (data.distance || (data.steps * 0.762)) / 1000;
+            const totalDistance = (baseSteps.current * 0.762) / 1000 + distanceKm;
+            const calories = Math.round(totalSteps / STEPS_PER_CALORIE);
+
+            console.log('[usePedometer] Measurement - sensor:', data.steps, 'total:', totalSteps);
+
+            setState(prev => ({
+              ...prev,
+              steps: totalSteps,
+              distance: totalDistance,
+              calories,
+              isTracking: true,
+              hasPermission: true,
+              dataSource: 'pedometer',
+              lastUpdate: Date.now()
+            }));
+          });
+
+          if (isMounted) {
+            setState(prev => ({
+              ...prev,
+              isTracking: success,
+              hasPermission: true,
+              dataSource: 'pedometer'
+            }));
+          }
+          return;
+        }
+
         // Check if step counter is available on this device
         const isAvailable = await pedometerService.isAvailable();
         console.log('[usePedometer] Step counter available:', isAvailable);
