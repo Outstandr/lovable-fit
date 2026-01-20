@@ -29,6 +29,16 @@ const Onboarding = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // Lock body scroll while onboarding is mounted
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
   useEffect(() => {
     // Check if user is authenticated
     if (!user) {
@@ -74,7 +84,7 @@ const Onboarding = () => {
   }
 
   return (
-    <div className="min-h-screen-safe bg-background safe-area-y">
+    <div className="fixed inset-0 bg-background overflow-hidden">
       <AnimatePresence mode="wait">
         {currentStep === 'activity' && (
           <motion.div
@@ -83,7 +93,7 @@ const Onboarding = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
-            className="h-full"
+            className="absolute inset-0"
           >
             <ActivityPermissionStep onNext={() => handleNext('location')} />
           </motion.div>
@@ -96,7 +106,7 @@ const Onboarding = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
-            className="h-full"
+            className="absolute inset-0"
           >
             <LocationPermissionStep onNext={() => handleNext('body')} />
           </motion.div>
@@ -109,7 +119,7 @@ const Onboarding = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
-            className="h-full"
+            className="absolute inset-0"
           >
             <BodyMeasurementsStep onNext={() => handleNext('battery')} />
           </motion.div>
@@ -122,7 +132,7 @@ const Onboarding = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
-            className="h-full"
+            className="absolute inset-0"
           >
             <BatteryOptimizationStep onNext={() => handleNext('notification')} />
           </motion.div>
@@ -135,7 +145,7 @@ const Onboarding = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
-            className="h-full"
+            className="absolute inset-0"
           >
             <NotificationStep onNext={() => handleNext('goal')} />
           </motion.div>
@@ -148,7 +158,7 @@ const Onboarding = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
-            className="h-full"
+            className="absolute inset-0"
           >
             <GoalStep onNext={() => handleNext('complete')} />
           </motion.div>
@@ -161,7 +171,7 @@ const Onboarding = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
-            className="h-full"
+            className="absolute inset-0"
           >
             <SetupCompleteStep onComplete={handleComplete} />
           </motion.div>

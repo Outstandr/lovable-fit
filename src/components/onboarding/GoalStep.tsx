@@ -90,9 +90,9 @@ export const GoalStep = forwardRef<HTMLDivElement, GoalStepProps>(
       : selectedGoal !== null;
 
     return (
-      <div ref={ref} className="h-screen flex flex-col px-6 py-8 overflow-hidden">
+      <div ref={ref} className="absolute inset-0 flex flex-col bg-background safe-area-y">
         {/* Header */}
-        <div className="pt-8 mb-8">
+        <div className="pt-8 px-6 mb-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -115,7 +115,7 @@ export const GoalStep = forwardRef<HTMLDivElement, GoalStepProps>(
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="flex-1 space-y-4"
+          className="flex-1 px-6 space-y-4 min-h-0 overflow-y-auto"
         >
           {PRESET_GOALS.map((goal, index) => (
             <motion.button
@@ -183,7 +183,7 @@ export const GoalStep = forwardRef<HTMLDivElement, GoalStepProps>(
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="safe-area-pb mt-6"
+          className="px-6 pb-6 safe-area-pb mt-4"
         >
           <Button
             onClick={handleContinue}

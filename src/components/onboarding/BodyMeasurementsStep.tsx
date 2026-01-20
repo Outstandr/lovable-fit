@@ -151,189 +151,193 @@ export function BodyMeasurementsStep({ onNext }: BodyMeasurementsStepProps) {
   };
 
   return (
-    <div className="min-h-screen-safe flex flex-col px-6 py-8 overflow-y-auto">
-      {/* Icon */}
-      <div className="flex items-center justify-center mb-6">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-          className="p-4 rounded-full bg-primary/10"
+    <div className="absolute inset-0 flex flex-col bg-background safe-area-y">
+      {/* Header */}
+      <div className="flex-shrink-0 px-6 pt-8 pb-4">
+        <div className="flex items-center justify-center mb-4">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+            className="p-4 rounded-full bg-primary/10"
+          >
+            <User className="w-12 h-12 text-primary" />
+          </motion.div>
+        </div>
+
+        <motion.h1
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="text-2xl font-bold text-foreground text-center mb-2"
         >
-          <User className="w-12 h-12 text-primary" />
-        </motion.div>
+          Body Measurements
+        </motion.h1>
+
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="text-muted-foreground text-center text-sm"
+        >
+          Help us personalize your fitness tracking
+        </motion.p>
       </div>
 
-      <motion.h1
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="text-2xl font-bold text-foreground text-center mb-2"
-      >
-        Body Measurements
-      </motion.h1>
-
-      <motion.p
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="text-muted-foreground text-center text-sm mb-8"
-      >
-        Help us personalize your fitness tracking
-      </motion.p>
-
-      {/* Form */}
+      {/* Scrollable Form */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="flex-1 space-y-6"
+        className="flex-1 overflow-y-auto px-6 min-h-0"
       >
-        {/* Units Toggle */}
-        <div className="tactical-card p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Ruler className="w-4 h-4 text-primary" />
-              <span className="text-sm font-semibold text-foreground">Unit System</span>
+        <div className="space-y-6 pb-4">
+          {/* Units Toggle */}
+          <div className="tactical-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Ruler className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold text-foreground">Unit System</span>
+              </div>
+            </div>
+            <div className="flex rounded-lg bg-secondary p-1">
+              <button
+                onClick={() => handleUnitsChange('metric')}
+                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${units === 'metric'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                Metric
+              </button>
+              <button
+                onClick={() => handleUnitsChange('imperial')}
+                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${units === 'imperial'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                Imperial
+              </button>
             </div>
           </div>
-          <div className="flex rounded-lg bg-secondary p-1">
-            <button
-              onClick={() => handleUnitsChange('metric')}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${units === 'metric'
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              Metric
-            </button>
-            <button
-              onClick={() => handleUnitsChange('imperial')}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${units === 'imperial'
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              Imperial
-            </button>
-          </div>
-        </div>
 
-        {/* Gender */}
-        <div className="tactical-card p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <User className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground">Sex</span>
+          {/* Gender */}
+          <div className="tactical-card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <User className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground">Sex</span>
+            </div>
+            <div className="flex rounded-lg bg-secondary p-1">
+              <button
+                onClick={() => setGender('male')}
+                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${gender === 'male'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                Male
+              </button>
+              <button
+                onClick={() => setGender('female')}
+                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${gender === 'female'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                Female
+              </button>
+            </div>
           </div>
-          <div className="flex rounded-lg bg-secondary p-1">
-            <button
-              onClick={() => setGender('male')}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${gender === 'male'
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              Male
-            </button>
-            <button
-              onClick={() => setGender('female')}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${gender === 'female'
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              Female
-            </button>
-          </div>
-        </div>
 
-        {/* Height */}
-        <div className="tactical-card p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Ruler className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground">Height</span>
+          {/* Height */}
+          <div className="tactical-card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Ruler className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground">Height</span>
+            </div>
+            {units === 'metric' ? (
+              <div className="relative">
+                <Input
+                  type="number"
+                  value={heightCm}
+                  onChange={(e) => setHeightCm(e.target.value)}
+                  placeholder="170"
+                  className="pr-12 h-12 text-lg bg-secondary border-border/50 focus:border-primary"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
+                  cm
+                </span>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type="number"
+                    value={heightFt}
+                    onChange={(e) => handleImperialHeightChange(e.target.value, heightIn)}
+                    placeholder="5"
+                    className="pr-10 h-12 text-lg bg-secondary border-border/50 focus:border-primary"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
+                    ft
+                  </span>
+                </div>
+                <div className="relative flex-1">
+                  <Input
+                    type="number"
+                    value={heightIn}
+                    onChange={(e) => handleImperialHeightChange(heightFt, e.target.value)}
+                    placeholder="7"
+                    className="pr-10 h-12 text-lg bg-secondary border-border/50 focus:border-primary"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
+                    in
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
-          {units === 'metric' ? (
+
+          {/* Weight */}
+          <div className="tactical-card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Scale className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground">Weight</span>
+            </div>
             <div className="relative">
               <Input
                 type="number"
-                value={heightCm}
-                onChange={(e) => setHeightCm(e.target.value)}
-                placeholder="170"
-                className="pr-12 h-12 text-lg bg-secondary border-border/50 focus:border-primary"
+                value={units === 'metric' ? weightKg : weightLbs}
+                onChange={(e) =>
+                  units === 'metric'
+                    ? setWeightKg(e.target.value)
+                    : handleImperialWeightChange(e.target.value)
+                }
+                placeholder={units === 'metric' ? '70' : '154'}
+                className="pr-14 h-12 text-lg bg-secondary border-border/50 focus:border-primary"
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
-                cm
+                {units === 'metric' ? 'kg' : 'lbs'}
               </span>
             </div>
-          ) : (
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Input
-                  type="number"
-                  value={heightFt}
-                  onChange={(e) => handleImperialHeightChange(e.target.value, heightIn)}
-                  placeholder="5"
-                  className="pr-10 h-12 text-lg bg-secondary border-border/50 focus:border-primary"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
-                  ft
-                </span>
-              </div>
-              <div className="relative flex-1">
-                <Input
-                  type="number"
-                  value={heightIn}
-                  onChange={(e) => handleImperialHeightChange(heightFt, e.target.value)}
-                  placeholder="7"
-                  className="pr-10 h-12 text-lg bg-secondary border-border/50 focus:border-primary"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
-                  in
-                </span>
-              </div>
+          </div>
+
+          {/* Birth Year */}
+          <div className="tactical-card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Calendar className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground">Year of Birth</span>
             </div>
-          )}
-        </div>
-
-        {/* Weight */}
-        <div className="tactical-card p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Scale className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground">Weight</span>
-          </div>
-          <div className="relative">
-            <Input
-              type="number"
-              value={units === 'metric' ? weightKg : weightLbs}
-              onChange={(e) =>
-                units === 'metric'
-                  ? setWeightKg(e.target.value)
-                  : handleImperialWeightChange(e.target.value)
-              }
-              placeholder={units === 'metric' ? '70' : '154'}
-              className="pr-14 h-12 text-lg bg-secondary border-border/50 focus:border-primary"
-            />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
-              {units === 'metric' ? 'kg' : 'lbs'}
-            </span>
-          </div>
-        </div>
-
-        {/* Birth Year */}
-        <div className="tactical-card p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Calendar className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground">Year of Birth</span>
-          </div>
-          <div className="relative">
-            <Input
-              type="number"
-              value={birthYear}
-              onChange={(e) => setBirthYear(e.target.value)}
-              placeholder="2000"
-              className="h-12 text-lg bg-secondary border-border/50 focus:border-primary"
-            />
+            <div className="relative">
+              <Input
+                type="number"
+                value={birthYear}
+                onChange={(e) => setBirthYear(e.target.value)}
+                placeholder="2000"
+                className="h-12 text-lg bg-secondary border-border/50 focus:border-primary"
+              />
+            </div>
           </div>
         </div>
       </motion.div>
@@ -343,7 +347,7 @@ export function BodyMeasurementsStep({ onNext }: BodyMeasurementsStepProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="safe-area-pb mt-6"
+        className="flex-shrink-0 px-6 pb-6 safe-area-pb"
       >
         <div className="text-center mb-4">
           {error && <p className="text-sm text-destructive font-medium">{error}</p>}
