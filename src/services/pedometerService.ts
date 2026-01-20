@@ -82,7 +82,12 @@ class PedometerService {
     }
   }
 
-  async start(callback: PedometerCallback): Promise<boolean> {
+  /**
+   * Start tracking WITHOUT re-requesting permission.
+   * Use this after onboarding when permission is already granted.
+   * Only checks permission status, then starts sensor.
+   */
+  async startOnly(callback: PedometerCallback): Promise<boolean> {
     if (!this.isNativePlatform) {
       console.log('[PedometerService] Web platform - cannot start');
       return false;
@@ -94,12 +99,15 @@ class PedometerService {
     }
 
     try {
-      // Force permission refresh (this syncs Android's native state)
-      console.log('[PedometerService] Refreshing permission state...');
-      await CapacitorPedometer.requestPermissions();
+      // Just CHECK permission, don't request it (avoids Android 16 caching issue)
+      console.log('[PedometerService] Checking permission (not requesting)...');
+      const permCheck = await CapacitorPedometer.checkPermissions();
+      console.log('[PedometerService] Permission status:', permCheck);
       
-      // Small delay to let Android sync
-      await new Promise(r => setTimeout(r, 200));
+      if (permCheck.activityRecognition !== 'granted') {
+        console.log('[PedometerService] Permission not granted - cannot start');
+        return false;
+      }
 
       // Add listener FIRST (per official docs)
       console.log('[PedometerService] Registering measurement listener...');
@@ -116,12 +124,20 @@ class PedometerService {
       await CapacitorPedometer.startMeasurementUpdates();
       
       this.isStarted = true;
-      console.log('[PedometerService] Started successfully');
+      console.log('[PedometerService] ✓ Started successfully (startOnly)');
       return true;
     } catch (error) {
-      console.error('[PedometerService] Start error:', error);
+      console.error('[PedometerService] startOnly error:', error);
       return false;
     }
+  }
+
+  /**
+   * @deprecated Use startOnly() for post-onboarding, requestAndStart() for onboarding
+   */
+  async start(callback: PedometerCallback): Promise<boolean> {
+    console.log('[PedometerService] start() called - delegating to startOnly()');
+    return this.startOnly(callback);
   }
 
   async stop(): Promise<void> {
