@@ -12,7 +12,7 @@ import { DayView } from "@/components/dashboard/DayView";
 import { WeekView } from "@/components/dashboard/WeekView";
 import { MonthView } from "@/components/dashboard/MonthView";
 import { OfflineBanner } from "@/components/OfflineBanner";
-import { useHealth } from "@/hooks/useHealth";
+import { usePedometer } from "@/hooks/usePedometer";
 import { useStreak } from "@/hooks/useStreak";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useLocalCache } from "@/hooks/useLocalCache";
@@ -29,7 +29,7 @@ type TabType = "day" | "week" | "month";
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { steps, distance, calories, dataSource, syncToDatabase, isInitializing } = useHealth();
+  const { steps, distance, calories, dataSource, syncToDatabase, isInitializing } = usePedometer();
   const { streak, updateStreakOnTargetHit } = useStreak();
   const { isOnline } = useOfflineSync();
   const { getCachedWeekData, setCachedWeekData, getCachedMonthData, setCachedMonthData, setLastSyncTime } = useLocalCache();
