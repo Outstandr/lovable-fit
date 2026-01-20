@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Bug, Cpu, Shield, Play, Square, Settings, RefreshCw, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { pedometerService } from '@/services/pedometerService';
 
 interface DebugState {
   platform: string;
@@ -14,6 +15,7 @@ interface DebugState {
   stepCountingSupported: boolean | null;
   permissionStatus: string | null;
   isTracking: boolean;
+  isStarting: boolean;
   lastMeasurement: { steps: number; distance: number } | null;
   logs: { time: string; message: string; type: 'info' | 'success' | 'error' | 'warn' }[];
   error: string | null;
@@ -21,14 +23,14 @@ interface DebugState {
 
 export default function PedometerDebug() {
   const navigate = useNavigate();
-  const [listener, setListener] = useState<any>(null);
   const [state, setState] = useState<DebugState>({
     platform: Capacitor.getPlatform(),
     isNative: Capacitor.isNativePlatform(),
     isAvailable: null,
     stepCountingSupported: null,
     permissionStatus: null,
-    isTracking: false,
+    isTracking: pedometerService.isTracking(),
+    isStarting: false,
     lastMeasurement: null,
     logs: [],
     error: null,
@@ -106,49 +108,51 @@ export default function PedometerDebug() {
   }, [addLog]);
 
   const startTracking = useCallback(async () => {
-    if (state.isTracking) {
-      addLog('Already tracking, ignoring start request', 'warn');
+    if (state.isTracking || state.isStarting) {
+      addLog('Already tracking or starting, ignoring', 'warn');
       return;
     }
 
-    try {
-      // Step 1: Force permission refresh before starting (fixes Android sync issue)
-      addLog('Refreshing permission state...', 'info');
-      const permResult = await CapacitorPedometer.requestPermissions();
-      addLog(`Permission refresh result: ${JSON.stringify(permResult)}`, 'info');
-      
-      // Step 2: Small delay to let Android sync permission state
-      await new Promise(r => setTimeout(r, 200));
+    setState(prev => ({ ...prev, isStarting: true }));
+    addLog('=== STARTING TRACKING (using pedometerService) ===', 'info');
 
-      // Step 3: Add measurement listener
-      addLog('Adding measurement listener...', 'info');
-      const newListener = await CapacitorPedometer.addListener('measurement', (data: any) => {
-        addLog(`Measurement received: steps=${data.numberOfSteps}, distance=${data.distance}m`, 'success');
+    try {
+      const result = await pedometerService.requestAndStart((data) => {
+        addLog(`Measurement: steps=${data.steps}, distance=${data.distance}m`, 'success');
         setState(prev => ({
           ...prev,
           lastMeasurement: {
-            steps: data.numberOfSteps || 0,
-            distance: data.distance || 0,
+            steps: data.steps,
+            distance: data.distance,
           },
         }));
       });
-      setListener(newListener);
-      addLog('Listener added successfully', 'success');
 
-      // Step 4: Start measurement updates
-      addLog('Calling startMeasurementUpdates()...', 'info');
-      await CapacitorPedometer.startMeasurementUpdates();
-      addLog('startMeasurementUpdates() completed - tracking active!', 'success');
+      addLog(`Result: granted=${result.granted}, tracking=${result.tracking}`, result.tracking ? 'success' : 'warn');
       
-      setState(prev => ({ ...prev, isTracking: true }));
+      setState(prev => ({ 
+        ...prev, 
+        isTracking: result.tracking,
+        permissionStatus: result.granted ? 'granted' : 'denied',
+      }));
+      
+      if (result.tracking) {
+        addLog('✓ Tracking is now active - walk to see steps!', 'success');
+      } else if (result.granted) {
+        addLog('Permission granted but tracking failed to start', 'warn');
+      } else {
+        addLog('Permission denied - open Settings to grant manually', 'error');
+      }
     } catch (error: any) {
-      addLog(`Start tracking error: ${error.message || error}`, 'error');
+      addLog(`Start error: ${error.message || error}`, 'error');
       setState(prev => ({
         ...prev,
         error: error.message || String(error),
       }));
+    } finally {
+      setState(prev => ({ ...prev, isStarting: false }));
     }
-  }, [state.isTracking, addLog]);
+  }, [state.isTracking, state.isStarting, addLog]);
 
   const stopTracking = useCallback(async () => {
     if (!state.isTracking) {
@@ -156,22 +160,15 @@ export default function PedometerDebug() {
       return;
     }
 
-    addLog('Stopping measurement updates...', 'info');
+    addLog('Stopping via pedometerService...', 'info');
     try {
-      await CapacitorPedometer.stopMeasurementUpdates();
-      addLog('stopMeasurementUpdates() completed', 'success');
-
-      if (listener) {
-        await listener.remove();
-        setListener(null);
-        addLog('Listener removed', 'success');
-      }
-
+      await pedometerService.stop();
+      addLog('Tracking stopped', 'success');
       setState(prev => ({ ...prev, isTracking: false }));
     } catch (error: any) {
-      addLog(`Stop tracking error: ${error.message || error}`, 'error');
+      addLog(`Stop error: ${error.message || error}`, 'error');
     }
-  }, [state.isTracking, listener, addLog]);
+  }, [state.isTracking, addLog]);
 
   const openAppSettings = useCallback(async () => {
     addLog('Opening app settings...', 'info');
@@ -323,16 +320,16 @@ export default function PedometerDebug() {
                 size="sm" 
                 variant="default" 
                 onClick={startTracking}
-                disabled={state.isTracking}
+                disabled={state.isTracking || state.isStarting}
               >
                 <Play className="h-3 w-3 mr-1" />
-                Start
+                {state.isStarting ? 'Starting...' : 'Start'}
               </Button>
               <Button 
                 size="sm" 
                 variant="outline" 
                 onClick={stopTracking}
-                disabled={!state.isTracking}
+                disabled={!state.isTracking || state.isStarting}
               >
                 <Square className="h-3 w-3 mr-1" />
                 Stop

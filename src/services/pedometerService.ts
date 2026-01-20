@@ -12,9 +12,23 @@ class PedometerService {
   private isNativePlatform: boolean;
   private listener: any = null;
   private isStarted: boolean = false;
+  private isStarting: boolean = false;
+  private startPromise: Promise<{ granted: boolean; tracking: boolean }> | null = null;
 
   constructor() {
     this.isNativePlatform = Capacitor.isNativePlatform();
+  }
+
+  /**
+   * Helper to wrap a promise with a timeout
+   */
+  private withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) => 
+        setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+      )
+    ]);
   }
 
   isNative(): boolean {
@@ -137,6 +151,7 @@ class PedometerService {
   /**
    * Single atomic operation: request permission + start tracking.
    * Use this during onboarding to avoid permission sync issues.
+   * Includes locks and timeouts for reliability.
    */
   async requestAndStart(callback: PedometerCallback): Promise<{ granted: boolean; tracking: boolean }> {
     if (!this.isNativePlatform) {
@@ -149,42 +164,67 @@ class PedometerService {
       return { granted: true, tracking: true };
     }
 
-    try {
-      // Step 1: Request permission
-      console.log('[PedometerService] Requesting permission...');
-      const permResult = await CapacitorPedometer.requestPermissions();
-      const granted = permResult.activityRecognition === 'granted';
-      console.log('[PedometerService] Permission granted:', granted);
-
-      if (!granted) {
-        return { granted: false, tracking: false };
-      }
-
-      // Step 2: Small delay to let Android sync permission state
-      await new Promise(r => setTimeout(r, 200));
-
-      // Step 3: Add measurement listener
-      console.log('[PedometerService] Adding listener...');
-      this.listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
-        console.log('[PedometerService] Measurement:', data);
-        callback({
-          steps: data.numberOfSteps || 0,
-          distance: data.distance || 0
-        });
-      });
-
-      // Step 4: Start measurement updates
-      console.log('[PedometerService] Starting measurement updates...');
-      await CapacitorPedometer.startMeasurementUpdates();
-      
-      this.isStarted = true;
-      console.log('[PedometerService] Tracking started successfully');
-      return { granted: true, tracking: true };
-      
-    } catch (error) {
-      console.error('[PedometerService] requestAndStart error:', error);
-      return { granted: false, tracking: false };
+    // If already starting, await the existing promise to avoid duplicates
+    if (this.isStarting && this.startPromise) {
+      console.log('[PedometerService] Start already in progress, awaiting...');
+      return this.startPromise;
     }
+
+    this.isStarting = true;
+    
+    this.startPromise = (async (): Promise<{ granted: boolean; tracking: boolean }> => {
+      try {
+        // Step 1: Request permission with timeout
+        console.log('[PedometerService] Step 1: Requesting permission...');
+        const permResult = await this.withTimeout(
+          CapacitorPedometer.requestPermissions(),
+          8000,
+          'Permission request'
+        );
+        const granted = permResult.activityRecognition === 'granted';
+        console.log('[PedometerService] Step 1 complete - Permission granted:', granted);
+
+        if (!granted) {
+          return { granted: false, tracking: false };
+        }
+
+        // Step 2: Small delay to let Android sync permission state
+        console.log('[PedometerService] Step 2: Syncing permission state (200ms)...');
+        await new Promise(r => setTimeout(r, 200));
+
+        // Step 3: Add measurement listener
+        console.log('[PedometerService] Step 3: Adding measurement listener...');
+        this.listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
+          console.log('[PedometerService] Measurement received:', data);
+          callback({
+            steps: data.numberOfSteps || 0,
+            distance: data.distance || 0
+          });
+        });
+        console.log('[PedometerService] Step 3 complete - Listener added');
+
+        // Step 4: Start measurement updates with timeout
+        console.log('[PedometerService] Step 4: Starting measurement updates...');
+        await this.withTimeout(
+          CapacitorPedometer.startMeasurementUpdates(),
+          5000,
+          'Start measurement'
+        );
+        
+        this.isStarted = true;
+        console.log('[PedometerService] ✓ All steps complete - Tracking active!');
+        return { granted: true, tracking: true };
+        
+      } catch (error) {
+        console.error('[PedometerService] requestAndStart error:', error);
+        return { granted: false, tracking: false };
+      } finally {
+        this.isStarting = false;
+        this.startPromise = null;
+      }
+    })();
+
+    return this.startPromise;
   }
 
   /**
