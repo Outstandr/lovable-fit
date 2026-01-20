@@ -107,29 +107,61 @@ export default function PedometerDebug() {
     }
   }, [addLog]);
 
-  const startTracking = useCallback(async () => {
+  // Start with startOnly() - doesn't re-request permission, just checks + starts
+  const startWithCheckOnly = useCallback(async () => {
     if (state.isTracking || state.isStarting) {
       addLog('Already tracking or starting, ignoring', 'warn');
       return;
     }
 
     setState(prev => ({ ...prev, isStarting: true }));
-    addLog('=== STARTING TRACKING (using pedometerService) ===', 'info');
+    addLog('=== STARTING (startOnly - check permission only) ===', 'info');
+
+    try {
+      const success = await pedometerService.startOnly((data) => {
+        addLog(`Measurement: steps=${data.steps}, distance=${data.distance}m`, 'success');
+        setState(prev => ({
+          ...prev,
+          lastMeasurement: { steps: data.steps, distance: data.distance },
+        }));
+      });
+
+      addLog(`startOnly result: ${success}`, success ? 'success' : 'warn');
+      setState(prev => ({ ...prev, isTracking: success }));
+      
+      if (success) {
+        addLog('✓ Tracking active - walk to see steps!', 'success');
+      } else {
+        addLog('Failed - permission may not be granted. Try "Request + Start"', 'error');
+      }
+    } catch (error: any) {
+      addLog(`Start error: ${error.message || error}`, 'error');
+      setState(prev => ({ ...prev, error: error.message || String(error) }));
+    } finally {
+      setState(prev => ({ ...prev, isStarting: false }));
+    }
+  }, [state.isTracking, state.isStarting, addLog]);
+
+  // Request permission AND start - use for first-time or if startOnly fails
+  const requestAndStart = useCallback(async () => {
+    if (state.isTracking || state.isStarting) {
+      addLog('Already tracking or starting, ignoring', 'warn');
+      return;
+    }
+
+    setState(prev => ({ ...prev, isStarting: true }));
+    addLog('=== REQUEST + START (requestAndStart) ===', 'info');
 
     try {
       const result = await pedometerService.requestAndStart((data) => {
         addLog(`Measurement: steps=${data.steps}, distance=${data.distance}m`, 'success');
         setState(prev => ({
           ...prev,
-          lastMeasurement: {
-            steps: data.steps,
-            distance: data.distance,
-          },
+          lastMeasurement: { steps: data.steps, distance: data.distance },
         }));
       });
 
       addLog(`Result: granted=${result.granted}, tracking=${result.tracking}`, result.tracking ? 'success' : 'warn');
-      
       setState(prev => ({ 
         ...prev, 
         isTracking: result.tracking,
@@ -137,7 +169,7 @@ export default function PedometerDebug() {
       }));
       
       if (result.tracking) {
-        addLog('✓ Tracking is now active - walk to see steps!', 'success');
+        addLog('✓ Tracking active - walk to see steps!', 'success');
       } else if (result.granted) {
         addLog('Permission granted but tracking failed to start', 'warn');
       } else {
@@ -145,10 +177,7 @@ export default function PedometerDebug() {
       }
     } catch (error: any) {
       addLog(`Start error: ${error.message || error}`, 'error');
-      setState(prev => ({
-        ...prev,
-        error: error.message || String(error),
-      }));
+      setState(prev => ({ ...prev, error: error.message || String(error) }));
     } finally {
       setState(prev => ({ ...prev, isStarting: false }));
     }
@@ -315,26 +344,37 @@ export default function PedometerDebug() {
               <Play className="h-4 w-4 text-primary" />
               <h2 className="font-semibold">Tracking Test</h2>
             </div>
-            <div className="flex gap-2">
-              <Button 
-                size="sm" 
-                variant="default" 
-                onClick={startTracking}
-                disabled={state.isTracking || state.isStarting}
-              >
-                <Play className="h-3 w-3 mr-1" />
-                {state.isStarting ? 'Starting...' : 'Start'}
-              </Button>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={stopTracking}
-                disabled={!state.isTracking || state.isStarting}
-              >
-                <Square className="h-3 w-3 mr-1" />
-                Stop
-              </Button>
-            </div>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={stopTracking}
+              disabled={!state.isTracking || state.isStarting}
+            >
+              <Square className="h-3 w-3 mr-1" />
+              Stop
+            </Button>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <Button 
+              size="sm" 
+              variant="default" 
+              onClick={startWithCheckOnly}
+              disabled={state.isTracking || state.isStarting}
+              className="flex-1"
+            >
+              <Play className="h-3 w-3 mr-1" />
+              {state.isStarting ? 'Starting...' : 'Start (Check Only)'}
+            </Button>
+            <Button 
+              size="sm" 
+              variant="secondary" 
+              onClick={requestAndStart}
+              disabled={state.isTracking || state.isStarting}
+              className="flex-1"
+            >
+              <Shield className="h-3 w-3 mr-1" />
+              Request + Start
+            </Button>
           </div>
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div className="text-muted-foreground">Status:</div>

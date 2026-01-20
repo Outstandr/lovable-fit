@@ -177,10 +177,10 @@ export function usePedometer() {
           return;
         }
 
-        console.log('[usePedometer] Permission granted, starting tracking...');
+        console.log('[usePedometer] Permission granted, starting with startOnly()...');
 
-        // Start tracking
-        const success = await pedometerService.start((data) => {
+        // Use startOnly() - doesn't re-request permission (fixes Android 16 caching)
+        const success = await pedometerService.startOnly((data) => {
           if (!isMounted) return;
           
           const totalSteps = baseSteps.current + data.steps;
