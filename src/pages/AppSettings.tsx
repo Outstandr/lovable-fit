@@ -92,7 +92,7 @@ const AppSettings = () => {
         backTo="/profile" // Explicitly go back to profile
       />
 
-      <div className="p-4 space-y-4">
+      <div className="p-4 space-y-4 pb-32">
         {/* Unit Preference */}
         <motion.div
           className="tactical-card p-4"

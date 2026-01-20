@@ -151,7 +151,7 @@ export function BodyMeasurementsStep({ onNext }: BodyMeasurementsStepProps) {
   };
 
   return (
-    <div className="min-h-screen-safe flex flex-col px-6 py-8">
+    <div className="min-h-screen-safe flex flex-col px-6 py-8 overflow-y-auto">
       {/* Icon */}
       <div className="flex items-center justify-center mb-6">
         <motion.div
