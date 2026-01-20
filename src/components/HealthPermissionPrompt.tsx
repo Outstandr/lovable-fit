@@ -31,7 +31,7 @@ export function HealthPermissionPrompt({
           Native App Required
         </h3>
         <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-          Step tracking requires the native mobile app. Install Lionel X on your phone to track steps.
+          Step tracking requires the native mobile app. Install Hotstepper on your phone to track steps.
         </p>
         <div className="flex flex-col gap-2 text-xs text-muted-foreground">
           <div className="flex items-center justify-center gap-2">
@@ -60,7 +60,7 @@ export function HealthPermissionPrompt({
         {platformLabel} Access Required
       </h3>
       <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-        Lionel X needs access to {platformLabel} to track your daily steps, distance, and calories.
+        Hotstepper needs access to {platformLabel} to track your daily steps, distance, and calories.
       </p>
       <Button
         variant="tactical"

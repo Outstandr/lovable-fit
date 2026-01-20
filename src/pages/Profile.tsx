@@ -134,7 +134,7 @@ const Profile = () => {
     }
   };
 
-  const displayName = profile?.display_name || "LIONEL X";
+  const displayName = profile?.display_name || "HOTSTEPPER";
   const avatarInitials = profile?.avatar_initials || displayName.slice(0, 2).toUpperCase();
 
   return (
