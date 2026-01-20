@@ -112,52 +112,83 @@ export function usePedometer() {
       return;
     }
 
+    let isMounted = true;
+
     const initPedometer = async () => {
       console.log('[usePedometer] Starting pedometer initialization...');
 
-      // Check permission first
-      const hasPermission = await pedometerService.checkPermission();
-      if (!hasPermission) {
-        console.log('[usePedometer] No permission - using DB data only');
-        setState(prev => ({ ...prev, hasPermission: false, dataSource: 'database' }));
-        return;
+      try {
+        // Check if step counter is available on this device
+        const isAvailable = await pedometerService.isAvailable();
+        console.log('[usePedometer] Step counter available:', isAvailable);
+        
+        if (!isAvailable) {
+          console.log('[usePedometer] Step counter not available on device');
+          if (isMounted) {
+            setState(prev => ({ ...prev, dataSource: 'database', error: 'Step counter not available' }));
+          }
+          return;
+        }
+
+        // Check permission
+        const hasPermission = await pedometerService.checkPermission();
+        console.log('[usePedometer] Has permission:', hasPermission);
+        
+        if (!hasPermission) {
+          console.log('[usePedometer] No permission - using DB data only');
+          if (isMounted) {
+            setState(prev => ({ ...prev, hasPermission: false, dataSource: 'database' }));
+          }
+          return;
+        }
+
+        console.log('[usePedometer] Permission granted, starting tracking...');
+
+        // Start tracking
+        const success = await pedometerService.start((data) => {
+          if (!isMounted) return;
+          
+          const totalSteps = baseSteps.current + data.steps;
+          const distanceKm = (data.distance || (data.steps * 0.762)) / 1000;
+          const totalDistance = (baseSteps.current * 0.762) / 1000 + distanceKm;
+          const calories = Math.round(totalSteps / STEPS_PER_CALORIE);
+
+          console.log('[usePedometer] Measurement - sensor:', data.steps, 'total:', totalSteps);
+
+          setState(prev => ({
+            ...prev,
+            steps: totalSteps,
+            distance: totalDistance,
+            calories,
+            isTracking: true,
+            hasPermission: true,
+            dataSource: 'pedometer',
+            lastUpdate: Date.now()
+          }));
+        });
+
+        if (isMounted) {
+          setState(prev => ({
+            ...prev,
+            isTracking: success,
+            hasPermission: success,
+            dataSource: success ? 'pedometer' : 'database'
+          }));
+        }
+
+        console.log('[usePedometer] Pedometer started:', success);
+      } catch (error) {
+        console.error('[usePedometer] Init error:', error);
+        if (isMounted) {
+          setState(prev => ({ ...prev, error: String(error), dataSource: 'database' }));
+        }
       }
-      console.log('[usePedometer] Permission granted, starting tracking...');
-
-      // Start tracking
-      const success = await pedometerService.start((data) => {
-        const totalSteps = baseSteps.current + data.steps;
-        const distanceKm = (data.distance || (data.steps * 0.762)) / 1000;
-        const totalDistance = (baseSteps.current * 0.762) / 1000 + distanceKm;
-        const calories = Math.round(totalSteps / STEPS_PER_CALORIE);
-
-        console.log('[usePedometer] Measurement - sensor:', data.steps, 'total:', totalSteps);
-
-        setState(prev => ({
-          ...prev,
-          steps: totalSteps,
-          distance: totalDistance,
-          calories,
-          isTracking: true,
-          hasPermission: true,
-          dataSource: 'pedometer',
-          lastUpdate: Date.now()
-        }));
-      });
-
-      setState(prev => ({
-        ...prev,
-        isTracking: success,
-        hasPermission: success,
-        dataSource: success ? 'pedometer' : 'database'
-      }));
-
-      console.log('[usePedometer] Pedometer started:', success);
     };
 
     // Small delay to ensure DB load completes first
     const timer = setTimeout(initPedometer, 500);
     return () => {
+      isMounted = false;
       clearTimeout(timer);
       pedometerService.stop();
     };
