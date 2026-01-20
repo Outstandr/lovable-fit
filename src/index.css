@@ -477,11 +477,11 @@
     -webkit-backdrop-filter: blur(20px);
   }
 
-  .top-header-inner {
-    @apply w-full max-w-lg mx-auto px-4 flex items-center justify-between;
-    padding-top: calc(env(safe-area-inset-top, 0px) + 1rem);
-    padding-bottom: 1rem;
-  }
+.top-header-inner {
+  @apply w-full max-w-lg mx-auto px-4 flex items-center justify-between;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
+  padding-bottom: 0.5rem;
+}
 
   /* Fixed above bottom nav */
   .fixed-above-nav {

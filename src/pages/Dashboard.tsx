@@ -330,7 +330,7 @@ const Dashboard = () => {
         <RubberBandScroll className="flex-1 overflow-y-auto pb-32">
           <div className="px-4 pb-2 relative z-content">
             {/* Tabs Row */}
-            <div className="flex justify-center mb-2">
+            <div className="flex justify-center mt-3 mb-2">
               <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
             </div>
           </div>
