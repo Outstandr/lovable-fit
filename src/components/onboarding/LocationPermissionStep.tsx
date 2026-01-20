@@ -1,44 +1,120 @@
 import { useState } from 'react';
-import { MapPin, Navigation, Route, Gauge, Check } from 'lucide-react';
+import { MapPin, Navigation, Route, Gauge, Check, AlertTriangle, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
 import { motion } from 'framer-motion';
+import { NativeSettings, AndroidSettings, IOSSettings } from 'capacitor-native-settings';
 
 interface LocationPermissionStepProps {
   onNext: () => void;
 }
 
+type PermissionState = 'idle' | 'requesting' | 'granted' | 'denied' | 'location_off';
+
 export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) => {
-  const [isRequesting, setIsRequesting] = useState(false);
-  const [alreadyGranted, setAlreadyGranted] = useState(false);
+  const [permissionState, setPermissionState] = useState<PermissionState>('idle');
+
+  const openSettings = async () => {
+    try {
+      if (Capacitor.getPlatform() === 'android') {
+        await NativeSettings.openAndroid({ option: AndroidSettings.ApplicationDetails });
+      } else if (Capacitor.getPlatform() === 'ios') {
+        await NativeSettings.openIOS({ option: IOSSettings.App });
+      }
+    } catch (error) {
+      console.log('[Onboarding] Error opening settings:', error);
+    }
+  };
+
+  const openLocationSettings = async () => {
+    try {
+      if (Capacitor.getPlatform() === 'android') {
+        await NativeSettings.openAndroid({ option: AndroidSettings.Location });
+      } else if (Capacitor.getPlatform() === 'ios') {
+        await NativeSettings.openIOS({ option: IOSSettings.LocationServices });
+      }
+    } catch (error) {
+      console.log('[Onboarding] Error opening location settings:', error);
+    }
+  };
 
   const handleContinue = async () => {
-    setIsRequesting(true);
+    setPermissionState('requesting');
 
     try {
       if (Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('Geolocation')) {
         // First check if permission is already granted
         const currentStatus = await Geolocation.checkPermissions();
+        console.log('[Onboarding] Current location permission status:', currentStatus);
+
         if (currentStatus.location === 'granted' || currentStatus.coarseLocation === 'granted') {
           console.log('[Onboarding] Location permission already granted');
-          setAlreadyGranted(true);
-          setTimeout(() => onNext(), 1000);
-          return;
+          
+          // Test if location services are actually working
+          try {
+            await Geolocation.getCurrentPosition({ timeout: 5000 });
+            setPermissionState('granted');
+            setTimeout(() => onNext(), 1000);
+            return;
+          } catch (gpsError: any) {
+            // Permission granted but GPS failed - likely location services off
+            console.log('[Onboarding] GPS test failed:', gpsError);
+            if (gpsError?.message?.includes('disabled') || gpsError?.code === 2) {
+              setPermissionState('location_off');
+              return;
+            }
+            // Other GPS error but permission is granted, proceed anyway
+            setPermissionState('granted');
+            setTimeout(() => onNext(), 1000);
+            return;
+          }
         }
 
         // Request permission - this triggers the native system dialog
+        console.log('[Onboarding] Requesting location permission...');
         const result = await Geolocation.requestPermissions({ permissions: ['location'] });
         console.log('[Onboarding] Location permission result:', result);
+        
+        // Re-check permissions after request (some devices update state only after returning)
+        const postRequestStatus = await Geolocation.checkPermissions();
+        console.log('[Onboarding] Post-request status:', postRequestStatus);
+
+        if (postRequestStatus.location === 'granted' || postRequestStatus.coarseLocation === 'granted') {
+          // Permission granted! Test if location services work
+          try {
+            await Geolocation.getCurrentPosition({ timeout: 5000 });
+            setPermissionState('granted');
+            setTimeout(() => onNext(), 1000);
+          } catch (gpsError: any) {
+            console.log('[Onboarding] GPS test after grant failed:', gpsError);
+            if (gpsError?.message?.includes('disabled') || gpsError?.code === 2) {
+              setPermissionState('location_off');
+            } else {
+              // GPS timeout but permission granted - proceed
+              setPermissionState('granted');
+              setTimeout(() => onNext(), 1000);
+            }
+          }
+        } else {
+          // Permission denied
+          console.log('[Onboarding] Location permission denied');
+          setPermissionState('denied');
+        }
       } else {
         console.log('[Onboarding] Geolocation plugin not available on this platform');
+        setPermissionState('granted');
+        setTimeout(() => onNext(), 500);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.log('[Onboarding] Location permission error:', error);
+      // Check if it's a location services off error
+      if (error?.message?.includes('disabled') || error?.code === 2) {
+        setPermissionState('location_off');
+      } else {
+        setPermissionState('denied');
+      }
     }
-
-    setIsRequesting(false);
-    onNext();
   };
 
   const benefits = [
@@ -47,9 +123,15 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
     { icon: Gauge, text: 'Accurate distance & speed' },
   ];
 
+  const isRequesting = permissionState === 'requesting';
+  const isGranted = permissionState === 'granted';
+  const isDenied = permissionState === 'denied';
+  const isLocationOff = permissionState === 'location_off';
+  const hasError = isDenied || isLocationOff;
+
   return (
-    <div className="flex flex-col h-screen overflow-hidden p-6 safe-area-x">
-      <div className="flex-1 flex flex-col items-center justify-center w-full max-w-sm mx-auto">
+    <div className="absolute inset-0 flex flex-col bg-background safe-area-y">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 min-h-0">
         {/* Icon */}
         <motion.div
           initial={{ scale: 0, rotate: -180 }}
@@ -85,7 +167,7 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="w-full space-y-3 mb-6"
+          className="w-full max-w-sm space-y-3 mb-6"
         >
           {benefits.map((benefit, index) => (
             <motion.div
@@ -103,12 +185,66 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
           ))}
         </motion.div>
 
+        {/* Error States */}
+        {hasError && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-sm mb-4"
+          >
+            <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/30">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  {isLocationOff ? (
+                    <>
+                      <p className="text-sm font-medium text-foreground mb-1">
+                        Location Services Off
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Turn on Location/GPS in your device settings to enable route tracking.
+                      </p>
+                      <Button
+                        onClick={openLocationSettings}
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                      >
+                        <Settings className="w-4 h-4" />
+                        Open Location Settings
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium text-foreground mb-1">
+                        Permission Denied
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Enable location access in app settings to track your walking routes.
+                      </p>
+                      <Button
+                        onClick={openSettings}
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                      >
+                        <Settings className="w-4 h-4" />
+                        Open App Settings
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Privacy note */}
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
-          className="text-[10px] text-muted-foreground text-center mb-4"
+          className="text-[10px] text-muted-foreground text-center"
         >
           Location is only used during active sessions and is never shared with third parties.
         </motion.p>
@@ -119,32 +255,34 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.9 }}
-        className="safe-area-bottom space-y-3 w-full"
+        className="px-6 pb-6 safe-area-pb space-y-3"
       >
         <Button
           onClick={handleContinue}
-          disabled={isRequesting || alreadyGranted}
+          disabled={isRequesting || isGranted}
           className="w-full h-12 text-base font-semibold"
         >
-          {alreadyGranted ? (
+          {isGranted ? (
             <>
               <Check className="mr-2 h-4 w-4" />
               Permission Granted
             </>
           ) : isRequesting ? (
             'Requesting...'
+          ) : hasError ? (
+            'Try Again'
           ) : (
             'Enable Location'
           )}
         </Button>
-        {!alreadyGranted && (
+        {!isGranted && (
           <Button
             onClick={onNext}
             disabled={isRequesting}
             variant="ghost"
             className="w-full h-10 text-sm text-muted-foreground hover:text-foreground"
           >
-            Skip for now
+            {hasError ? 'Continue Without Location' : 'Skip for now'}
           </Button>
         )}
       </motion.div>

@@ -10,9 +10,9 @@ interface SetupCompleteStepProps {
 export const SetupCompleteStep = forwardRef<HTMLDivElement, SetupCompleteStepProps>(
   ({ onComplete }, ref) => {
     return (
-      <div ref={ref} className="h-screen flex flex-col px-6 py-8 overflow-hidden">
+      <div ref={ref} className="absolute inset-0 flex flex-col bg-background safe-area-y">
         {/* Content */}
-        <div className="flex-1 flex flex-col items-center justify-center">
+        <div className="flex-1 flex flex-col items-center justify-center px-6 min-h-0">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -52,7 +52,7 @@ export const SetupCompleteStep = forwardRef<HTMLDivElement, SetupCompleteStepPro
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="safe-area-pb"
+          className="px-6 pb-6 safe-area-pb"
         >
           <Button
             onClick={onComplete}

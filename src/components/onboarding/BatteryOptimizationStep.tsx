@@ -41,9 +41,9 @@ export function BatteryOptimizationStep({ onNext }: BatteryOptimizationStepProps
   };
 
   return (
-    <div className="h-screen flex flex-col px-6 py-8 overflow-hidden">
+    <div className="absolute inset-0 flex flex-col bg-background safe-area-y">
       {/* Icon */}
-      <div className="flex-1 flex flex-col items-center justify-center">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 min-h-0">
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
@@ -100,7 +100,7 @@ export function BatteryOptimizationStep({ onNext }: BatteryOptimizationStepProps
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="safe-area-pb"
+        className="px-6 pb-6 safe-area-pb"
       >
         <Button
           onClick={handleContinue}
