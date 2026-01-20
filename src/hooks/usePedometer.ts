@@ -17,7 +17,7 @@ export interface PedometerState {
   hasPermission: boolean;
   isInitializing: boolean;
   error: string | null;
-  dataSource: 'pedometer' | 'unavailable';
+  dataSource: 'pedometer' | 'database' | 'unavailable';
   lastUpdate: number | null;
 }
 
@@ -57,7 +57,10 @@ export function usePedometer() {
   // ======= Load Today's Steps from Database =======
   useEffect(() => {
     const loadTodayData = async () => {
-      if (!user) return;
+      if (!user) {
+        setState(prev => ({ ...prev, isInitializing: false }));
+        return;
+      }
 
       try {
         const today = new Date().toISOString().split('T')[0];
@@ -76,11 +79,16 @@ export function usePedometer() {
             ...prev,
             steps: data.steps || 0,
             distance: data.distance_km || 0,
-            calories: data.calories || 0
+            calories: data.calories || 0,
+            dataSource: 'database',
+            isInitializing: false
           }));
+        } else {
+          setState(prev => ({ ...prev, isInitializing: false }));
         }
       } catch (error) {
         console.error('[usePedometer] Error loading today data:', error);
+        setState(prev => ({ ...prev, isInitializing: false }));
       }
     };
 
@@ -95,106 +103,62 @@ export function usePedometer() {
     // Skip initialization during onboarding or if not completed
     if (isOnboarding || !onboardingComplete) {
       console.log('[usePedometer] Skipping init - onboarding not complete');
-      setState(prev => ({ ...prev, isInitializing: false }));
       return;
     }
 
     // Skip on web
     if (!pedometerService.isNative()) {
       console.log('[usePedometer] Web platform - skipping pedometer');
-      setState(prev => ({ ...prev, isInitializing: false }));
       return;
     }
 
     const initPedometer = async () => {
       console.log('[usePedometer] Starting pedometer initialization...');
 
-      // Step 1: Check if step counting hardware is available
-      const available = await pedometerService.isAvailable();
-      if (!available) {
-        console.warn('[usePedometer] Step sensor not available on this device');
-        setState(prev => ({
-          ...prev,
-          isInitializing: false,
-          error: 'Step sensor not available on this device'
-        }));
-        return;
-      }
-      console.log('[usePedometer] Step sensor is available');
-
-      // Step 2: Check if we have permission
+      // Check permission first
       const hasPermission = await pedometerService.checkPermission();
       if (!hasPermission) {
-        console.warn('[usePedometer] Activity permission not granted');
-        setState(prev => ({
-          ...prev,
-          isInitializing: false,
-          hasPermission: false,
-          error: 'Activity permission required'
-        }));
+        console.log('[usePedometer] No permission - using DB data only');
+        setState(prev => ({ ...prev, hasPermission: false, dataSource: 'database' }));
         return;
       }
-      console.log('[usePedometer] Permission granted');
+      console.log('[usePedometer] Permission granted, starting tracking...');
 
-      // Step 3: Start tracking with timeout protection
-      const initTimeout = setTimeout(() => {
-        console.error('[usePedometer] Start timeout after 10s');
+      // Start tracking
+      const success = await pedometerService.start((data) => {
+        const totalSteps = baseSteps.current + data.steps;
+        const distanceKm = (data.distance || (data.steps * 0.762)) / 1000;
+        const totalDistance = (baseSteps.current * 0.762) / 1000 + distanceKm;
+        const calories = Math.round(totalSteps / STEPS_PER_CALORIE);
+
+        console.log('[usePedometer] Measurement - sensor:', data.steps, 'total:', totalSteps);
+
         setState(prev => ({
           ...prev,
-          isInitializing: false,
-          error: 'Pedometer start timeout'
-        }));
-      }, 10000);
-
-      try {
-        const success = await pedometerService.start((data) => {
-          // Calculate total steps (base from DB + new steps from sensor)
-          const totalSteps = baseSteps.current + data.steps;
-          const distanceKm = (data.distance || (data.steps * 0.762)) / 1000;
-          const totalDistance = (baseSteps.current * 0.762) / 1000 + distanceKm;
-          const calories = Math.round(totalSteps / STEPS_PER_CALORIE);
-
-          console.log('[usePedometer] Update - sensor:', data.steps, 'total:', totalSteps);
-
-          setState(prev => ({
-            ...prev,
-            steps: totalSteps,
-            distance: totalDistance,
-            calories,
-            isTracking: true,
-            hasPermission: true,
-            dataSource: 'pedometer',
-            lastUpdate: Date.now()
-          }));
-        });
-
-        clearTimeout(initTimeout);
-        
-        setState(prev => ({
-          ...prev,
-          isInitializing: false,
-          isTracking: success,
+          steps: totalSteps,
+          distance: totalDistance,
+          calories,
+          isTracking: true,
           hasPermission: true,
-          dataSource: success ? 'pedometer' : 'unavailable',
-          error: success ? null : 'Pedometer failed to start'
+          dataSource: 'pedometer',
+          lastUpdate: Date.now()
         }));
+      });
 
-        console.log('[usePedometer] Initialization result:', success ? 'success' : 'failed');
-      } catch (error) {
-        clearTimeout(initTimeout);
-        console.error('[usePedometer] Init error:', error);
-        setState(prev => ({
-          ...prev,
-          isInitializing: false,
-          error: 'Pedometer initialization failed'
-        }));
-      }
+      setState(prev => ({
+        ...prev,
+        isTracking: success,
+        hasPermission: success,
+        dataSource: success ? 'pedometer' : 'database'
+      }));
+
+      console.log('[usePedometer] Pedometer started:', success);
     };
 
-    initPedometer();
-
-    // Cleanup on unmount
+    // Small delay to ensure DB load completes first
+    const timer = setTimeout(initPedometer, 500);
     return () => {
+      clearTimeout(timer);
       pedometerService.stop();
     };
   }, [location.pathname]);
