@@ -135,6 +135,59 @@ class PedometerService {
   }
 
   /**
+   * Single atomic operation: request permission + start tracking.
+   * Use this during onboarding to avoid permission sync issues.
+   */
+  async requestAndStart(callback: PedometerCallback): Promise<{ granted: boolean; tracking: boolean }> {
+    if (!this.isNativePlatform) {
+      console.log('[PedometerService] Web platform - skipping');
+      return { granted: true, tracking: false };
+    }
+
+    if (this.isStarted) {
+      console.log('[PedometerService] Already tracking');
+      return { granted: true, tracking: true };
+    }
+
+    try {
+      // Step 1: Request permission
+      console.log('[PedometerService] Requesting permission...');
+      const permResult = await CapacitorPedometer.requestPermissions();
+      const granted = permResult.activityRecognition === 'granted';
+      console.log('[PedometerService] Permission granted:', granted);
+
+      if (!granted) {
+        return { granted: false, tracking: false };
+      }
+
+      // Step 2: Small delay to let Android sync permission state
+      await new Promise(r => setTimeout(r, 200));
+
+      // Step 3: Add measurement listener
+      console.log('[PedometerService] Adding listener...');
+      this.listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
+        console.log('[PedometerService] Measurement:', data);
+        callback({
+          steps: data.numberOfSteps || 0,
+          distance: data.distance || 0
+        });
+      });
+
+      // Step 4: Start measurement updates
+      console.log('[PedometerService] Starting measurement updates...');
+      await CapacitorPedometer.startMeasurementUpdates();
+      
+      this.isStarted = true;
+      console.log('[PedometerService] Tracking started successfully');
+      return { granted: true, tracking: true };
+      
+    } catch (error) {
+      console.error('[PedometerService] requestAndStart error:', error);
+      return { granted: false, tracking: false };
+    }
+  }
+
+  /**
    * Attach a new callback to an already-running pedometer.
    * Used when Dashboard mounts after onboarding already started tracking.
    */
