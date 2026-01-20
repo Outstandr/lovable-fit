@@ -107,18 +107,18 @@ export default function PedometerDebug() {
     }
   }, [addLog]);
 
-  // Start with startOnly() - doesn't re-request permission, just checks + starts
-  const startWithCheckOnly = useCallback(async () => {
+  // Force start - bypasses permission checks entirely
+  const forceStartTracking = useCallback(async () => {
     if (state.isTracking || state.isStarting) {
       addLog('Already tracking or starting, ignoring', 'warn');
       return;
     }
 
     setState(prev => ({ ...prev, isStarting: true }));
-    addLog('=== STARTING (startOnly - check permission only) ===', 'info');
+    addLog('=== FORCE START (bypassing permission cache) ===', 'info');
 
     try {
-      const success = await pedometerService.startOnly((data) => {
+      const success = await pedometerService.forceStart((data) => {
         addLog(`Measurement: steps=${data.steps}, distance=${data.distance}m`, 'success');
         setState(prev => ({
           ...prev,
@@ -126,16 +126,16 @@ export default function PedometerDebug() {
         }));
       });
 
-      addLog(`startOnly result: ${success}`, success ? 'success' : 'warn');
+      addLog(`forceStart result: ${success}`, success ? 'success' : 'warn');
       setState(prev => ({ ...prev, isTracking: success }));
       
       if (success) {
-        addLog('✓ Tracking active - walk to see steps!', 'success');
+        addLog('✓ Sensor active - walk to see steps!', 'success');
       } else {
-        addLog('Failed - permission may not be granted. Try "Request + Start"', 'error');
+        addLog('Sensor failed to start - check logs for error', 'error');
       }
     } catch (error: any) {
-      addLog(`Start error: ${error.message || error}`, 'error');
+      addLog(`Force start error: ${error.message || error}`, 'error');
       setState(prev => ({ ...prev, error: error.message || String(error) }));
     } finally {
       setState(prev => ({ ...prev, isStarting: false }));
@@ -358,12 +358,12 @@ export default function PedometerDebug() {
             <Button 
               size="sm" 
               variant="default" 
-              onClick={startWithCheckOnly}
+              onClick={forceStartTracking}
               disabled={state.isTracking || state.isStarting}
               className="flex-1"
             >
               <Play className="h-3 w-3 mr-1" />
-              {state.isStarting ? 'Starting...' : 'Start (Check Only)'}
+              {state.isStarting ? 'Starting...' : 'Force Start'}
             </Button>
             <Button 
               size="sm" 

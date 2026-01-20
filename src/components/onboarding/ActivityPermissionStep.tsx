@@ -17,25 +17,25 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
     
     if (Capacitor.isNativePlatform()) {
       try {
-        console.log('[Onboarding] Single-step: request permission + start tracking...');
+        console.log('[Onboarding] Step 1: Request permission (trigger system dialog)...');
         
-        // One atomic operation with timeout
-        const promise = pedometerService.requestAndStart((data) => {
+        // Request permission to trigger system dialog (ignore result - it may be wrong on Android 16)
+        await pedometerService.requestPermission();
+        
+        // Small delay to let Android process
+        await new Promise(r => setTimeout(r, 300));
+        
+        console.log('[Onboarding] Step 2: Force start sensor (bypassing permission cache)...');
+        
+        // Force start regardless of reported permission status
+        const success = await pedometerService.forceStart((data) => {
           console.log('[Onboarding] Step data:', data);
         });
         
-        const timeout = new Promise<{ granted: boolean; tracking: boolean }>((resolve) => {
-          setTimeout(() => {
-            console.log('[Onboarding] Timed out after 10s');
-            resolve({ granted: false, tracking: false });
-          }, 10000);
-        });
-        
-        const result = await Promise.race([promise, timeout]);
-        console.log('[Onboarding] Result:', result);
+        console.log('[Onboarding] Force start result:', success);
         
       } catch (error) {
-        console.log('[Onboarding] Error:', error);
+        console.log('[Onboarding] Error (proceeding anyway):', error);
       }
     }
     
