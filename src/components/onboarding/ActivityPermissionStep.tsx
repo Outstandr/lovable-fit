@@ -17,15 +17,27 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
     
     if (Capacitor.isNativePlatform()) {
       try {
-        // Request permission immediately - this shows the native dialog
         console.log('[Onboarding] Requesting activity recognition permission...');
-        const granted = await pedometerService.requestPermission();
-        console.log('[Onboarding] Permission granted:', granted);
+        
+        // Wrap permission request in a timeout to prevent hanging
+        const permissionPromise = pedometerService.requestPermission();
+        const timeoutPromise = new Promise<boolean>((resolve) => {
+          setTimeout(() => {
+            console.log('[Onboarding] Permission request timed out after 5s');
+            resolve(false);
+          }, 5000);
+        });
+        
+        // Race between permission result and timeout
+        const granted = await Promise.race([permissionPromise, timeoutPromise]);
+        console.log('[Onboarding] Permission result:', granted);
+        
       } catch (error) {
         console.log('[Onboarding] Permission error:', error);
       }
     }
     
+    // Always proceed to next step
     setIsRequesting(false);
     onNext();
   };
