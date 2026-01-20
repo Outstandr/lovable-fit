@@ -109,9 +109,19 @@ export function usePedometer() {
     const initPedometer = async () => {
       console.log('[usePedometer] Initializing pedometer...');
 
+      // Set a max timeout for the entire initialization
+      const initTimeout = setTimeout(() => {
+        console.error('[usePedometer] Init timeout after 15s');
+        setState(prev => ({
+          ...prev,
+          isInitializing: false,
+          error: 'Pedometer initialization timeout'
+        }));
+      }, 15000);
+
       try {
         // Small delay for app stability
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         const success = await pedometerService.start((data) => {
           // Calculate total steps (base from DB + new steps from sensor)
@@ -134,17 +144,20 @@ export function usePedometer() {
           }));
         });
 
+        clearTimeout(initTimeout);
+        
         setState(prev => ({
           ...prev,
           isInitializing: false,
           isTracking: success,
           hasPermission: success,
           dataSource: success ? 'pedometer' : 'unavailable',
-          error: success ? null : 'Failed to start pedometer'
+          error: success ? null : 'Pedometer unavailable'
         }));
 
         console.log('[usePedometer] Initialization result:', success ? 'success' : 'failed');
       } catch (error) {
+        clearTimeout(initTimeout);
         console.error('[usePedometer] Init error:', error);
         setState(prev => ({
           ...prev,

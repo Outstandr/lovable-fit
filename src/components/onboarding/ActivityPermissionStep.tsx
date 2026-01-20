@@ -17,20 +17,19 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
     
     try {
       if (Capacitor.isNativePlatform()) {
-        // Request pedometer permission (ACTIVITY_RECOGNITION) with timeout protection
+        // Just request permission with short timeout - don't wait for full plugin start
         await Promise.race([
           pedometerService.requestPermission(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
         ]);
       }
     } catch (error) {
-      console.log('[Onboarding] Step tracking permission error (safe):', error);
-      // Continue anyway - don't crash
+      // Continue anyway - permission can be granted later or pedometer will retry
+      console.log('[Onboarding] Permission request timeout/error (continuing):', error);
     }
     
-    // Small delay before navigating to next step to let native side stabilize
+    // Small delay then proceed immediately
     await new Promise(resolve => setTimeout(resolve, 300));
-    
     setIsRequesting(false);
     onNext();
   };
