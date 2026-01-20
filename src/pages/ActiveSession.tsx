@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, MapPin, Clock, Gauge, Square, Zap, Footprints, Satellite, RefreshCw, Settings, X, Loader2, Headphones } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useHealth } from "@/hooks/useHealth";
+import { usePedometer } from "@/hooks/usePedometer";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,7 +20,7 @@ import { NativeSettings, AndroidSettings, IOSSettings } from 'capacitor-native-s
 const ActiveSession = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { steps, dataSource } = useHealth();
+  const { steps, dataSource } = usePedometer();
 
   const {
     currentPosition,

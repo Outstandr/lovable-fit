@@ -21,6 +21,7 @@
     "@capacitor/splash-screen": "^8.0.0",
     "@capawesome-team/capacitor-android-battery-optimization": "^8.0.0",
     "@capgo/capacitor-health": "^8.1.2",
+    "@capgo/capacitor-pedometer": "^8.0.10",
     "@fontsource/poppins": "^5.2.7",
     "@fontsource/rajdhani": "^5.2.7",
     "@hookform/resolvers": "^3.10.0",

@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Activity } from 'lucide-react';
+import { Footprints } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
-import { healthService } from '@/services/healthService';
+import { pedometerService } from '@/services/pedometerService';
 
 interface ActivityPermissionStepProps {
   onNext: () => void;
@@ -17,14 +17,14 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
     
     try {
       if (Capacitor.isNativePlatform()) {
-        // Request health permission with timeout protection
+        // Request pedometer permission (ACTIVITY_RECOGNITION) with timeout protection
         await Promise.race([
-          healthService.requestPermission(),
+          pedometerService.requestPermission(),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
         ]);
       }
     } catch (error) {
-      console.log('[Onboarding] Activity permission error (safe):', error);
+      console.log('[Onboarding] Step tracking permission error (safe):', error);
       // Continue anyway - don't crash
     }
     
@@ -34,9 +34,6 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
     setIsRequesting(false);
     onNext();
   };
-
-  const platform = Capacitor.getPlatform();
-  const platformLabel = platform === 'ios' ? 'Apple Health' : 'Health Connect';
 
   return (
     <div className="absolute inset-0 flex flex-col bg-background safe-area-y">
@@ -48,7 +45,7 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
           transition={{ type: 'spring', stiffness: 200, damping: 15 }}
           className="w-32 h-32 rounded-3xl bg-accent/20 flex items-center justify-center mb-8"
         >
-          <Activity className="w-16 h-16 text-accent" />
+          <Footprints className="w-16 h-16 text-accent" />
         </motion.div>
 
         <motion.h1
@@ -57,7 +54,7 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
           transition={{ delay: 0.2 }}
           className="text-2xl font-bold text-foreground text-center mb-4"
         >
-          Health Data Access
+          Step Tracking
         </motion.h1>
 
         {/* Description - Apple Guideline 5.1.1 Compliant */}
@@ -67,7 +64,7 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
           transition={{ delay: 0.3 }}
           className="text-muted-foreground text-center max-w-xs leading-relaxed"
         >
-          We need access to {platformLabel} so that you can see your step count and activity progress in real-time.
+          We need access to your device's physical activity sensor so that you can see your step count and activity progress in real-time.
         </motion.p>
 
         {/* Benefits list */}
@@ -79,9 +76,9 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
         >
           {[
             'Automatic step counting',
-            'Accurate distance tracking',
             'Real-time progress updates',
-            'Calorie tracking',
+            'Background step tracking',
+            'Calorie estimation',
           ].map((benefit) => (
             <div
               key={benefit}
@@ -106,7 +103,7 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
           disabled={isRequesting}
           className="w-full h-14 rounded-full bg-primary text-primary-foreground font-semibold text-base"
         >
-          {isRequesting ? 'Requesting...' : 'Continue'}
+          {isRequesting ? 'Requesting...' : 'Enable Step Tracking'}
         </Button>
       </motion.div>
     </div>
