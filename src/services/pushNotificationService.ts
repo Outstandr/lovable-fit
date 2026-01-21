@@ -86,9 +86,16 @@ class PushNotificationService {
       return;
     }
 
+    // Add a small delay to ensure Firebase is fully ready
+    // This prevents race conditions with MainApplication initialization
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     this.initializationPromise = this._doInitialize();
     try {
       await this.initializationPromise;
+    } catch (error) {
+      console.error('[PushNotification] Initialize failed safely:', error);
+      // Don't crash - just disable push notifications for this session
     } finally {
       this.initializationPromise = null;
     }

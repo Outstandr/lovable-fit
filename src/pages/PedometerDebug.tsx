@@ -179,15 +179,14 @@ export default function PedometerDebug() {
         }));
       });
 
-      addLog(`[SVC] start() returned: ${JSON.stringify(result)}`, result.success ? 'success' : 'error');
+      addLog(`[SVC] start() returned: ${result}`, result ? 'success' : 'error');
       
-      if (result.success) {
+      if (result) {
         addLog('✓ Sensor active - walk to see steps!', 'success');
         setState(prev => ({ ...prev, isTracking: true }));
       } else {
-        addLog(`[SVC] FAILED at step: ${result.step}`, 'error');
-        addLog(`[SVC] Error: ${result.error}`, 'error');
-        setState(prev => ({ ...prev, error: result.error || 'Unknown error' }));
+        addLog('[SVC] FAILED - check permission or sensor availability', 'error');
+        setState(prev => ({ ...prev, error: 'Failed to start tracking' }));
       }
     } catch (error: any) {
       addLog(`[SVC] Unexpected error: ${error.message || error}`, 'error');

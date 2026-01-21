@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.view.WindowManager;
 import androidx.core.view.WindowCompat;
 import com.getcapacitor.BridgeActivity;
-import com.google.firebase.FirebaseApp;
 
 public class MainActivity extends BridgeActivity {
     @Override
@@ -13,8 +12,7 @@ public class MainActivity extends BridgeActivity {
         // Apply the AppTheme to the activity
         setTheme(R.style.AppTheme);
         
-        // Initialize Firebase BEFORE super.onCreate()
-        FirebaseApp.initializeApp(getApplicationContext());
+        // Firebase is now initialized in MainApplication.java
         super.onCreate(savedInstanceState);
         
         // Android 15+ Edge-to-Edge Compliance
