@@ -46,50 +46,105 @@ export default function PedometerDebug() {
     setState(prev => ({ ...prev, logs: [] }));
   }, []);
 
+  // Full diagnostics - tests permission ordering hypothesis
+  const runFullDiagnostics = useCallback(async () => {
+    addLog('=== FULL SENSOR DIAGNOSTICS ===', 'info');
+    
+    // 1. Check availability BEFORE permission
+    addLog('Step 1: Checking availability BEFORE permission...', 'info');
+    let availBefore = false;
+    try {
+      const result = await CapacitorPedometer.isAvailable();
+      availBefore = result.stepCounting === true;
+      addLog(`isAvailable BEFORE: ${JSON.stringify(result)}`, availBefore ? 'success' : 'warn');
+      setState(prev => ({
+        ...prev,
+        isAvailable: true,
+        stepCountingSupported: availBefore,
+      }));
+    } catch (error: any) {
+      addLog(`isAvailable error: ${error.message || error}`, 'error');
+    }
+
+    await new Promise(r => setTimeout(r, 200));
+
+    // 2. Check current permission state
+    addLog('Step 2: Checking current permission state...', 'info');
+    try {
+      const result = await CapacitorPedometer.checkPermissions();
+      const permState = (result as any).activityRecognition || 'unknown';
+      addLog(`Permission state: ${permState}`, permState === 'granted' ? 'success' : 'warn');
+      setState(prev => ({ ...prev, permissionStatus: permState }));
+    } catch (error: any) {
+      addLog(`checkPermissions error: ${error.message || error}`, 'error');
+    }
+
+    await new Promise(r => setTimeout(r, 200));
+
+    // 3. Request permission
+    addLog('Step 3: Requesting permission...', 'info');
+    let permGranted = false;
+    try {
+      const result = await CapacitorPedometer.requestPermissions();
+      const permState = (result as any).activityRecognition || 'unknown';
+      permGranted = permState === 'granted';
+      addLog(`Permission after request: ${permState}`, permGranted ? 'success' : 'error');
+      setState(prev => ({ ...prev, permissionStatus: permState }));
+    } catch (error: any) {
+      addLog(`requestPermissions error: ${error.message || error}`, 'error');
+    }
+
+    await new Promise(r => setTimeout(r, 500));
+
+    // 4. Check availability AFTER permission - KEY TEST
+    addLog('Step 4: Checking availability AFTER permission (KEY TEST)...', 'info');
+    let availAfter = false;
+    try {
+      const result = await CapacitorPedometer.isAvailable();
+      availAfter = result.stepCounting === true;
+      addLog(`isAvailable AFTER: ${JSON.stringify(result)}`, availAfter ? 'success' : 'error');
+      setState(prev => ({ ...prev, stepCountingSupported: availAfter }));
+      
+      if (!availBefore && availAfter) {
+        addLog('⚡ DISCOVERY: Sensor becomes available AFTER permission!', 'success');
+      } else if (!availBefore && !availAfter) {
+        addLog('❌ Sensor unavailable even after permission', 'error');
+      }
+    } catch (error: any) {
+      addLog(`isAvailable error: ${error.message || error}`, 'error');
+    }
+
+    await new Promise(r => setTimeout(r, 200));
+
+    // 5. Attempt to start sensor regardless
+    addLog('Step 5: Attempting to start sensor...', 'info');
+    try {
+      await CapacitorPedometer.addListener('measurement', (data: any) => {
+        const steps = data.numberOfSteps || 0;
+        const distance = data.distance || 0;
+        addLog(`📊 SENSOR DATA: steps=${steps}, distance=${distance}m`, 'success');
+        setState(prev => ({ ...prev, lastMeasurement: { steps, distance } }));
+      });
+      
+      await CapacitorPedometer.startMeasurementUpdates();
+      addLog('✓ Sensor started successfully! Walk to see steps.', 'success');
+      setState(prev => ({ ...prev, isTracking: true }));
+    } catch (error: any) {
+      addLog(`START FAILED: ${error.message || error}`, 'error');
+      addLog(`Error details: ${JSON.stringify(error)}`, 'error');
+      setState(prev => ({ ...prev, error: error.message || String(error) }));
+    }
+
+    addLog('=== DIAGNOSTICS COMPLETE ===', 'info');
+  }, [addLog]);
+
   // Auto-run diagnostics on mount
   useEffect(() => {
-    const runDiagnostics = async () => {
-      addLog('=== AUTO-DIAGNOSTIC ON LOAD ===', 'info');
-      
-      // Check availability
-      addLog('Checking step counter availability...', 'info');
-      try {
-        const result = await CapacitorPedometer.isAvailable();
-        addLog(`isAvailable: ${JSON.stringify(result)}`, result.stepCounting ? 'success' : 'warn');
-        setState(prev => ({
-          ...prev,
-          isAvailable: true,
-          stepCountingSupported: result.stepCounting === true,
-        }));
-      } catch (error: any) {
-        addLog(`isAvailable error: ${error.message || error}`, 'error');
-        setState(prev => ({
-          ...prev,
-          isAvailable: false,
-          stepCountingSupported: false,
-        }));
-      }
-
-      await new Promise(r => setTimeout(r, 300));
-
-      // Check permission
-      addLog('Checking permission status...', 'info');
-      try {
-        const result = await CapacitorPedometer.checkPermissions();
-        addLog(`checkPermissions: ${JSON.stringify(result)}`, 'success');
-        setState(prev => ({
-          ...prev,
-          permissionStatus: (result as any).activityRecognition || 'unknown',
-        }));
-      } catch (error: any) {
-        addLog(`checkPermissions error: ${error.message || error}`, 'error');
-      }
-
-      addLog('=== READY - Tap "Start Sensor" to test ===', 'info');
-    };
-    
-    runDiagnostics();
-  }, [addLog]);
+    const timer = setTimeout(() => {
+      runFullDiagnostics();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [runFullDiagnostics]);
 
   const requestPermission = useCallback(async () => {
     addLog('Requesting permission...', 'info');
