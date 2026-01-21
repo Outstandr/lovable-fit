@@ -5,7 +5,7 @@ import { NativeSettings, AndroidSettings, IOSSettings } from 'capacitor-native-s
 import { motion } from 'framer-motion';
 import { Bug, Cpu, Shield, Play, Square, Settings, RefreshCw, Trash2, Copy, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { pedometerService, PermissionProbe } from '@/services/pedometerService';
+import { pedometerService } from '@/services/pedometerService';
 
 interface DebugState {
   platform: string;
@@ -13,14 +13,6 @@ interface DebugState {
   isAvailable: boolean | null;
   stepCountingSupported: boolean | null;
   permissionStatus: string | null;
-  nativeProbeResult: {
-    sdkVersion: number;
-    manufacturer: string;
-    model: string;
-    activityRecognitionGranted: boolean;
-    permissionStateText: string;
-    shouldShowRationale: boolean;
-  } | null;
   isTracking: boolean;
   isStarting: boolean;
   lastMeasurement: { steps: number; distance: number } | null;
@@ -35,7 +27,6 @@ export default function PedometerDebug() {
     isAvailable: null,
     stepCountingSupported: null,
     permissionStatus: null,
-    nativeProbeResult: null,
     isTracking: pedometerService.isTracking(),
     isStarting: false,
     lastMeasurement: null,
@@ -45,6 +36,7 @@ export default function PedometerDebug() {
 
   const addLog = useCallback((message: string, type: 'info' | 'success' | 'error' | 'warn' = 'info') => {
     const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+    console.log(`[PedometerDebug ${time}] ${message}`);
     setState(prev => ({
       ...prev,
       logs: [...prev.logs, { time, message, type }].slice(-50)
@@ -55,60 +47,9 @@ export default function PedometerDebug() {
     setState(prev => ({ ...prev, logs: [] }));
   }, []);
 
-  // Native OS permission probe - ground truth
-  const runNativeProbe = useCallback(async () => {
-    addLog('=== NATIVE OS PERMISSION PROBE ===', 'info');
-    
-    if (!Capacitor.isNativePlatform()) {
-      addLog('Not on native platform, skipping probe', 'warn');
-      return;
-    }
-
-    try {
-      const result = await PermissionProbe.checkActivityRecognition();
-      addLog(`SDK: ${result.sdkVersion} (${result.sdkCodename})`, 'info');
-      addLog(`Device: ${result.manufacturer} ${result.model}`, 'info');
-      addLog(`OS-level ACTIVITY_RECOGNITION: ${result.permissionStateText}`, 
-        result.activityRecognitionGranted ? 'success' : 'error');
-      
-      if (result.shouldShowRationale) {
-        addLog('shouldShowRationale=true (user denied before, not permanently)', 'warn');
-      }
-      
-      if (result.bodySensorsGranted !== undefined) {
-        addLog(`BODY_SENSORS: ${result.bodySensorsGranted ? 'GRANTED' : 'DENIED'}`, 
-          result.bodySensorsGranted ? 'success' : 'warn');
-      }
-
-      setState(prev => ({
-        ...prev,
-        nativeProbeResult: {
-          sdkVersion: result.sdkVersion,
-          manufacturer: result.manufacturer,
-          model: result.model,
-          activityRecognitionGranted: result.activityRecognitionGranted,
-          permissionStateText: result.permissionStateText,
-          shouldShowRationale: result.shouldShowRationale,
-        }
-      }));
-
-      return result;
-    } catch (error: any) {
-      addLog(`Native probe error: ${error.message || error}`, 'error');
-      addLog('This is expected on web/non-native platforms', 'warn');
-      return null;
-    }
-  }, [addLog]);
-
-  // Full diagnostics with native probe
+  // Full diagnostics
   const runFullDiagnostics = useCallback(async () => {
     addLog('=== FULL SENSOR DIAGNOSTICS ===', 'info');
-    
-    // Step 0: Native probe first
-    addLog('Step 0: Running native OS permission probe...', 'info');
-    const probeResult = await runNativeProbe();
-    
-    await new Promise(r => setTimeout(r, 300));
 
     // Step 1: Check availability
     addLog('Step 1: Checking sensor availability...', 'info');
@@ -129,29 +70,15 @@ export default function PedometerDebug() {
     await new Promise(r => setTimeout(r, 200));
 
     // Step 2: Check Capacitor permission state
-    addLog('Step 2: Checking Capacitor permission state...', 'info');
-    let capacitorPermState = 'unknown';
+    addLog('Step 2: Checking permission state...', 'info');
+    let permState = 'unknown';
     try {
       const result = await CapacitorPedometer.checkPermissions();
-      capacitorPermState = (result as any).activityRecognition || 'unknown';
-      addLog(`Capacitor reports: ${capacitorPermState}`, capacitorPermState === 'granted' ? 'success' : 'warn');
-      setState(prev => ({ ...prev, permissionStatus: capacitorPermState }));
+      permState = (result as any).activityRecognition || 'unknown';
+      addLog(`Plugin reports: ${permState}`, permState === 'granted' ? 'success' : 'warn');
+      setState(prev => ({ ...prev, permissionStatus: permState }));
     } catch (error: any) {
       addLog(`checkPermissions error: ${error.message || error}`, 'error');
-    }
-
-    // Compare Capacitor vs Native probe
-    if (probeResult) {
-      const nativeGranted = probeResult.activityRecognitionGranted;
-      const capacitorGranted = capacitorPermState === 'granted';
-      
-      if (nativeGranted !== capacitorGranted) {
-        addLog('⚠️ MISMATCH: Native says ' + (nativeGranted ? 'GRANTED' : 'DENIED') + 
-               ' but Capacitor says ' + capacitorPermState, 'error');
-        addLog('This mismatch is likely causing the startMeasurementUpdates failure', 'warn');
-      } else {
-        addLog('✓ Native and Capacitor permission states match', 'success');
-      }
     }
 
     await new Promise(r => setTimeout(r, 200));
@@ -170,22 +97,21 @@ export default function PedometerDebug() {
       addLog('✓ Sensor started successfully! Walk to see steps.', 'success');
       setState(prev => ({ ...prev, isTracking: true }));
     } catch (error: any) {
-      addLog(`START FAILED: ${error.message || error}`, 'error');
+      const errorMsg = error.message || String(error);
+      addLog(`START FAILED: ${errorMsg}`, 'error');
       
-      // Provide specific guidance based on probe results
-      if (probeResult && !probeResult.activityRecognitionGranted) {
-        addLog('DIAGNOSIS: OS-level permission is DENIED', 'error');
-        addLog('FIX: Go to Settings > Apps > HotStepper > Permissions > Physical Activity > Allow', 'warn');
-      } else if (probeResult && probeResult.activityRecognitionGranted) {
-        addLog('DIAGNOSIS: OS says GRANTED but plugin rejects - likely plugin bug', 'error');
-        addLog('TRY: Force-close app completely, then reopen', 'warn');
+      if (errorMsg.includes('permission')) {
+        addLog('DIAGNOSIS: Permission issue detected', 'error');
+        addLog('FIX: Go to Settings > Apps > [App] > Permissions > Physical Activity > Allow', 'warn');
+      } else if (errorMsg.includes('sensor') || errorMsg.includes('available')) {
+        addLog('DIAGNOSIS: Sensor not available on this device', 'error');
       }
       
-      setState(prev => ({ ...prev, error: error.message || String(error) }));
+      setState(prev => ({ ...prev, error: errorMsg }));
     }
 
     addLog('=== DIAGNOSTICS COMPLETE ===', 'info');
-  }, [addLog, runNativeProbe]);
+  }, [addLog]);
 
   // Auto-run diagnostics on mount
   useEffect(() => {
@@ -197,21 +123,15 @@ export default function PedometerDebug() {
 
   // Use unified ensurePermission
   const ensurePermission = useCallback(async () => {
-    addLog('Using ensurePermission (unified flow)...', 'info');
+    addLog('Requesting permission via ensurePermission()...', 'info');
     try {
       const result = await pedometerService.ensurePermission();
       addLog(`ensurePermission result: ${result}`, result === 'granted' ? 'success' : 'error');
-      setState(prev => ({
-        ...prev,
-        permissionStatus: result,
-      }));
-      
-      // Re-run native probe to verify
-      await runNativeProbe();
+      setState(prev => ({ ...prev, permissionStatus: result }));
     } catch (error: any) {
       addLog(`ensurePermission error: ${error.message || error}`, 'error');
     }
-  }, [addLog, runNativeProbe]);
+  }, [addLog]);
 
   const startTracking = useCallback(async () => {
     if (state.isTracking || state.isStarting) {
@@ -237,8 +157,7 @@ export default function PedometerDebug() {
         addLog('✓ Sensor active - walk to see steps!', 'success');
         setState(prev => ({ ...prev, isTracking: true }));
       } else {
-        addLog('FAILED - running native probe to diagnose...', 'error');
-        await runNativeProbe();
+        addLog('FAILED - Check permissions in system settings', 'error');
       }
     } catch (error: any) {
       addLog(`Unexpected error: ${error.message || error}`, 'error');
@@ -246,7 +165,7 @@ export default function PedometerDebug() {
     } finally {
       setState(prev => ({ ...prev, isStarting: false }));
     }
-  }, [state.isTracking, state.isStarting, addLog, runNativeProbe]);
+  }, [state.isTracking, state.isStarting, addLog]);
 
   // Force start with full reset
   const forceStartTracking = useCallback(async () => {
@@ -256,44 +175,33 @@ export default function PedometerDebug() {
     }
 
     setState(prev => ({ ...prev, isStarting: true }));
-    addLog('=== FORCE START (with native probe) ===', 'warn');
+    addLog('=== FORCE START (full reset) ===', 'warn');
 
-    // Step 1: Native probe first
-    addLog('[1/6] Running native permission probe...', 'info');
-    const probeResult = await runNativeProbe();
-    
-    if (probeResult && !probeResult.activityRecognitionGranted) {
-      addLog('[1/6] STOP: OS-level permission DENIED', 'error');
-      addLog('You must grant Physical Activity permission in system settings', 'warn');
-      setState(prev => ({ ...prev, isStarting: false }));
-      return;
-    }
-
-    // Step 2: Stop any existing
-    addLog('[2/6] Stopping any existing updates...', 'info');
+    // Step 1: Stop any existing
+    addLog('[1/5] Stopping any existing updates...', 'info');
     try {
       await CapacitorPedometer.stopMeasurementUpdates();
-      addLog('[2/6] OK', 'info');
+      addLog('[1/5] OK', 'info');
     } catch (e: any) {
-      addLog(`[2/6] ${e.message || 'none running'}`, 'info');
+      addLog(`[1/5] ${e.message || 'none running'}`, 'info');
     }
 
-    // Step 3: Remove all listeners
-    addLog('[3/6] Removing all listeners...', 'info');
+    // Step 2: Remove all listeners
+    addLog('[2/5] Removing all listeners...', 'info');
     try {
       await CapacitorPedometer.removeAllListeners();
-      addLog('[3/6] OK', 'info');
+      addLog('[2/5] OK', 'info');
     } catch (e: any) {
-      addLog(`[3/6] ${e.message}`, 'warn');
+      addLog(`[2/5] ${e.message}`, 'warn');
     }
 
-    // Step 4: Wait for state sync
-    addLog('[4/6] Waiting 1s for Android state sync...', 'info');
+    // Step 3: Wait for state sync
+    addLog('[3/5] Waiting 1s for Android state sync...', 'info');
     await new Promise(r => setTimeout(r, 1000));
-    addLog('[4/6] Done waiting', 'info');
+    addLog('[3/5] Done waiting', 'info');
 
-    // Step 5: Add listener
-    addLog('[5/6] Adding measurement listener...', 'info');
+    // Step 4: Add listener
+    addLog('[4/5] Adding measurement listener...', 'info');
     try {
       await CapacitorPedometer.addListener('measurement', (data: any) => {
         const steps = data.numberOfSteps || 0;
@@ -303,34 +211,34 @@ export default function PedometerDebug() {
           lastMeasurement: { steps, distance: data.distance || 0 },
         }));
       });
-      addLog('[5/6] Listener added', 'success');
+      addLog('[4/5] Listener added', 'success');
     } catch (e: any) {
-      addLog(`[5/6] addListener FAILED: ${e.message}`, 'error');
+      addLog(`[4/5] addListener FAILED: ${e.message}`, 'error');
       setState(prev => ({ ...prev, isStarting: false }));
       return;
     }
 
-    // Step 6: Start measurement
-    addLog('[6/6] Calling startMeasurementUpdates()...', 'info');
+    // Step 5: Start measurement
+    addLog('[5/5] Calling startMeasurementUpdates()...', 'info');
     try {
       await CapacitorPedometer.startMeasurementUpdates();
-      addLog('[6/6] SUCCESS!', 'success');
+      addLog('[5/5] SUCCESS!', 'success');
       addLog('✓ SENSOR ACTIVE - Walk to see steps!', 'success');
       setState(prev => ({ ...prev, isTracking: true }));
     } catch (e: any) {
-      addLog(`[6/6] FAILED: ${e.message}`, 'error');
+      const errorMsg = e.message || String(e);
+      addLog(`[5/5] FAILED: ${errorMsg}`, 'error');
       
-      if (e.message?.includes('permission')) {
-        addLog('Plugin rejected despite OS granting permission', 'error');
-        addLog('This appears to be a plugin-level bug', 'warn');
-        addLog('TRY: Force close app, clear app cache, restart', 'warn');
+      if (errorMsg.includes('permission')) {
+        addLog('Plugin says permission not granted', 'error');
+        addLog('TRY: Open App Settings > Permissions > Physical Activity > Allow', 'warn');
       }
       
-      setState(prev => ({ ...prev, error: e.message }));
+      setState(prev => ({ ...prev, error: errorMsg }));
     } finally {
       setState(prev => ({ ...prev, isStarting: false }));
     }
-  }, [state.isTracking, addLog, runNativeProbe]);
+  }, [state.isTracking, addLog]);
 
   const stopTracking = useCallback(async () => {
     if (!state.isTracking) {
@@ -392,7 +300,7 @@ export default function PedometerDebug() {
         <div className="flex items-center gap-3 px-4 py-3 safe-area-pt">
           <Bug className="h-5 w-5 text-amber-500" />
           <h1 className="text-lg font-semibold">Pedometer Debug</h1>
-          <span className="text-xs text-muted-foreground ml-auto">v3.0</span>
+          <span className="text-xs text-muted-foreground ml-auto">v4.0</span>
         </div>
       </div>
 
@@ -421,124 +329,88 @@ export default function PedometerDebug() {
           </div>
         </motion.div>
 
-        {/* Native Probe Result */}
-        {state.nativeProbeResult && (
-          <motion.div
-            className="tactical-card p-4 border-2 border-amber-500/50"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-              <h2 className="font-semibold">Native OS Probe (Ground Truth)</h2>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="text-muted-foreground">Android SDK:</div>
-              <div className="font-mono">{state.nativeProbeResult.sdkVersion}</div>
-              <div className="text-muted-foreground">Device:</div>
-              <div className="font-mono text-xs">{state.nativeProbeResult.manufacturer} {state.nativeProbeResult.model}</div>
-              <div className="text-muted-foreground">OS Permission:</div>
-              <div className={state.nativeProbeResult.activityRecognitionGranted ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>
-                {state.nativeProbeResult.permissionStateText}
-              </div>
-              {state.nativeProbeResult.shouldShowRationale && (
-                <>
-                  <div className="text-muted-foreground">Rationale Needed:</div>
-                  <div className="text-amber-500">Yes (user denied before)</div>
-                </>
-              )}
-            </div>
-            <Button size="sm" variant="outline" onClick={runNativeProbe} className="mt-3 w-full">
-              <RefreshCw className="h-3 w-3 mr-1" />
-              Re-run Probe
-            </Button>
-          </motion.div>
-        )}
-
         {/* Permission Status */}
+        <motion.div
+          className="tactical-card p-4"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <Shield className="h-4 w-4 text-primary" />
+            <h2 className="font-semibold">Permission Status</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="text-muted-foreground">Activity Recognition:</div>
+            <div className={getStatusColor(state.permissionStatus)}>
+              {state.permissionStatus || 'Unknown'}
+            </div>
+          </div>
+          <Button size="sm" variant="outline" onClick={ensurePermission} className="mt-3 w-full">
+            <RefreshCw className="h-3 w-3 mr-2" />
+            Request Permission
+          </Button>
+        </motion.div>
+
+        {/* Tracking Controls */}
         <motion.div
           className="tactical-card p-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold">Permission</h2>
-            </div>
-            <Button size="sm" variant="default" onClick={ensurePermission}>
-              Ensure Permission
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="text-muted-foreground">Capacitor State:</div>
-            <div className={getStatusColor(state.permissionStatus)}>
-              {state.permissionStatus || 'Checking...'}
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Tracking Test */}
-        <motion.div
-          className="tactical-card p-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Play className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold">Sensor Test</h2>
-            </div>
-            <div className={state.isTracking ? 'text-green-500 text-sm font-medium' : 'text-muted-foreground text-sm'}>
-              {state.isTracking ? '● Active' : '○ Inactive'}
-            </div>
+          <div className="flex items-center gap-2 mb-3">
+            <Play className="h-4 w-4 text-primary" />
+            <h2 className="font-semibold">Tracking Controls</h2>
           </div>
           
-          <div className="flex flex-col gap-2 mb-4">
-            <div className="flex gap-2">
-              <Button 
-                size="sm" 
-                variant="default" 
-                onClick={startTracking}
-                disabled={state.isTracking || state.isStarting}
-                className="flex-1"
-              >
-                <Play className="h-3 w-3 mr-1" />
-                {state.isStarting ? 'Starting...' : 'Start'}
-              </Button>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={stopTracking}
-                disabled={!state.isTracking}
-                className="flex-1"
-              >
-                <Square className="h-3 w-3 mr-1" />
-                Stop
-              </Button>
-            </div>
-            <Button 
-              size="sm" 
-              variant="destructive" 
-              onClick={forceStartTracking}
-              disabled={state.isTracking || state.isStarting}
-              className="w-full"
-            >
-              Force Start (with native probe)
-            </Button>
+          <div className="text-sm mb-3">
+            <span className="text-muted-foreground">Status: </span>
+            <span className={state.isTracking ? 'text-green-500' : 'text-muted-foreground'}>
+              {state.isTracking ? 'TRACKING' : 'Stopped'}
+            </span>
           </div>
 
           {state.lastMeasurement && (
-            <div className="bg-muted/30 rounded-lg p-3 text-center">
-              <div className="text-3xl font-bold text-primary">
-                {state.lastMeasurement.steps}
+            <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mb-3">
+              <div className="text-green-400 font-mono text-lg">
+                📊 {state.lastMeasurement.steps} steps
               </div>
-              <div className="text-xs text-muted-foreground">steps</div>
+              <div className="text-green-400/70 text-sm">
+                {state.lastMeasurement.distance.toFixed(1)}m distance
+              </div>
             </div>
           )}
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button 
+              onClick={startTracking} 
+              disabled={state.isTracking || state.isStarting}
+              className="w-full"
+            >
+              <Play className="h-4 w-4 mr-2" />
+              {state.isStarting ? 'Starting...' : 'Start'}
+            </Button>
+            <Button 
+              onClick={stopTracking} 
+              disabled={!state.isTracking}
+              variant="outline"
+              className="w-full"
+            >
+              <Square className="h-4 w-4 mr-2" />
+              Stop
+            </Button>
+          </div>
+          
+          <Button 
+            onClick={forceStartTracking} 
+            disabled={state.isTracking || state.isStarting}
+            variant="secondary"
+            className="w-full mt-2"
+          >
+            <AlertTriangle className="h-4 w-4 mr-2" />
+            Force Start (Full Reset)
+          </Button>
         </motion.div>
 
         {/* Quick Actions */}
@@ -546,25 +418,17 @@ export default function PedometerDebug() {
           className="tactical-card p-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.15 }}
         >
           <h2 className="font-semibold mb-3">Quick Actions</h2>
           <div className="grid grid-cols-2 gap-2">
-            <Button size="sm" variant="outline" onClick={openAppSettings}>
-              <Settings className="h-3 w-3 mr-1" />
+            <Button variant="outline" size="sm" onClick={runFullDiagnostics}>
+              <RefreshCw className="h-3 w-3 mr-2" />
+              Re-run Diagnostics
+            </Button>
+            <Button variant="outline" size="sm" onClick={openAppSettings}>
+              <Settings className="h-3 w-3 mr-2" />
               App Settings
-            </Button>
-            <Button size="sm" variant="outline" onClick={runFullDiagnostics}>
-              <RefreshCw className="h-3 w-3 mr-1" />
-              Full Diagnostics
-            </Button>
-            <Button size="sm" variant="outline" onClick={copyLogs}>
-              <Copy className="h-3 w-3 mr-1" />
-              Copy Logs
-            </Button>
-            <Button size="sm" variant="outline" onClick={clearLogs}>
-              <Trash2 className="h-3 w-3 mr-1" />
-              Clear Logs
             </Button>
           </div>
         </motion.div>
@@ -574,9 +438,19 @@ export default function PedometerDebug() {
           className="tactical-card p-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.2 }}
         >
-          <h2 className="font-semibold mb-3">Logs ({state.logs.length})</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold">Debug Logs</h2>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={copyLogs}>
+                <Copy className="h-3 w-3" />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={clearLogs}>
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
           <div className="bg-black/50 rounded-lg p-3 max-h-64 overflow-y-auto font-mono text-xs space-y-1">
             {state.logs.length === 0 ? (
               <div className="text-muted-foreground">No logs yet...</div>
@@ -598,7 +472,9 @@ export default function PedometerDebug() {
             animate={{ opacity: 1, y: 0 }}
           >
             <h2 className="font-semibold text-red-500 mb-2">Last Error</h2>
-            <p className="text-sm text-red-400 font-mono">{state.error}</p>
+            <div className="text-sm text-red-400 font-mono break-all">
+              {state.error}
+            </div>
           </motion.div>
         )}
       </div>

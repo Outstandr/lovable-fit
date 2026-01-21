@@ -1,4 +1,4 @@
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
 import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
 
 export interface PedometerData {
@@ -7,26 +7,6 @@ export interface PedometerData {
 }
 
 export type PedometerCallback = (data: PedometerData) => void;
-
-// Native permission probe interface
-interface PermissionProbePlugin {
-  checkActivityRecognition(): Promise<{
-    sdkVersion: number;
-    sdkCodename: string;
-    manufacturer: string;
-    model: string;
-    activityRecognitionGranted: boolean;
-    permissionState: number;
-    permissionStateText: string;
-    shouldShowRationale: boolean;
-    bodySensorsGranted?: boolean;
-  }>;
-}
-
-// Register the native plugin
-const PermissionProbe = registerPlugin<PermissionProbePlugin>('PermissionProbe');
-
-export { PermissionProbe };
 
 /**
  * Simplified Pedometer Service
