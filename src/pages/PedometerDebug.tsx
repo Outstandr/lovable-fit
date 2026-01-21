@@ -418,7 +418,16 @@ export default function PedometerDebug() {
     setState(prev => ({ ...prev, cordovaPermissionStatus: checkResult.hasPermission ? 'granted' : 'denied' }));
     
     if (checkResult.hasPermission) {
-      addLog('Permission already granted - trying to start sensor...', 'info');
+      addLog('Permission already granted - syncing Capacitor state...', 'info');
+      
+      // Sync Capacitor's internal state with OS
+      try {
+        const capacitorState = await CapacitorPedometer.checkPermissions();
+        addLog(`Capacitor state synced: ${JSON.stringify(capacitorState)}`, 'success');
+      } catch (e: any) {
+        addLog(`Capacitor sync failed: ${e.message}`, 'warn');
+      }
+      
       await tryStartDirect();
       return;
     }
@@ -433,8 +442,17 @@ export default function PedometerDebug() {
       addLog('✅ Permission GRANTED via Cordova delegate!', 'success');
       setState(prev => ({ ...prev, cordovaPermissionStatus: 'granted', permissionStatus: 'granted' }));
       
-      // Step 4: Now start the pedometer
-      addLog('Step 4: Starting pedometer sensor...', 'info');
+      // Step 4: Sync Capacitor's internal state with OS
+      addLog('Step 4: Syncing Capacitor permission state...', 'info');
+      try {
+        const capacitorState = await CapacitorPedometer.checkPermissions();
+        addLog(`Capacitor now reports: ${JSON.stringify(capacitorState)}`, 'success');
+      } catch (e: any) {
+        addLog(`Capacitor sync failed (continuing): ${e.message}`, 'warn');
+      }
+      
+      // Step 5: Now start the pedometer
+      addLog('Step 5: Starting pedometer sensor...', 'info');
       await tryStartDirect();
     } else {
       addLog('❌ Permission DENIED by user', 'error');
