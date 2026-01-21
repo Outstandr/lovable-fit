@@ -155,7 +155,7 @@ const Dashboard = () => {
     fetchWeeklyData();
     const interval = setInterval(fetchWeeklyData, 60000);
     return () => clearInterval(interval);
-  }, [user, dailyGoal, steps, isOnline, getCachedWeekData, setCachedWeekData, setLastSyncTime]);
+  }, [user, dailyGoal, isOnline, getCachedWeekData, setCachedWeekData, setLastSyncTime]);
 
   // Fetch monthly data
   useEffect(() => {
@@ -263,7 +263,30 @@ const Dashboard = () => {
     };
 
     fetchMonthlyData();
-  }, [user, dailyGoal, steps, isOnline, getCachedMonthData, setCachedMonthData]);
+  }, [user, dailyGoal, isOnline, getCachedMonthData, setCachedMonthData]);
+
+  // Reactively update weekData and weeklyTrend with live steps
+  useEffect(() => {
+    if (weekData.length === 0) return;
+    
+    setWeekData(prev => prev.map(d => 
+      d.isToday ? { ...d, steps: Math.max(steps, d.steps), hitGoal: Math.max(steps, d.steps) >= dailyGoal } : d
+    ));
+    
+    setWeeklyTrend(prev => prev.map((d, i) => 
+      i === prev.length - 1 ? { ...d, value: Math.max(steps, d.value) } : d
+    ));
+  }, [steps, dailyGoal]);
+
+  // Reactively update calendarData with live steps
+  useEffect(() => {
+    if (calendarData.length === 0) return;
+    const todayDate = new Date().getDate();
+    
+    setCalendarData(prev => prev.map(d => 
+      d.date === todayDate && d.isToday ? { ...d, steps: Math.max(steps, d.steps), hitGoal: Math.max(steps, d.steps) >= dailyGoal } : d
+    ));
+  }, [steps, dailyGoal]);
 
   // Update streak when target is hit
   useEffect(() => {
