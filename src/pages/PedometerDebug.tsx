@@ -4,9 +4,62 @@ import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { NativeSettings, AndroidSettings, IOSSettings } from 'capacitor-native-settings';
 import { motion } from 'framer-motion';
-import { Bug, Cpu, Shield, Play, Square, Settings, RefreshCw, Trash2, Copy, AlertTriangle, Bell, Battery } from 'lucide-react';
+import { Bug, Cpu, Shield, Play, Square, Settings, RefreshCw, Trash2, Copy, AlertTriangle, Bell, Battery, Fingerprint } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { pedometerService, StartResult } from '@/services/pedometerService';
+/// <reference path="../types/cordova-permissions.d.ts" />
+
+// The Android permission string for activity recognition
+const ACTIVITY_RECOGNITION_PERMISSION = 'android.permission.ACTIVITY_RECOGNITION';
+
+// Helper: Check if we have activity recognition permission using Cordova plugin
+const checkCordovaPermission = (): Promise<{ available: boolean; hasPermission: boolean }> => {
+  return new Promise((resolve) => {
+    if (!window.cordova?.plugins?.permissions) {
+      console.log('[Debug] Cordova permissions plugin not available');
+      resolve({ available: false, hasPermission: false });
+      return;
+    }
+    
+    const permissions = window.cordova.plugins.permissions;
+    permissions.checkPermission(
+      ACTIVITY_RECOGNITION_PERMISSION,
+      (status) => {
+        console.log('[Debug] Cordova check result:', status.hasPermission);
+        resolve({ available: true, hasPermission: status.hasPermission });
+      },
+      (err) => {
+        console.error('[Debug] Cordova check error:', err);
+        resolve({ available: true, hasPermission: false });
+      }
+    );
+  });
+};
+
+// Helper: Request activity recognition permission using Cordova plugin (THE DELEGATE)
+const requestCordovaPermission = (): Promise<boolean> => {
+  return new Promise((resolve) => {
+    if (!window.cordova?.plugins?.permissions) {
+      console.log('[Debug] Cordova permissions plugin not available');
+      resolve(false);
+      return;
+    }
+    
+    console.log('[Debug] 🎯 Requesting permission via Cordova delegate...');
+    const permissions = window.cordova.plugins.permissions;
+    permissions.requestPermission(
+      ACTIVITY_RECOGNITION_PERMISSION,
+      (status) => {
+        console.log('[Debug] 🎯 Cordova request result:', status.hasPermission);
+        resolve(status.hasPermission);
+      },
+      (err) => {
+        console.error('[Debug] Cordova request error:', err);
+        resolve(false);
+      }
+    );
+  });
+};
 
 interface DebugState {
   platform: string;
@@ -14,6 +67,8 @@ interface DebugState {
   isAvailable: boolean | null;
   stepCountingSupported: boolean | null;
   permissionStatus: string | null;
+  cordovaAvailable: boolean | null;
+  cordovaPermissionStatus: string | null;
   notificationPermissionStatus: string | null;
   isTracking: boolean;
   isStarting: boolean;
@@ -30,6 +85,8 @@ export default function PedometerDebug() {
     isAvailable: null,
     stepCountingSupported: null,
     permissionStatus: null,
+    cordovaAvailable: null,
+    cordovaPermissionStatus: null,
     notificationPermissionStatus: null,
     isTracking: pedometerService.isTracking(),
     isStarting: false,
@@ -336,6 +393,58 @@ export default function PedometerDebug() {
     }
   }, [addLog]);
 
+  // Test Cordova delegate pattern
+  const testCordovaDelegate = useCallback(async () => {
+    addLog('=== TESTING CORDOVA DELEGATE PATTERN ===', 'info');
+    
+    // Step 1: Check if Cordova plugin is available
+    addLog('Step 1: Checking Cordova plugin availability...', 'info');
+    const checkResult = await checkCordovaPermission();
+    
+    if (!checkResult.available) {
+      addLog('❌ Cordova permissions plugin NOT available', 'error');
+      addLog('Make sure cordova-plugin-android-permissions is installed', 'warn');
+      addLog('Run: npm install cordova-plugin-android-permissions && npx cap sync', 'warn');
+      setState(prev => ({ ...prev, cordovaAvailable: false }));
+      return;
+    }
+    
+    addLog('✅ Cordova permissions plugin is available!', 'success');
+    setState(prev => ({ ...prev, cordovaAvailable: true }));
+    
+    // Step 2: Check current permission status
+    addLog(`Step 2: Current permission: ${checkResult.hasPermission ? 'GRANTED' : 'NOT GRANTED'}`, 
+      checkResult.hasPermission ? 'success' : 'warn');
+    setState(prev => ({ ...prev, cordovaPermissionStatus: checkResult.hasPermission ? 'granted' : 'denied' }));
+    
+    if (checkResult.hasPermission) {
+      addLog('Permission already granted - trying to start sensor...', 'info');
+      await tryStartDirect();
+      return;
+    }
+    
+    // Step 3: Request permission via Cordova delegate
+    addLog('Step 3: Requesting permission via Cordova delegate...', 'info');
+    addLog('🎯 Native Android permission dialog should appear NOW!', 'warn');
+    
+    const granted = await requestCordovaPermission();
+    
+    if (granted) {
+      addLog('✅ Permission GRANTED via Cordova delegate!', 'success');
+      setState(prev => ({ ...prev, cordovaPermissionStatus: 'granted', permissionStatus: 'granted' }));
+      
+      // Step 4: Now start the pedometer
+      addLog('Step 4: Starting pedometer sensor...', 'info');
+      await tryStartDirect();
+    } else {
+      addLog('❌ Permission DENIED by user', 'error');
+      addLog('User needs to grant Physical Activity permission', 'warn');
+      setState(prev => ({ ...prev, cordovaPermissionStatus: 'denied' }));
+    }
+    
+    addLog('=== CORDOVA DELEGATE TEST COMPLETE ===', 'info');
+  }, [addLog, tryStartDirect]);
+
   const copyLogs = useCallback(() => {
     const logText = state.logs.map(l => `[${l.time}] ${l.message}`).join('\n');
     navigator.clipboard.writeText(logText);
@@ -415,11 +524,42 @@ export default function PedometerDebug() {
             <div className={getStatusColor(state.permissionStatus)}>
               {state.permissionStatus || 'Unknown'}
             </div>
+            <div className="text-muted-foreground">Cordova Plugin:</div>
+            <div className={state.cordovaAvailable === true ? 'text-green-500' : state.cordovaAvailable === false ? 'text-red-500' : 'text-muted-foreground'}>
+              {state.cordovaAvailable === null ? 'Not checked' : state.cordovaAvailable ? 'Available ✓' : 'Not Available'}
+            </div>
+            <div className="text-muted-foreground">Cordova Permission:</div>
+            <div className={getStatusColor(state.cordovaPermissionStatus)}>
+              {state.cordovaPermissionStatus || 'Not checked'}
+            </div>
             <div className="text-muted-foreground">Notifications (Android 13+):</div>
             <div className={getStatusColor(state.notificationPermissionStatus)}>
               {state.notificationPermissionStatus || 'Unknown'}
             </div>
           </div>
+          
+          {/* Cordova Delegate Test - THE MAIN TEST */}
+          <div className="mt-4 p-3 rounded-lg bg-primary/10 border border-primary/30">
+            <div className="flex items-center gap-2 mb-2">
+              <Fingerprint className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium text-primary">Cordova Delegate Pattern</span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Uses cordova-plugin-android-permissions to request ACTIVITY_RECOGNITION. 
+              This bypasses the crashing Pedometer plugin.
+            </p>
+            <Button 
+              size="sm" 
+              variant="default" 
+              onClick={testCordovaDelegate} 
+              disabled={state.isStarting}
+              className="w-full"
+            >
+              <Fingerprint className="h-3 w-3 mr-2" />
+              Test Cordova Delegate (Shows Native Dialog)
+            </Button>
+          </div>
+          
           <div className="grid grid-cols-2 gap-2 mt-3">
             <Button size="sm" variant="outline" onClick={tryStartDirect} disabled={state.isStarting}>
               <Play className="h-3 w-3 mr-2" />
