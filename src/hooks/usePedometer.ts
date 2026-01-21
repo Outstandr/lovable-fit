@@ -213,7 +213,7 @@ export function usePedometer() {
     if (!user) return;
 
     const stepDiff = state.steps - lastSyncSteps.current;
-    if (stepDiff < 100) return;
+    if (stepDiff < 50) return; // Sync every 50 steps for faster leaderboard updates
 
     const today = new Date().toISOString().split('T')[0];
     const data = {
