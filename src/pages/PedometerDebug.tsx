@@ -167,27 +167,31 @@ export default function PedometerDebug() {
     }
 
     setState(prev => ({ ...prev, isStarting: true }));
-    addLog('=== STARTING SENSOR ===', 'info');
+    addLog('=== STARTING VIA SERVICE ===', 'info');
+    addLog('[SVC] Calling pedometerService.start()...', 'info');
 
     try {
-      const success = await pedometerService.start((data) => {
-        addLog(`Steps: ${data.steps}, Distance: ${data.distance}m`, 'success');
+      const result = await pedometerService.start((data) => {
+        addLog(`📊 Steps: ${data.steps}, Distance: ${data.distance}m`, 'success');
         setState(prev => ({
           ...prev,
           lastMeasurement: { steps: data.steps, distance: data.distance },
         }));
       });
 
-      addLog(`start() result: ${success}`, success ? 'success' : 'error');
-      setState(prev => ({ ...prev, isTracking: success }));
-
-      if (success) {
+      addLog(`[SVC] start() returned: ${JSON.stringify(result)}`, result.success ? 'success' : 'error');
+      
+      if (result.success) {
         addLog('✓ Sensor active - walk to see steps!', 'success');
+        setState(prev => ({ ...prev, isTracking: true }));
       } else {
-        addLog('Sensor failed to start', 'error');
+        addLog(`[SVC] FAILED at step: ${result.step}`, 'error');
+        addLog(`[SVC] Error: ${result.error}`, 'error');
+        setState(prev => ({ ...prev, error: result.error || 'Unknown error' }));
       }
     } catch (error: any) {
-      addLog(`Start error: ${error.message || error}`, 'error');
+      addLog(`[SVC] Unexpected error: ${error.message || error}`, 'error');
+      addLog(`[SVC] Full error: ${JSON.stringify(error)}`, 'error');
       setState(prev => ({ ...prev, error: error.message || String(error) }));
     } finally {
       setState(prev => ({ ...prev, isStarting: false }));
@@ -202,44 +206,77 @@ export default function PedometerDebug() {
     }
 
     setState(prev => ({ ...prev, isStarting: true }));
-    addLog('=== FORCE START (bypassing all checks) ===', 'warn');
+    addLog('=== FORCE START (direct native calls) ===', 'warn');
 
+    // Step 1: Clear any existing state
+    addLog('[1/5] Stopping any existing updates...', 'info');
     try {
-      // Step 1: Request permission to refresh OS state
-      addLog('Refreshing permission state...', 'info');
-      try {
-        await CapacitorPedometer.requestPermissions();
-        addLog('Permission refresh done', 'info');
-      } catch (e: any) {
-        addLog(`Permission refresh: ${e.message}`, 'warn');
-      }
+      await CapacitorPedometer.stopMeasurementUpdates();
+      addLog('[1/5] stopMeasurementUpdates: OK', 'info');
+    } catch (e: any) {
+      addLog(`[1/5] stopMeasurementUpdates: ${e.message || 'none running'}`, 'info');
+    }
 
-      // Small delay for OS sync
-      await new Promise(r => setTimeout(r, 300));
+    // Step 2: Remove all listeners
+    addLog('[2/5] Removing all listeners...', 'info');
+    try {
+      await CapacitorPedometer.removeAllListeners();
+      addLog('[2/5] removeAllListeners: OK', 'info');
+    } catch (e: any) {
+      addLog(`[2/5] removeAllListeners: ${e.message}`, 'warn');
+    }
 
-      // Step 2: Register listener
-      addLog('Registering measurement listener...', 'info');
-      const listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
+    // Step 3: Request permission (refreshes OS state)
+    addLog('[3/5] Requesting permission...', 'info');
+    try {
+      const permResult = await CapacitorPedometer.requestPermissions();
+      addLog(`[3/5] requestPermissions: ${JSON.stringify(permResult)}`, 'info');
+    } catch (e: any) {
+      addLog(`[3/5] requestPermissions error: ${e.message}`, 'error');
+    }
+
+    await new Promise(r => setTimeout(r, 500));
+
+    // Step 4: Register listener
+    addLog('[4/5] Adding measurement listener...', 'info');
+    try {
+      await CapacitorPedometer.addListener('measurement', (data: any) => {
         const steps = data.numberOfSteps || 0;
-        const distance = data.distance || 0;
-        addLog(`📊 Steps: ${steps}, Distance: ${distance}m`, 'success');
+        addLog(`📊 STEP DATA: ${steps} steps`, 'success');
         setState(prev => ({
           ...prev,
-          lastMeasurement: { steps, distance },
+          lastMeasurement: { steps, distance: data.distance || 0 },
         }));
       });
-      addLog('Listener registered', 'success');
+      addLog('[4/5] Listener added: OK', 'success');
+    } catch (e: any) {
+      addLog(`[4/5] addListener FAILED: ${e.message}`, 'error');
+      addLog(`[4/5] Full error: ${JSON.stringify(e)}`, 'error');
+      setState(prev => ({ ...prev, isStarting: false }));
+      return;
+    }
 
-      // Step 3: Start sensor directly
-      addLog('Starting measurement updates...', 'info');
+    // Step 5: Start measurement updates - THE KEY CALL
+    addLog('[5/5] Calling startMeasurementUpdates()...', 'info');
+    try {
       await CapacitorPedometer.startMeasurementUpdates();
-      addLog('✓ FORCE START SUCCESS - walk to see steps!', 'success');
-      
+      addLog('[5/5] startMeasurementUpdates: SUCCESS!', 'success');
+      addLog('✓ SENSOR ACTIVE - Walk to see steps!', 'success');
       setState(prev => ({ ...prev, isTracking: true }));
-    } catch (error: any) {
-      addLog(`FORCE START FAILED: ${error.message || error}`, 'error');
-      addLog(`Error code: ${error.code || 'none'}`, 'error');
-      setState(prev => ({ ...prev, error: error.message || String(error) }));
+    } catch (e: any) {
+      addLog(`[5/5] startMeasurementUpdates FAILED: ${e.message}`, 'error');
+      addLog(`[5/5] Error code: ${e.code || 'none'}`, 'error');
+      addLog(`[5/5] Full error: ${JSON.stringify(e)}`, 'error');
+      
+      // Specific error analysis
+      if (e.message?.includes('permission')) {
+        addLog('DIAGNOSIS: Permission issue despite granted status', 'warn');
+      } else if (e.message?.includes('sensor') || e.message?.includes('register')) {
+        addLog('DIAGNOSIS: Native sensor registration failed', 'warn');
+        addLog('TRY: Disable Battery Saver, set app to Unrestricted', 'warn');
+      }
+      
+      setState(prev => ({ ...prev, error: e.message }));
     } finally {
       setState(prev => ({ ...prev, isStarting: false }));
     }
