@@ -117,14 +117,14 @@ export function usePedometer() {
         // If already tracking (started during onboarding), just update callback
         if (pedometerService.isTracking()) {
           console.log('[usePedometer] Already running - updating callback');
-          const success = await pedometerService.start((data) => {
+          const result = await pedometerService.start((data) => {
             if (!isMounted) return;
             updateState(data);
           });
           if (isMounted) {
             setState(prev => ({
               ...prev,
-              isTracking: success,
+              isTracking: result.success,
               hasPermission: true,
               dataSource: 'pedometer'
             }));
@@ -144,7 +144,7 @@ export function usePedometer() {
 
         // Start sensor
         console.log('[usePedometer] Starting sensor...');
-        const success = await pedometerService.start((data) => {
+        const result = await pedometerService.start((data) => {
           if (!isMounted) return;
           updateState(data);
         });
@@ -152,13 +152,13 @@ export function usePedometer() {
         if (isMounted) {
           setState(prev => ({
             ...prev,
-            isTracking: success,
-            hasPermission: success,
-            dataSource: success ? 'pedometer' : 'database'
+            isTracking: result.success,
+            hasPermission: result.success,
+            dataSource: result.success ? 'pedometer' : 'database'
           }));
         }
 
-        console.log('[usePedometer] Started:', success);
+        console.log('[usePedometer] Started:', result.success, result.error || '');
       } catch (error) {
         console.error('[usePedometer] Init error:', error);
         if (isMounted) {
@@ -244,7 +244,7 @@ export function usePedometer() {
   const startTracking = useCallback(async (): Promise<boolean> => {
     if (!pedometerService.isNative()) return true;
 
-    const success = await pedometerService.start((data) => {
+    const result = await pedometerService.start((data) => {
       const totalSteps = baseSteps.current + data.steps;
       const distanceKm = (data.distance || (data.steps * 0.762)) / 1000;
       const totalDistance = (baseSteps.current * 0.762) / 1000 + distanceKm;
@@ -263,11 +263,11 @@ export function usePedometer() {
 
     setState(prev => ({
       ...prev,
-      isTracking: success,
-      dataSource: success ? 'pedometer' : 'unavailable'
+      isTracking: result.success,
+      dataSource: result.success ? 'pedometer' : 'unavailable'
     }));
 
-    return success;
+    return result.success;
   }, []);
 
   const stopTracking = useCallback(() => {

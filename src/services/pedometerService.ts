@@ -53,24 +53,27 @@ class PedometerService {
 
   /**
    * Start tracking steps. If already started, just updates the callback.
-   * Bypasses permission cache - uses Android's real permission state.
+   * Returns detailed result for debugging.
    */
-  async start(callback: PedometerCallback): Promise<boolean> {
-    if (!this.isNativePlatform) return false;
+  async start(callback: PedometerCallback): Promise<{ success: boolean; error?: string; step?: string }> {
+    console.log('[PedometerService] start() called');
+    
+    if (!this.isNativePlatform) {
+      console.log('[PedometerService] Not native platform - aborting');
+      return { success: false, error: 'Not native platform', step: 'platform-check' };
+    }
 
     // If already started, just update callback
     if (this.isStarted) {
       console.log('[PedometerService] Already started - updating callback');
       this.callback = callback;
-      return true;
+      return { success: true, step: 'already-started' };
     }
 
     try {
-      console.log('[PedometerService] Starting sensor...');
-
-      // Register listener first
+      console.log('[PedometerService] Step A: Registering listener...');
       this.listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
-        console.log('[PedometerService] Measurement:', data);
+        console.log('[PedometerService] Measurement received:', JSON.stringify(data));
         if (this.callback) {
           this.callback({
             steps: data.numberOfSteps || 0,
@@ -78,21 +81,32 @@ class PedometerService {
           });
         }
       });
+      console.log('[PedometerService] Step A: Listener registered OK');
 
-      // Start sensor - uses Android's REAL permission state
+      console.log('[PedometerService] Step B: Calling startMeasurementUpdates...');
       await CapacitorPedometer.startMeasurementUpdates();
+      console.log('[PedometerService] Step B: startMeasurementUpdates OK');
 
       this.isStarted = true;
       this.callback = callback;
       console.log('[PedometerService] ✓ Sensor active');
-      return true;
-    } catch (error) {
-      console.error('[PedometerService] Start failed:', error);
+      return { success: true, step: 'started' };
+    } catch (error: any) {
+      const errorMsg = error?.message || String(error);
+      const errorCode = error?.code || 'none';
+      console.error('[PedometerService] FAILED:', errorMsg);
+      console.error('[PedometerService] Error code:', errorCode);
+      console.error('[PedometerService] Full error:', JSON.stringify(error));
+      
       if (this.listener) {
         try { await this.listener.remove(); } catch {}
         this.listener = null;
       }
-      return false;
+      return { 
+        success: false, 
+        error: `${errorMsg} (code: ${errorCode})`, 
+        step: 'startMeasurementUpdates' 
+      };
     }
   }
 
