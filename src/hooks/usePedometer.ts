@@ -156,8 +156,8 @@ export function usePedometer() {
       sensorBaseline.current = null;
 
       try {
-        // Start sensor with callback
-        const success = await pedometerService.start((data) => {
+        // Start sensor with callback - now returns StartResult
+        const result = await pedometerService.start((data) => {
           if (!isMounted) return;
           updateState(data);
         });
@@ -165,13 +165,14 @@ export function usePedometer() {
         if (isMounted) {
           setState(prev => ({
             ...prev,
-            isTracking: success,
-            hasPermission: success,
-            dataSource: success ? 'pedometer' : 'database'
+            isTracking: result.success,
+            hasPermission: result.success,
+            dataSource: result.success ? 'pedometer' : 'database',
+            error: result.success ? null : (result.guidance || result.error || null)
           }));
         }
 
-        console.log('[usePedometer] Started:', success);
+        console.log('[usePedometer] Started:', result.success, result.error);
       } catch (error) {
         console.error('[usePedometer] Init error:', error);
         if (isMounted) {
@@ -239,7 +240,7 @@ export function usePedometer() {
   const startTracking = useCallback(async (): Promise<boolean> => {
     if (!pedometerService.isNative()) return true;
 
-    const success = await pedometerService.start((data) => {
+    const result = await pedometerService.start((data) => {
       const totalSteps = baseSteps.current + data.steps;
       const distanceKm = (data.distance || (data.steps * 0.762)) / 1000;
       const totalDistance = (baseSteps.current * 0.762) / 1000 + distanceKm;
@@ -258,11 +259,12 @@ export function usePedometer() {
 
     setState(prev => ({
       ...prev,
-      isTracking: success,
-      dataSource: success ? 'pedometer' : 'unavailable'
+      isTracking: result.success,
+      dataSource: result.success ? 'pedometer' : 'unavailable',
+      error: result.success ? null : (result.guidance || result.error || null)
     }));
 
-    return success;
+    return result.success;
   }, []);
 
   const stopTracking = useCallback(() => {
