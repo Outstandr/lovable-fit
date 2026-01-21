@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Footprints, Bell } from 'lucide-react';
+import { Footprints } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
-import { PushNotifications } from '@capacitor/push-notifications';
 import { pedometerService } from '@/services/pedometerService';
-import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
 
 interface ActivityPermissionStepProps {
   onNext: () => void;
@@ -13,65 +11,33 @@ interface ActivityPermissionStepProps {
 
 export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) {
   const [isRequesting, setIsRequesting] = useState(false);
-  const [step, setStep] = useState<'idle' | 'notifications' | 'activity' | 'starting'>('idle');
 
   const handleContinue = async () => {
     setIsRequesting(true);
 
     if (Capacitor.isNativePlatform()) {
-      try {
-        // Step 1: Request POST_NOTIFICATIONS first (Android 13+ requirement for foreground service)
-        // This must be done BEFORE activity recognition on Android 14+
-        console.log('[Onboarding] Step 1: Requesting notification permission (Android 13+)...');
-        setStep('notifications');
-        try {
-          const notifResult = await PushNotifications.requestPermissions();
-          console.log('[Onboarding] Notification permission result:', notifResult.receive);
-        } catch (notifError) {
-          console.log('[Onboarding] Notification permission error (non-critical):', notifError);
-        }
-
-        // Small delay to let Android process the permission
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Step 2: Request activity recognition permission
-        console.log('[Onboarding] Step 2: Requesting activity recognition permission...');
-        setStep('activity');
-        
-        // Request permission directly - this triggers the system dialog
-        const permResult = await CapacitorPedometer.requestPermissions();
-        console.log('[Onboarding] Activity recognition result:', permResult.activityRecognition);
-        
-        // Step 3: IMMEDIATELY start tracking while both keys are fresh!
-        // Key 1 (User Consent) = just granted via dialog
-        // Key 2 (OS Declaration) = manifest permissions are active
-        if (permResult.activityRecognition === 'granted') {
-          console.log('[Onboarding] ✅ Permission granted - starting tracker NOW!');
-          setStep('starting');
-          
-          // Start the sensor immediately - this is the critical moment
-          const startResult = await pedometerService.start((data) => {
-            console.log('[Onboarding] First sensor data:', data.steps, 'steps');
-          });
-          
-          if (startResult.success) {
-            console.log('[Onboarding] ✅ Step tracker started successfully during onboarding!');
-            pedometerService.setStartedDuringOnboarding(true);
-          } else {
-            console.log('[Onboarding] ⚠️ Tracker start failed:', startResult.error, startResult.guidance);
-            // Still continue - user can retry from debug page
-          }
+      console.log('[Onboarding] Starting step tracker directly...');
+      
+      // Fire-and-forget: Start tracker in background
+      // This triggers the permission dialog if needed
+      // We don't await - navigation happens immediately
+      pedometerService.start((data) => {
+        console.log('[Onboarding] Sensor data:', data.steps, 'steps');
+      }).then(result => {
+        if (result.success) {
+          console.log('[Onboarding] ✅ Tracker started!');
+          pedometerService.setStartedDuringOnboarding(true);
         } else {
-          console.log('[Onboarding] ⚠️ Permission not granted:', permResult.activityRecognition);
+          console.log('[Onboarding] ⚠️ Tracker failed:', result.error, '-', result.guidance);
         }
-        
-      } catch (error) {
-        console.log('[Onboarding] Permission/start error (proceeding):', error);
-      }
+      }).catch(e => {
+        console.log('[Onboarding] Tracker error:', e);
+      });
     }
 
+    // Navigate IMMEDIATELY - don't wait for sensor
+    console.log('[Onboarding] Navigating to next step now!');
     setIsRequesting(false);
-    setStep('idle');
     onNext();
   };
 
@@ -129,19 +95,16 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
           ))}
         </motion.div>
 
-        {/* Android 13+ notice */}
+        {/* Info notice */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
           className="mt-6 p-4 rounded-xl bg-muted/50 border border-border w-full max-w-xs"
         >
-          <div className="flex items-start gap-3">
-            <Bell className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              <span className="font-medium text-foreground">Why notifications?</span> Android requires notification permission to track steps in the background. We'll only use it for step tracking, not marketing.
-            </p>
-          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed text-center">
+            When prompted, please <span className="font-medium text-foreground">Allow</span> access to Physical Activity to enable step tracking.
+          </p>
         </motion.div>
       </div>
 
@@ -157,13 +120,7 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
           disabled={isRequesting}
           className="w-full h-14 rounded-full bg-primary text-primary-foreground font-semibold text-base"
         >
-          {isRequesting 
-            ? step === 'notifications' 
-              ? 'Requesting Notifications...' 
-              : step === 'activity'
-                ? 'Requesting Activity...'
-                : 'Starting Step Tracker...'
-            : 'Enable Step Tracking'}
+          {isRequesting ? 'Starting...' : 'Enable Step Tracking'}
         </Button>
       </motion.div>
     </div>

@@ -202,7 +202,8 @@ export function usePedometer() {
     return () => {
       isMounted = false;
       clearTimeout(timer);
-      pedometerService.stop();
+      // Don't stop on route changes - let tracking persist
+      // Only stop on explicit user action
     };
   }, [location.pathname]);
 
@@ -249,9 +250,12 @@ export function usePedometer() {
   // Manual Actions
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!pedometerService.isNative()) return true;
-    const granted = await pedometerService.requestPermission();
-    setState(prev => ({ ...prev, hasPermission: granted }));
-    return granted;
+    // Start tracking directly - this will trigger permission if needed
+    const result = await pedometerService.start((data) => {
+      console.log('[usePedometer] Permission check started sensor:', data.steps);
+    });
+    setState(prev => ({ ...prev, hasPermission: result.success }));
+    return result.success;
   }, []);
 
   const startTracking = useCallback(async (): Promise<boolean> => {
