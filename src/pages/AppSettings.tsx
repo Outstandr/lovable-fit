@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Settings, Ruler, Info, RefreshCw, RotateCcw, LogOut, ChevronRight, Heart, CheckCircle2, XCircle, Bug } from "lucide-react";
+import { Settings, Ruler, Info, RefreshCw, RotateCcw, LogOut, ChevronRight, Heart, CheckCircle2, XCircle } from "lucide-react";
 import { StandardHeader } from "@/components/StandardHeader";
 import {
   AlertDialog,
@@ -223,30 +223,6 @@ const AppSettings = () => {
           </motion.div>
         )}
 
-        {/* Pedometer Debug - Development */}
-        <motion.div
-          className="tactical-card p-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.18 }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Bug className="h-5 w-5 text-amber-500" />
-              <div>
-                <p className="text-sm font-semibold text-foreground">Pedometer Debug</p>
-                <p className="text-xs text-muted-foreground">Test step tracking hardware</p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/pedometer-debug')}
-            >
-              Open
-            </Button>
-          </div>
-        </motion.div>
 
         {/* Reset Onboarding */}
         <motion.div

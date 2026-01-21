@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
 import { BatteryOptimization } from '@capawesome-team/capacitor-android-battery-optimization';
+import { NativeSettings, AndroidSettings } from 'capacitor-native-settings';
 
 interface BatteryOptimizationStepProps {
   onNext: () => void;
@@ -11,20 +12,33 @@ interface BatteryOptimizationStepProps {
 export function BatteryOptimizationStep({ onNext }: BatteryOptimizationStepProps) {
   const [isRequesting, setIsRequesting] = useState(false);
 
+  // Auto-skip on non-Android platforms
+  useEffect(() => {
+    if (Capacitor.getPlatform() !== 'android') {
+      console.log('[Onboarding] Skipping battery step - not Android');
+      onNext();
+    }
+  }, [onNext]);
+
   const handleContinue = async () => {
     setIsRequesting(true);
 
     try {
       if (Capacitor.getPlatform() === 'android') {
-        // Check if battery optimization is currently enabled for this app
-        const { enabled } = await BatteryOptimization.isBatteryOptimizationEnabled();
-
-        if (enabled) {
-          // Request the user to disable battery optimization
+        try {
+          // Always try to show the battery optimization dialog
           await BatteryOptimization.requestIgnoreBatteryOptimization();
           console.log('[Onboarding] Battery optimization request completed');
-        } else {
-          console.log('[Onboarding] Battery optimization already disabled');
+        } catch (pluginError) {
+          // Fallback: Open battery settings if the plugin fails
+          console.log('[Onboarding] Battery plugin failed, opening settings:', pluginError);
+          try {
+            await NativeSettings.openAndroid({
+              option: AndroidSettings.ApplicationDetails,
+            });
+          } catch (settingsError) {
+            console.log('[Onboarding] Failed to open settings:', settingsError);
+          }
         }
       }
     } catch (error) {
