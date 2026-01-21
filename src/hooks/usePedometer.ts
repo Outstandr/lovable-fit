@@ -10,7 +10,6 @@ import { Capacitor } from '@capacitor/core';
 
 const ONBOARDING_KEY = 'device_onboarding_completed';
 const STEPS_PER_CALORIE = 20;
-const POLL_INTERVAL_MS = 5000; // Poll every 5 seconds
 const SYNC_THRESHOLD = 50; // Sync to database every 50 steps
 
 export interface PedometerState {
@@ -45,6 +44,8 @@ export function usePedometer() {
   const lastSyncSteps = useRef<number>(0);
   const celebrated10K = useRef<string | null>(null);
   const baseSteps = useRef<number>(0);
+  // Sensor baseline for TYPE_STEP_COUNTER (cumulative since boot)
+  const sensorBaseline = useRef<number | null>(null);
 
   // 10K Milestone Celebration
   useEffect(() => {
@@ -114,47 +115,75 @@ export function usePedometer() {
 
     let isMounted = true;
 
+    const updateState = (data: { steps: number; distance: number }) => {
+      // Handle TYPE_STEP_COUNTER which returns cumulative steps since boot
+      // Set baseline on first reading to calculate session steps correctly
+      if (sensorBaseline.current === null && data.steps > 0) {
+        sensorBaseline.current = data.steps;
+        console.log('[usePedometer] 📍 Sensor baseline set:', sensorBaseline.current);
+      }
+
+      // Calculate session steps as delta from baseline
+      const sessionSteps = sensorBaseline.current !== null
+        ? Math.max(0, data.steps - sensorBaseline.current)
+        : 0;
+
+      const totalSteps = baseSteps.current + sessionSteps;
+      const distanceKm = (data.distance || (sessionSteps * 0.762)) / 1000;
+      const totalDistance = (baseSteps.current * 0.762) / 1000 + distanceKm;
+      const calories = Math.round(totalSteps / STEPS_PER_CALORIE);
+
+      console.log('[usePedometer] 📊 Step calculation:', {
+        rawSensorSteps: data.steps,
+        sensorBaseline: sensorBaseline.current,
+        sessionSteps,
+        dbBaseSteps: baseSteps.current,
+        totalSteps
+      });
+
+      if (isMounted) {
+        setState(prev => ({
+          ...prev,
+          steps: totalSteps,
+          distance: totalDistance,
+          calories,
+          isTracking: true,
+          hasPermission: true,
+          dataSource: 'pedometer',
+          lastUpdate: Date.now()
+        }));
+      }
+    };
+
     const initBackgroundTracking = async () => {
       console.log('[usePedometer] Initializing background step tracking...');
+      
+      // Reset sensor baseline for new session
+      sensorBaseline.current = null;
 
-      // Check if service is already running
+      // Check if already running
       if (backgroundStepService.isRunning()) {
-        console.log('[usePedometer] ✅ Background service already running');
-        const todaySteps = await backgroundStepService.getTodaySteps();
-        const totalSteps = Math.max(todaySteps, baseSteps.current);
-        
-        if (isMounted) {
-          setState(prev => ({
-            ...prev,
-            steps: totalSteps,
-            distance: (totalSteps * 0.762) / 1000,
-            calories: Math.round(totalSteps / STEPS_PER_CALORIE),
-            isTracking: true,
-            hasPermission: true,
-            dataSource: 'pedometer',
-            lastUpdate: Date.now()
-          }));
-        }
+        console.log('[usePedometer] ✅ Already running - subscribing to updates');
+        backgroundStepService.subscribeToUpdates(updateState);
+        setState(prev => ({
+          ...prev,
+          isTracking: true,
+          hasPermission: true,
+          dataSource: 'pedometer'
+        }));
         return;
       }
 
-      // Start the background service
-      const result = await backgroundStepService.requestPermissionAndStart();
-      
+      // Start background tracking
+      const result = await backgroundStepService.requestPermissionAndStart(updateState);
+
       if (isMounted) {
         if (result.success) {
-          const todaySteps = await backgroundStepService.getTodaySteps();
-          const totalSteps = Math.max(todaySteps, baseSteps.current);
-          
           setState(prev => ({
             ...prev,
-            steps: totalSteps,
-            distance: (totalSteps * 0.762) / 1000,
-            calories: Math.round(totalSteps / STEPS_PER_CALORIE),
             isTracking: true,
             hasPermission: true,
-            dataSource: 'pedometer',
-            lastUpdate: Date.now()
+            dataSource: 'pedometer'
           }));
         } else {
           setState(prev => ({
@@ -162,70 +191,37 @@ export function usePedometer() {
             isTracking: false,
             hasPermission: false,
             dataSource: 'database',
-            error: result.error || 'Failed to start background tracking'
+            error: result.error || 'Failed to start tracking'
           }));
         }
       }
 
-      console.log('[usePedometer] Background service started:', result.success);
+      console.log('[usePedometer] Background tracking started:', result.success);
     };
 
     // Delay init slightly to ensure other components are ready
     const timer = setTimeout(initBackgroundTracking, 500);
-    
+
     return () => {
       isMounted = false;
       clearTimeout(timer);
-      // Don't stop on route changes - let tracking persist
-      // Only stop on explicit user action
+      // Don't stop service on unmount - it should keep running in background
     };
   }, [location.pathname]);
-
-  // Poll for step updates from background service
-  useEffect(() => {
-    if (!state.isTracking || state.dataSource !== 'pedometer') {
-      return;
-    }
-
-    const pollSteps = async () => {
-      const todaySteps = await backgroundStepService.getTodaySteps();
-      
-      // Only update if steps increased
-      if (todaySteps > state.steps) {
-        console.log('[usePedometer] 📊 Steps updated:', state.steps, '->', todaySteps);
-        
-        setState(prev => ({
-          ...prev,
-          steps: todaySteps,
-          distance: (todaySteps * 0.762) / 1000,
-          calories: Math.round(todaySteps / STEPS_PER_CALORIE),
-          lastUpdate: Date.now()
-        }));
-      }
-    };
-
-    // Initial poll
-    pollSteps();
-    
-    // Set up polling interval
-    const intervalId = setInterval(pollSteps, POLL_INTERVAL_MS);
-    
-    return () => clearInterval(intervalId);
-  }, [state.isTracking, state.dataSource, state.steps]);
 
   // Sync to Database
   const syncToDatabase = useCallback(async (force = false) => {
     if (!user) return;
 
     const stepDiff = state.steps - lastSyncSteps.current;
-    
+
     console.log('[usePedometer] Sync check:', {
       currentSteps: state.steps,
       lastSynced: lastSyncSteps.current,
       diff: stepDiff,
       force
     });
-    
+
     if (!force && stepDiff < SYNC_THRESHOLD) {
       return;
     }
@@ -268,12 +264,12 @@ export function usePedometer() {
   // Periodic sync as backup (every 30 seconds when tracking)
   useEffect(() => {
     if (!state.isTracking || !user) return;
-    
+
     const intervalId = setInterval(() => {
       console.log('[usePedometer] Periodic sync triggered');
       syncToDatabase(true);
     }, 30000);
-    
+
     return () => clearInterval(intervalId);
   }, [state.isTracking, user, syncToDatabase]);
 
@@ -286,20 +282,10 @@ export function usePedometer() {
     const setupListener = async () => {
       appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
         if (isActive && user) {
-          console.log('[usePedometer] App resumed - fetching latest steps');
+          console.log('[usePedometer] App resumed - syncing');
           
-          // Get latest steps from background service
-          const todaySteps = await backgroundStepService.getTodaySteps();
-          
-          if (todaySteps > state.steps) {
-            setState(prev => ({
-              ...prev,
-              steps: todaySteps,
-              distance: (todaySteps * 0.762) / 1000,
-              calories: Math.round(todaySteps / STEPS_PER_CALORIE),
-              lastUpdate: Date.now()
-            }));
-          }
+          // Reset baseline to capture background steps
+          sensorBaseline.current = null;
           
           // Force sync to database
           await syncToDatabase(true);
@@ -314,12 +300,12 @@ export function usePedometer() {
         appStateListener.remove();
       }
     };
-  }, [user, state.steps, syncToDatabase]);
+  }, [user, syncToDatabase]);
 
   // Manual Actions
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!Capacitor.isNativePlatform()) return true;
-    
+
     const result = await backgroundStepService.requestPermissionAndStart();
     setState(prev => ({ ...prev, hasPermission: result.success }));
     return result.success;
@@ -328,21 +314,32 @@ export function usePedometer() {
   const startTracking = useCallback(async (): Promise<boolean> => {
     if (!Capacitor.isNativePlatform()) return true;
 
-    const result = await backgroundStepService.requestPermissionAndStart();
-    
-    if (result.success) {
-      const todaySteps = await backgroundStepService.getTodaySteps();
-      const totalSteps = Math.max(todaySteps, baseSteps.current);
-      
+    const result = await backgroundStepService.requestPermissionAndStart((data) => {
+      const sessionSteps = sensorBaseline.current !== null
+        ? Math.max(0, data.steps - sensorBaseline.current)
+        : 0;
+      const totalSteps = baseSteps.current + sessionSteps;
+      const distanceKm = (data.distance || (sessionSteps * 0.762)) / 1000;
+      const totalDistance = (baseSteps.current * 0.762) / 1000 + distanceKm;
+      const calories = Math.round(totalSteps / STEPS_PER_CALORIE);
+
       setState(prev => ({
         ...prev,
         steps: totalSteps,
-        distance: (totalSteps * 0.762) / 1000,
-        calories: Math.round(totalSteps / STEPS_PER_CALORIE),
+        distance: totalDistance,
+        calories,
         isTracking: true,
-        hasPermission: true,
         dataSource: 'pedometer',
         lastUpdate: Date.now()
+      }));
+    });
+
+    if (result.success) {
+      setState(prev => ({
+        ...prev,
+        isTracking: true,
+        hasPermission: true,
+        dataSource: 'pedometer'
       }));
     } else {
       setState(prev => ({

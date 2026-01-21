@@ -16,16 +16,18 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
     setIsRequesting(true);
 
     if (Capacitor.isNativePlatform()) {
-      console.log('[Onboarding] Starting background step service...');
+      console.log('[Onboarding] Starting background step tracking...');
       
       // Wait for permission request and service start
       // This ensures the native dialog appears before we navigate
-      const result = await backgroundStepService.requestPermissionAndStart();
+      const result = await backgroundStepService.requestPermissionAndStart((data) => {
+        console.log('[Onboarding] Step update:', data.steps, 'steps');
+      });
       
       if (result.success) {
-        console.log('[Onboarding] ✅ Background step service started!');
+        console.log('[Onboarding] ✅ Background step tracking started!');
       } else {
-        console.log('[Onboarding] ⚠️ Service failed:', result.error);
+        console.log('[Onboarding] ⚠️ Tracking failed:', result.error);
         // User can still continue - they can grant permission later in settings
       }
     }
