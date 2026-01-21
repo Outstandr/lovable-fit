@@ -1,4 +1,4 @@
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
 
 export interface PedometerData {
@@ -8,9 +8,29 @@ export interface PedometerData {
 
 export type PedometerCallback = (data: PedometerData) => void;
 
+// Native permission probe interface
+interface PermissionProbePlugin {
+  checkActivityRecognition(): Promise<{
+    sdkVersion: number;
+    sdkCodename: string;
+    manufacturer: string;
+    model: string;
+    activityRecognitionGranted: boolean;
+    permissionState: number;
+    permissionStateText: string;
+    shouldShowRationale: boolean;
+    bodySensorsGranted?: boolean;
+  }>;
+}
+
+// Register the native plugin
+const PermissionProbe = registerPlugin<PermissionProbePlugin>('PermissionProbe');
+
+export { PermissionProbe };
+
 /**
  * Simplified Pedometer Service
- * Core API: isNative, requestPermission, start, stop
+ * Core API: isNative, ensurePermission, start, stop
  */
 class PedometerService {
   private callback: PedometerCallback | null = null;
@@ -25,18 +45,38 @@ class PedometerService {
   }
 
   /**
-   * Request activity recognition permission
+   * Unified permission flow: check first, request only if needed
+   * Returns 'granted', 'denied', or 'unavailable'
    */
-  async requestPermission(): Promise<boolean> {
-    if (!this.isNative()) return false;
+  async ensurePermission(): Promise<'granted' | 'denied' | 'unavailable'> {
+    if (!this.isNative()) return 'unavailable';
 
     try {
-      const result = await CapacitorPedometer.requestPermissions();
-      return result.activityRecognition === 'granted';
+      // First check current state
+      const checkResult = await CapacitorPedometer.checkPermissions();
+      if (checkResult.activityRecognition === 'granted') {
+        console.log('[Pedometer] Permission already granted');
+        return 'granted';
+      }
+
+      // Only request if not already granted
+      console.log('[Pedometer] Permission not granted, requesting...');
+      const requestResult = await CapacitorPedometer.requestPermissions();
+      const finalState = requestResult.activityRecognition === 'granted' ? 'granted' : 'denied';
+      console.log(`[Pedometer] Permission after request: ${finalState}`);
+      return finalState;
     } catch (error) {
-      console.error('[Pedometer] Permission request failed:', error);
-      return false;
+      console.error('[Pedometer] Permission flow failed:', error);
+      return 'denied';
     }
+  }
+
+  /**
+   * Legacy method - calls ensurePermission internally
+   */
+  async requestPermission(): Promise<boolean> {
+    const result = await this.ensurePermission();
+    return result === 'granted';
   }
 
   /**
@@ -60,15 +100,11 @@ class PedometerService {
     }
 
     try {
-      // Check permission first, only request if needed
-      const permCheck = await CapacitorPedometer.checkPermissions();
-      if (permCheck.activityRecognition !== 'granted') {
-        console.log('[Pedometer] Permission not granted, requesting...');
-        const permResult = await CapacitorPedometer.requestPermissions();
-        if (permResult.activityRecognition !== 'granted') {
-          console.log('[Pedometer] Permission denied');
-          return false;
-        }
+      // Use unified permission flow
+      const permStatus = await this.ensurePermission();
+      if (permStatus !== 'granted') {
+        console.log('[Pedometer] Permission denied, cannot start');
+        return false;
       }
 
       this.callback = callback;
