@@ -247,6 +247,16 @@ export function useStepTracker() {
         isStartingRef.current = false;
         return false;
       }
+
+      // Force Capacitor to refresh its permission state from OS
+      // This syncs Capacitor's internal tracking with the actual Android permission
+      console.log('[StepTracker] 🔄 Refreshing Capacitor permission state...');
+      try {
+        const capacitorState = await CapacitorPedometer.checkPermissions();
+        console.log('[StepTracker] ✅ Capacitor now sees:', (capacitorState as any).receive || (capacitorState as any).activityRecognition || 'unknown');
+      } catch (e) {
+        console.log('[StepTracker] Capacitor refresh failed (continuing anyway):', e);
+      }
     } catch (e) {
       console.log('[StepTracker] Cordova permission check failed, trying direct start:', e);
       // Fall through to try direct start anyway
