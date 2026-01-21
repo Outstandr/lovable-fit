@@ -60,6 +60,17 @@ class PedometerService {
     }
 
     try {
+      // Check permission first, only request if needed
+      const permCheck = await CapacitorPedometer.checkPermissions();
+      if (permCheck.activityRecognition !== 'granted') {
+        console.log('[Pedometer] Permission not granted, requesting...');
+        const permResult = await CapacitorPedometer.requestPermissions();
+        if (permResult.activityRecognition !== 'granted') {
+          console.log('[Pedometer] Permission denied');
+          return false;
+        }
+      }
+
       this.callback = callback;
 
       // Add measurement listener
