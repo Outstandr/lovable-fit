@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { pedometerService } from '@/services/pedometerService';
+import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
 
 interface ActivityPermissionStepProps {
   onNext: () => void;
@@ -12,7 +13,7 @@ interface ActivityPermissionStepProps {
 
 export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) {
   const [isRequesting, setIsRequesting] = useState(false);
-  const [step, setStep] = useState<'idle' | 'notifications' | 'activity'>('idle');
+  const [step, setStep] = useState<'idle' | 'notifications' | 'activity' | 'starting'>('idle');
 
   const handleContinue = async () => {
     setIsRequesting(true);
@@ -31,24 +32,42 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
         }
 
         // Small delay to let Android process the permission
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         // Step 2: Request activity recognition permission
         console.log('[Onboarding] Step 2: Requesting activity recognition permission...');
         setStep('activity');
         
-        // Use unified permission flow with 3s timeout to prevent hanging
-        await Promise.race([
-          pedometerService.ensurePermission(),
-          new Promise(resolve => setTimeout(resolve, 3000))
-        ]);
+        // Request permission directly - this triggers the system dialog
+        const permResult = await CapacitorPedometer.requestPermissions();
+        console.log('[Onboarding] Activity recognition result:', permResult.activityRecognition);
         
-        console.log('[Onboarding] Activity permission flow complete');
+        // Step 3: IMMEDIATELY start tracking while both keys are fresh!
+        // Key 1 (User Consent) = just granted via dialog
+        // Key 2 (OS Declaration) = manifest permissions are active
+        if (permResult.activityRecognition === 'granted') {
+          console.log('[Onboarding] ✅ Permission granted - starting tracker NOW!');
+          setStep('starting');
+          
+          // Start the sensor immediately - this is the critical moment
+          const startResult = await pedometerService.start((data) => {
+            console.log('[Onboarding] First sensor data:', data.steps, 'steps');
+          });
+          
+          if (startResult.success) {
+            console.log('[Onboarding] ✅ Step tracker started successfully during onboarding!');
+            pedometerService.setStartedDuringOnboarding(true);
+          } else {
+            console.log('[Onboarding] ⚠️ Tracker start failed:', startResult.error, startResult.guidance);
+            // Still continue - user can retry from debug page
+          }
+        } else {
+          console.log('[Onboarding] ⚠️ Permission not granted:', permResult.activityRecognition);
+        }
         
       } catch (error) {
-        console.log('[Onboarding] Permission error (proceeding):', error);
+        console.log('[Onboarding] Permission/start error (proceeding):', error);
       }
-      // DON'T start sensor here - usePedometer will handle it after onboarding
     }
 
     setIsRequesting(false);
@@ -141,7 +160,9 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
           {isRequesting 
             ? step === 'notifications' 
               ? 'Requesting Notifications...' 
-              : 'Requesting Activity...'
+              : step === 'activity'
+                ? 'Requesting Activity...'
+                : 'Starting Step Tracker...'
             : 'Enable Step Tracking'}
         </Button>
       </motion.div>

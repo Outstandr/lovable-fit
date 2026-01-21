@@ -155,8 +155,25 @@ export function usePedometer() {
       // Reset sensor baseline for new session
       sensorBaseline.current = null;
 
+      // Check if tracker was already started during onboarding
+      if (pedometerService.isTracking()) {
+        console.log('[usePedometer] ✅ Tracker already running (started during onboarding) - subscribing');
+        pedometerService.subscribeToUpdates((data) => {
+          if (!isMounted) return;
+          updateState(data);
+        });
+        setState(prev => ({
+          ...prev,
+          isTracking: true,
+          hasPermission: true,
+          dataSource: 'pedometer'
+        }));
+        return;
+      }
+
       try {
         // Start sensor with callback - now returns StartResult
+        console.log('[usePedometer] Starting fresh tracker...');
         const result = await pedometerService.start((data) => {
           if (!isMounted) return;
           updateState(data);

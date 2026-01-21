@@ -381,6 +381,10 @@ export default function PedometerDebug() {
             <div className={state.stepCountingSupported === true ? 'text-green-500' : state.stepCountingSupported === false ? 'text-red-500' : 'text-muted-foreground'}>
               {state.stepCountingSupported === null ? 'Checking...' : state.stepCountingSupported ? 'Available' : 'Not Available'}
             </div>
+            <div className="text-muted-foreground">Started in Onboarding:</div>
+            <div className={pedometerService.wasStartedDuringOnboarding() ? 'text-green-500' : 'text-amber-500'}>
+              {pedometerService.wasStartedDuringOnboarding() ? 'Yes ✓' : 'No'}
+            </div>
           </div>
         </motion.div>
 

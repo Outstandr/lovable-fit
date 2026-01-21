@@ -23,6 +23,31 @@ class PedometerService {
   private callback: PedometerCallback | null = null;
   private listener: { remove: () => void } | null = null;
   private isStarted = false;
+  private startedDuringOnboarding = false;
+
+  /**
+   * Check if step tracking was started during onboarding
+   */
+  wasStartedDuringOnboarding(): boolean {
+    return this.startedDuringOnboarding;
+  }
+
+  /**
+   * Mark that tracking was started during onboarding
+   */
+  setStartedDuringOnboarding(value: boolean): void {
+    this.startedDuringOnboarding = value;
+  }
+
+  /**
+   * Subscribe to updates from an already-running tracker
+   */
+  subscribeToUpdates(callback: PedometerCallback): void {
+    if (this.isStarted) {
+      this.callback = callback;
+      console.log('[Pedometer] Subscribed to existing tracker');
+    }
+  }
 
   /**
    * Check if running on native platform
