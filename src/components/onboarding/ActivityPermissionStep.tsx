@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Footprints } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
-import { pedometerService } from '@/services/pedometerService';
+import { backgroundStepService } from '@/services/backgroundStepService';
 
 interface ActivityPermissionStepProps {
   onNext: () => void;
@@ -16,27 +16,20 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
     setIsRequesting(true);
 
     if (Capacitor.isNativePlatform()) {
-      console.log('[Onboarding] Starting step tracker directly...');
+      console.log('[Onboarding] Starting background step service...');
       
-      // Fire-and-forget: Start tracker in background
-      // This triggers the permission dialog if needed
-      // We don't await - navigation happens immediately
-      pedometerService.start((data) => {
-        console.log('[Onboarding] Sensor data:', data.steps, 'steps');
-      }).then(result => {
-        if (result.success) {
-          console.log('[Onboarding] ✅ Tracker started!');
-          pedometerService.setStartedDuringOnboarding(true);
-        } else {
-          console.log('[Onboarding] ⚠️ Tracker failed:', result.error, '-', result.guidance);
-        }
-      }).catch(e => {
-        console.log('[Onboarding] Tracker error:', e);
-      });
+      // Wait for permission request and service start
+      // This ensures the native dialog appears before we navigate
+      const result = await backgroundStepService.requestPermissionAndStart();
+      
+      if (result.success) {
+        console.log('[Onboarding] ✅ Background step service started!');
+      } else {
+        console.log('[Onboarding] ⚠️ Service failed:', result.error);
+        // User can still continue - they can grant permission later in settings
+      }
     }
 
-    // Navigate IMMEDIATELY - don't wait for sensor
-    console.log('[Onboarding] Navigating to next step now!');
     setIsRequesting(false);
     onNext();
   };
