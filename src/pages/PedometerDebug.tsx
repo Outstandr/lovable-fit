@@ -150,15 +150,26 @@ export default function PedometerDebug() {
     return () => clearTimeout(timer);
   }, [runFullDiagnostics]);
 
-  // Use unified ensurePermission
-  const ensurePermission = useCallback(async () => {
-    addLog('Requesting permission via ensurePermission()...', 'info');
+  // Start tracking directly (bypasses buggy permission methods)
+  const tryStartDirect = useCallback(async () => {
+    addLog('Starting sensor directly (bypasses permission bugs)...', 'info');
+    setState(prev => ({ ...prev, isStarting: true }));
     try {
-      const result = await pedometerService.ensurePermission();
-      addLog(`ensurePermission result: ${result}`, result === 'granted' ? 'success' : 'error');
-      setState(prev => ({ ...prev, permissionStatus: result }));
+      const result = await pedometerService.start((data) => {
+        addLog(`🔬 RAW: steps=${data.steps}, distance=${data.distance}m`, 'success');
+        setState(prev => ({ ...prev, lastMeasurement: { steps: data.steps, distance: data.distance } }));
+      });
+      if (result.success) {
+        addLog('✅ Sensor started!', 'success');
+        setState(prev => ({ ...prev, isTracking: true, permissionStatus: 'granted' }));
+      } else {
+        addLog(`❌ Failed: ${result.error} - ${result.guidance}`, 'error');
+        setState(prev => ({ ...prev, lastError: result }));
+      }
     } catch (error: any) {
-      addLog(`ensurePermission error: ${error.message || error}`, 'error');
+      addLog(`Error: ${error.message || error}`, 'error');
+    } finally {
+      setState(prev => ({ ...prev, isStarting: false }));
     }
   }, [addLog]);
 
@@ -410,9 +421,9 @@ export default function PedometerDebug() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 mt-3">
-            <Button size="sm" variant="outline" onClick={ensurePermission}>
-              <RefreshCw className="h-3 w-3 mr-2" />
-              Activity
+            <Button size="sm" variant="outline" onClick={tryStartDirect} disabled={state.isStarting}>
+              <Play className="h-3 w-3 mr-2" />
+              Start Direct
             </Button>
             <Button size="sm" variant="outline" onClick={requestNotificationPermission}>
               <Bell className="h-3 w-3 mr-2" />
