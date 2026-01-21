@@ -139,6 +139,57 @@ export default function PedometerDebug() {
     }
   }, [state.isTracking, state.isStarting, addLog]);
 
+  // Force start - bypasses ALL plugin checks, directly calls native sensor
+  const forceStartTracking = useCallback(async () => {
+    if (state.isTracking) {
+      addLog('Already tracking', 'warn');
+      return;
+    }
+
+    setState(prev => ({ ...prev, isStarting: true }));
+    addLog('=== FORCE START (bypassing all checks) ===', 'warn');
+
+    try {
+      // Step 1: Request permission to refresh OS state
+      addLog('Refreshing permission state...', 'info');
+      try {
+        await CapacitorPedometer.requestPermissions();
+        addLog('Permission refresh done', 'info');
+      } catch (e: any) {
+        addLog(`Permission refresh: ${e.message}`, 'warn');
+      }
+
+      // Small delay for OS sync
+      await new Promise(r => setTimeout(r, 300));
+
+      // Step 2: Register listener
+      addLog('Registering measurement listener...', 'info');
+      const listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
+        const steps = data.numberOfSteps || 0;
+        const distance = data.distance || 0;
+        addLog(`📊 Steps: ${steps}, Distance: ${distance}m`, 'success');
+        setState(prev => ({
+          ...prev,
+          lastMeasurement: { steps, distance },
+        }));
+      });
+      addLog('Listener registered', 'success');
+
+      // Step 3: Start sensor directly
+      addLog('Starting measurement updates...', 'info');
+      await CapacitorPedometer.startMeasurementUpdates();
+      addLog('✓ FORCE START SUCCESS - walk to see steps!', 'success');
+      
+      setState(prev => ({ ...prev, isTracking: true }));
+    } catch (error: any) {
+      addLog(`FORCE START FAILED: ${error.message || error}`, 'error');
+      addLog(`Error code: ${error.code || 'none'}`, 'error');
+      setState(prev => ({ ...prev, error: error.message || String(error) }));
+    } finally {
+      setState(prev => ({ ...prev, isStarting: false }));
+    }
+  }, [state.isTracking, addLog]);
+
   const stopTracking = useCallback(async () => {
     if (!state.isTracking) {
       addLog('Not tracking', 'warn');
@@ -269,26 +320,38 @@ export default function PedometerDebug() {
             </div>
           </div>
           
-          <div className="flex gap-2 mb-4">
+          <div className="flex flex-col gap-2 mb-4">
+            <div className="flex gap-2">
+              <Button 
+                size="sm" 
+                variant="default" 
+                onClick={startTracking}
+                disabled={state.isTracking || state.isStarting}
+                className="flex-1"
+              >
+                <Play className="h-3 w-3 mr-1" />
+                {state.isStarting ? 'Starting...' : 'Start'}
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={stopTracking}
+                disabled={!state.isTracking}
+                className="flex-1"
+              >
+                <Square className="h-3 w-3 mr-1" />
+                Stop
+              </Button>
+            </div>
             <Button 
               size="sm" 
-              variant="default" 
-              onClick={startTracking}
+              variant="destructive" 
+              onClick={forceStartTracking}
               disabled={state.isTracking || state.isStarting}
-              className="flex-1"
+              className="w-full"
             >
-              <Play className="h-3 w-3 mr-1" />
-              {state.isStarting ? 'Starting...' : 'Start Sensor'}
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={stopTracking}
-              disabled={!state.isTracking}
-              className="flex-1"
-            >
-              <Square className="h-3 w-3 mr-1" />
-              Stop
+              <RefreshCw className="h-3 w-3 mr-1" />
+              ⚡ FORCE START (bypass checks)
             </Button>
           </div>
 
