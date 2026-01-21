@@ -141,19 +141,19 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <StepProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <StepProvider>
               <PushNotificationInitializer>
                 <div className="mx-auto max-w-lg">
                   <AnimatedRoutes />
                 </div>
               </PushNotificationInitializer>
-            </BrowserRouter>
-          </TooltipProvider>
-        </StepProvider>
+            </StepProvider>
+          </BrowserRouter>
+        </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
