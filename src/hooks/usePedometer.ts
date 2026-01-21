@@ -5,6 +5,7 @@ import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { supabase } from '@/integrations/supabase/client';
 import { haptics } from '@/utils/haptics';
 import { useLocation } from 'react-router-dom';
+import { App } from '@capacitor/app';
 
 const ONBOARDING_KEY = 'device_onboarding_completed';
 const STEPS_PER_CALORIE = 20;
@@ -246,6 +247,33 @@ export function usePedometer() {
       syncToDatabase();
     }
   }, [state.steps, syncToDatabase]);
+
+  // Background Resume Sync - sync with hardware counter when app resumes
+  useEffect(() => {
+    if (!pedometerService.isNative()) return;
+
+    let appStateListener: { remove: () => void } | null = null;
+
+    const setupListener = async () => {
+      appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
+        if (isActive && user) {
+          console.log('[usePedometer] App resumed - syncing with hardware counter');
+          // Sync any pending steps to database
+          await syncToDatabase();
+          // Reset sensor baseline to recalculate from fresh hardware reading
+          sensorBaseline.current = null;
+        }
+      });
+    };
+
+    setupListener();
+
+    return () => {
+      if (appStateListener) {
+        appStateListener.remove();
+      }
+    };
+  }, [user, syncToDatabase]);
 
   // Manual Actions
   const requestPermission = useCallback(async (): Promise<boolean> => {

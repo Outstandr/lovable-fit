@@ -1,6 +1,3 @@
-// DEBUG MODE - Set to true for debug builds, false for production
-const DEBUG_MODE = false;
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { AuthProvider } from "@/hooks/useAuth";
+import { StepProvider } from "@/contexts/StepContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PushNotificationInitializer } from "@/components/PushNotificationInitializer";
 import { PageTransition } from "@/components/PageTransition";
@@ -26,8 +24,6 @@ import PrivacySettings from "./pages/PrivacySettings";
 import AppSettings from "./pages/AppSettings";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import NotFound from "./pages/NotFound";
-import MapTest from "./pages/MapTest";
-import PedometerDebug from "./pages/PedometerDebug";
 
 const queryClient = new QueryClient();
 
@@ -62,11 +58,6 @@ const AnimatedRoutes = () => {
               <ActiveSession />
             </PageTransition>
           </ProtectedRoute>
-        } />
-        <Route path="/map-test" element={
-          <PageTransition>
-            <MapTest />
-          </PageTransition>
         } />
         <Route path="/leaderboard" element={
           <ProtectedRoute>
@@ -136,13 +127,6 @@ const AnimatedRoutes = () => {
             <PrivacyPolicy />
           </PageTransition>
         } />
-        <Route path="/pedometer-debug" element={
-          <ProtectedRoute>
-            <PageTransition>
-              <PedometerDebug />
-            </PageTransition>
-          </ProtectedRoute>
-        } />
         <Route path="*" element={
           <PageTransition>
             <NotFound />
@@ -154,34 +138,22 @@ const AnimatedRoutes = () => {
 };
 
 const App = () => {
-  // Debug mode - bypass all auth and routing
-  if (DEBUG_MODE) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <div className="mx-auto max-w-lg">
-            <PedometerDebug />
-          </div>
-        </TooltipProvider>
-      </QueryClientProvider>
-    );
-  }
-
-  // Normal app with auth
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <BrowserRouter>
-            <PushNotificationInitializer>
-              <div className="mx-auto max-w-lg">
-                <AnimatedRoutes />
-              </div>
-            </PushNotificationInitializer>
-          </BrowserRouter>
-        </TooltipProvider>
+        <StepProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <PushNotificationInitializer>
+                <div className="mx-auto max-w-lg">
+                  <AnimatedRoutes />
+                </div>
+              </PushNotificationInitializer>
+            </BrowserRouter>
+          </TooltipProvider>
+        </StepProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

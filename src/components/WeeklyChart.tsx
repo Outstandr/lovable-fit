@@ -30,11 +30,13 @@ export const WeeklyChart = () => {
       for (let i = 0; i < 7; i++) {
         const date = new Date(startDate);
         date.setDate(date.getDate() + i);
+        const dateStr = date.toISOString().split('T')[0];
 
         weekData.push({
           day: days[date.getDay()],
           steps: 0,
           isToday: i === 6,
+          dateStr,
         });
       }
 
