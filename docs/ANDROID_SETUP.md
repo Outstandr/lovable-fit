@@ -105,45 +105,13 @@ The app reads these Health Connect data types:
 Add the following permissions inside the `<manifest>` tag (before `<application>`):
 
 ```xml
-<!-- Health Connect Permissions -->
+<!-- Health Connect Permissions (READ ONLY) -->
 <uses-permission android:name="android.permission.health.READ_STEPS" />
 <uses-permission android:name="android.permission.health.READ_DISTANCE" />
-<uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
 <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
 
-<!-- Optional: Write permissions if needed -->
-<uses-permission android:name="android.permission.health.WRITE_STEPS" />
-<uses-permission android:name="android.permission.health.WRITE_DISTANCE" />
-
-<!-- Activity Recognition (for step counting fallback) -->
+<!-- Activity Recognition (for step counting) -->
 <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
-```
-
-Add the Health Connect intent filter inside the `<application>` tag:
-
-```xml
-<application ...>
-    <!-- ... existing content ... -->
-    
-    <!-- Health Connect Intent Filter -->
-    <intent-filter>
-        <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
-    </intent-filter>
-    
-    <!-- Health Connect Privacy Policy Activity -->
-    <activity
-        android:name="androidx.health.connect.client.PermissionController$PermissionControllerActivity"
-        android:exported="true">
-        <intent-filter>
-            <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
-        </intent-filter>
-    </activity>
-    
-    <!-- Declare Health Connect data types used -->
-    <meta-data
-        android:name="health_permissions"
-        android:resource="@array/health_permissions" />
-</application>
 ```
 
 ### 4. Create Health Permissions Resource
@@ -156,7 +124,6 @@ Create file `android/app/src/main/res/values/health_permissions.xml`:
     <array name="health_permissions">
         <item>androidx.health.permission.Steps.READ</item>
         <item>androidx.health.permission.Distance.READ</item>
-        <item>androidx.health.permission.TotalCaloriesBurned.READ</item>
         <item>androidx.health.permission.ActiveCaloriesBurned.READ</item>
     </array>
 </resources>
@@ -209,14 +176,14 @@ apply plugin: 'com.google.gms.google-services'
 
 Unlike some plugins, `@capacitor/geolocation` only provides the JavaScript API. The native Android permissions must be declared manually in your `AndroidManifest.xml`.
 
-### Required Permissions
+### Required Permissions (Foreground Only)
 
-Add ALL of the following to `android/app/src/main/AndroidManifest.xml` inside the `<manifest>` tag, **before** `<application>`:
+Add the following to `android/app/src/main/AndroidManifest.xml` inside the `<manifest>` tag, **before** `<application>`:
 
 ```xml
-<!-- ============================================== -->
-<!-- LOCATION PERMISSIONS - MUST BE ADDED MANUALLY -->
-<!-- ============================================== -->
+<!-- ================================================ -->
+<!-- LOCATION PERMISSIONS (FOREGROUND ONLY)           -->
+<!-- ================================================ -->
 
 <!-- Approximate location (network-based) -->
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
@@ -224,13 +191,11 @@ Add ALL of the following to `android/app/src/main/AndroidManifest.xml` inside th
 <!-- Precise GPS location (required for Active Session tracking) -->
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
-<!-- Background location (required for tracking when app is minimized) -->
-<!-- Note: On Android 10+, user must grant this separately in settings -->
-<uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-
 <!-- Declare GPS hardware (optional but recommended) -->
 <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 ```
+
+> **Note:** Background location is NOT required. GPS tracking in Active Session works when the app is visible. If the user switches apps, GPS tracking pauses and resumes when they return.
 
 ### Permission Explanations
 
@@ -238,7 +203,6 @@ Add ALL of the following to `android/app/src/main/AndroidManifest.xml` inside th
 |------------|---------|--------------|
 | `ACCESS_COARSE_LOCATION` | Network-based approximate location | Basic location features |
 | `ACCESS_FINE_LOCATION` | GPS-based precise location | Active Session route tracking |
-| `ACCESS_BACKGROUND_LOCATION` | Location when app is minimized | Continuous tracking during walks |
 
 ### After Adding Permissions
 
@@ -357,16 +321,13 @@ npx cap sync android
 4. **Indoor/weak GPS signal:**
    - Go outside or near a window for better GPS reception
 
-### 📍 Background Location Not Working
+### 📍 GPS Pauses When App is Minimized
 
 **Symptom:** GPS tracking stops when you minimize the app.
 
-**Cause:** `ACCESS_BACKGROUND_LOCATION` not granted or not declared.
+**This is expected behavior.** The app only uses foreground location permission, which means GPS tracking pauses when the app is not visible.
 
-**Solution:**
-1. Ensure `ACCESS_BACKGROUND_LOCATION` is in AndroidManifest.xml
-2. On Android 10+, go to Settings > Apps > [Your App] > Permissions > Location
-3. Select "Allow all the time" (not just "While using the app")
+**Note:** Step counting continues in the background via the foreground service. Only GPS route tracking pauses.
 
 ---
 
@@ -377,11 +338,10 @@ npx cap sync android
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- ===================== -->
-    <!-- HEALTH CONNECT        -->
+    <!-- HEALTH CONNECT (READ ONLY) -->
     <!-- ===================== -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_DISTANCE" />
-    <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
     <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
     
     <!-- ===================== -->
@@ -389,13 +349,12 @@ npx cap sync android
     <!-- ===================== -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     
-    <!-- ============================================== -->
-    <!-- LOCATION - MUST BE ADDED MANUALLY!            -->
-    <!-- Without these, location features won't work   -->
-    <!-- ============================================== -->
+    <!-- ================================================ -->
+    <!-- LOCATION (FOREGROUND ONLY)                       -->
+    <!-- GPS tracking pauses when app is minimized        -->
+    <!-- ================================================ -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     
     <!-- GPS hardware declaration -->
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
