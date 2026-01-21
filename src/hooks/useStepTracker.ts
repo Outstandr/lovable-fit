@@ -248,15 +248,10 @@ export function useStepTracker() {
         return false;
       }
 
-      // Force Capacitor to refresh its permission state from OS
-      // This syncs Capacitor's internal tracking with the actual Android permission
-      console.log('[StepTracker] 🔄 Refreshing Capacitor permission state...');
-      try {
-        const capacitorState = await CapacitorPedometer.checkPermissions();
-        console.log('[StepTracker] ✅ Capacitor now sees:', (capacitorState as any).receive || (capacitorState as any).activityRecognition || 'unknown');
-      } catch (e) {
-        console.log('[StepTracker] Capacitor refresh failed (continuing anyway):', e);
-      }
+      // Note: Capacitor's checkPermissions() doesn't help here - the Java plugin
+      // needs to be patched to use ContextCompat.checkSelfPermission() directly.
+      // See docs/PEDOMETER_PATCH.md for the required Java patch.
+      console.log('[StepTracker] ✅ Cordova reports permission granted, proceeding to start sensor...');
     } catch (e) {
       console.log('[StepTracker] Cordova permission check failed, trying direct start:', e);
       // Fall through to try direct start anyway
