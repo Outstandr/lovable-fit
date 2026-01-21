@@ -1,3 +1,6 @@
+// DEBUG MODE - Set to true for debug builds, false for production
+const DEBUG_MODE = true;
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -150,20 +153,38 @@ const AnimatedRoutes = () => {
   );
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <BrowserRouter>
-          <PushNotificationInitializer>
-            <div className="mx-auto max-w-lg">
-              <AnimatedRoutes />
-            </div>
-          </PushNotificationInitializer>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  // Debug mode - bypass all auth and routing
+  if (DEBUG_MODE) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <div className="mx-auto max-w-lg">
+            <PedometerDebug />
+          </div>
+        </TooltipProvider>
+      </QueryClientProvider>
+    );
+  }
+
+  // Normal app with auth
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <BrowserRouter>
+            <PushNotificationInitializer>
+              <div className="mx-auto max-w-lg">
+                <AnimatedRoutes />
+              </div>
+            </PushNotificationInitializer>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

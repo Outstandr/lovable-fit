@@ -3,33 +3,16 @@ import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
 
 export interface PedometerData {
   steps: number;
-  distance: number; // in meters
+  distance: number;
 }
 
 export type PedometerCallback = (data: PedometerData) => void;
 
 class PedometerService {
-  private isNativePlatform: boolean;
+  private isNativePlatform = Capacitor.isNativePlatform();
   private listener: any = null;
-  private isStarted: boolean = false;
-  private isStarting: boolean = false;
-  private startPromise: Promise<{ granted: boolean; tracking: boolean }> | null = null;
-
-  constructor() {
-    this.isNativePlatform = Capacitor.isNativePlatform();
-  }
-
-  /**
-   * Helper to wrap a promise with a timeout
-   */
-  private withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-    return Promise.race([
-      promise,
-      new Promise<T>((_, reject) => 
-        setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
-      )
-    ]);
-  }
+  private isStarted = false;
+  private callback: PedometerCallback | null = null;
 
   isNative(): boolean {
     return this.isNativePlatform;
@@ -40,14 +23,10 @@ class PedometerService {
   }
 
   async isAvailable(): Promise<boolean> {
-    if (!this.isNativePlatform) {
-      console.log('[PedometerService] Web platform - step counting not available');
-      return false;
-    }
-
+    if (!this.isNativePlatform) return false;
     try {
       const result = await CapacitorPedometer.isAvailable();
-      console.log('[PedometerService] Availability check:', result);
+      console.log('[PedometerService] isAvailable:', result);
       return result.stepCounting === true;
     } catch (error) {
       console.error('[PedometerService] isAvailable error:', error);
@@ -55,118 +34,16 @@ class PedometerService {
     }
   }
 
-  async checkPermission(): Promise<boolean> {
-    if (!this.isNativePlatform) return true;
-
-    try {
-      const result = await CapacitorPedometer.checkPermissions();
-      console.log('[PedometerService] Permission check result:', result);
-      return result.activityRecognition === 'granted';
-    } catch (error) {
-      console.error('[PedometerService] Permission check error:', error);
-      return false;
-    }
-  }
-
   async requestPermission(): Promise<boolean> {
     if (!this.isNativePlatform) return true;
-
     try {
       console.log('[PedometerService] Requesting permission...');
       const result = await CapacitorPedometer.requestPermissions();
-      console.log('[PedometerService] Permission request result:', result);
+      console.log('[PedometerService] Permission result:', result);
       return result.activityRecognition === 'granted';
     } catch (error) {
-      console.error('[PedometerService] Permission request error:', error);
+      console.error('[PedometerService] Permission error:', error);
       return false;
-    }
-  }
-
-  /**
-   * Force start tracking WITHOUT any permission checks.
-   * Bypasses Capacitor's permission cache which can be desynchronized on Android 16.
-   * The native sensor manager will use Android's real permission state.
-   */
-  async forceStart(callback: PedometerCallback): Promise<boolean> {
-    if (!this.isNativePlatform) {
-      console.log('[PedometerService] Web platform - cannot start');
-      return false;
-    }
-
-    if (this.isStarted) {
-      console.log('[PedometerService] Already started - attaching callback');
-      return this.attachCallback(callback);
-    }
-
-    try {
-      console.log('[PedometerService] === FORCE START (bypassing permission check) ===');
-      
-      // Add listener FIRST (per official docs)
-      console.log('[PedometerService] Registering measurement listener...');
-      this.listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
-        console.log('[PedometerService] Measurement event:', data);
-        callback({
-          steps: data.numberOfSteps || 0,
-          distance: data.distance || 0
-        });
-      });
-
-      // Start measurement updates - this uses Android's REAL permission state
-      console.log('[PedometerService] Starting measurement updates...');
-      await CapacitorPedometer.startMeasurementUpdates();
-      
-      this.isStarted = true;
-      console.log('[PedometerService] ✓ Force start successful - sensor active!');
-      return true;
-    } catch (error) {
-      console.error('[PedometerService] Force start failed:', error);
-      // Clean up listener if it was added
-      if (this.listener) {
-        try {
-          await this.listener.remove();
-        } catch (e) {
-          // Ignore cleanup errors
-        }
-        this.listener = null;
-      }
-      return false;
-    }
-  }
-
-  /**
-   * Start tracking WITHOUT re-requesting permission.
-   * @deprecated Use forceStart() instead - it bypasses the broken permission cache.
-   */
-  async startOnly(callback: PedometerCallback): Promise<boolean> {
-    console.log('[PedometerService] startOnly() called - delegating to forceStart()');
-    return this.forceStart(callback);
-  }
-
-  /**
-   * @deprecated Use startOnly() for post-onboarding, requestAndStart() for onboarding
-   */
-  async start(callback: PedometerCallback): Promise<boolean> {
-    console.log('[PedometerService] start() called - delegating to startOnly()');
-    return this.startOnly(callback);
-  }
-
-  async stop(): Promise<void> {
-    if (!this.isNativePlatform || !this.isStarted) return;
-
-    try {
-      console.log('[PedometerService] Stopping measurement updates...');
-      await CapacitorPedometer.stopMeasurementUpdates();
-
-      if (this.listener) {
-        console.log('[PedometerService] Removing listener...');
-        await this.listener.remove();
-        this.listener = null;
-      }
-
-      this.isStarted = false;
-      console.log('[PedometerService] Stopped');
-    } catch (error) {
-      console.error('[PedometerService] Stop error:', error);
     }
   }
 
@@ -175,119 +52,64 @@ class PedometerService {
   }
 
   /**
-   * Single atomic operation: request permission + start tracking.
-   * Use this during onboarding to avoid permission sync issues.
-   * Includes locks and timeouts for reliability.
+   * Start tracking steps. If already started, just updates the callback.
+   * Bypasses permission cache - uses Android's real permission state.
    */
-  async requestAndStart(callback: PedometerCallback): Promise<{ granted: boolean; tracking: boolean }> {
-    if (!this.isNativePlatform) {
-      console.log('[PedometerService] Web platform - skipping');
-      return { granted: true, tracking: false };
-    }
-
-    if (this.isStarted) {
-      console.log('[PedometerService] Already tracking');
-      return { granted: true, tracking: true };
-    }
-
-    // If already starting, await the existing promise to avoid duplicates
-    if (this.isStarting && this.startPromise) {
-      console.log('[PedometerService] Start already in progress, awaiting...');
-      return this.startPromise;
-    }
-
-    this.isStarting = true;
-    
-    this.startPromise = (async (): Promise<{ granted: boolean; tracking: boolean }> => {
-      try {
-        // Step 1: Request permission with timeout
-        console.log('[PedometerService] Step 1: Requesting permission...');
-        const permResult = await this.withTimeout(
-          CapacitorPedometer.requestPermissions(),
-          8000,
-          'Permission request'
-        );
-        const granted = permResult.activityRecognition === 'granted';
-        console.log('[PedometerService] Step 1 complete - Permission granted:', granted);
-
-        if (!granted) {
-          return { granted: false, tracking: false };
-        }
-
-        // Step 2: Small delay to let Android sync permission state
-        console.log('[PedometerService] Step 2: Syncing permission state (200ms)...');
-        await new Promise(r => setTimeout(r, 200));
-
-        // Step 3: Add measurement listener
-        console.log('[PedometerService] Step 3: Adding measurement listener...');
-        this.listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
-          console.log('[PedometerService] Measurement received:', data);
-          callback({
-            steps: data.numberOfSteps || 0,
-            distance: data.distance || 0
-          });
-        });
-        console.log('[PedometerService] Step 3 complete - Listener added');
-
-        // Step 4: Start measurement updates with timeout
-        console.log('[PedometerService] Step 4: Starting measurement updates...');
-        await this.withTimeout(
-          CapacitorPedometer.startMeasurementUpdates(),
-          5000,
-          'Start measurement'
-        );
-        
-        this.isStarted = true;
-        console.log('[PedometerService] ✓ All steps complete - Tracking active!');
-        return { granted: true, tracking: true };
-        
-      } catch (error) {
-        console.error('[PedometerService] requestAndStart error:', error);
-        return { granted: false, tracking: false };
-      } finally {
-        this.isStarting = false;
-        this.startPromise = null;
-      }
-    })();
-
-    return this.startPromise;
-  }
-
-  /**
-   * Attach a new callback to an already-running pedometer.
-   * Used when Dashboard mounts after onboarding already started tracking.
-   */
-  async attachCallback(callback: PedometerCallback): Promise<boolean> {
+  async start(callback: PedometerCallback): Promise<boolean> {
     if (!this.isNativePlatform) return false;
 
-    // If not started, just start normally
-    if (!this.isStarted) {
-      console.log('[PedometerService] Not started - calling start() instead');
-      return this.start(callback);
+    // If already started, just update callback
+    if (this.isStarted) {
+      console.log('[PedometerService] Already started - updating callback');
+      this.callback = callback;
+      return true;
     }
 
     try {
-      // Remove old listener
-      if (this.listener) {
-        console.log('[PedometerService] Removing old listener before attaching new callback...');
-        await this.listener.remove();
-      }
+      console.log('[PedometerService] Starting sensor...');
 
-      // Add new listener with the new callback
-      console.log('[PedometerService] Attaching new callback...');
+      // Register listener first
       this.listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
-        console.log('[PedometerService] Measurement event (attached):', data);
-        callback({
-          steps: data.numberOfSteps || 0,
-          distance: data.distance || 0
-        });
+        console.log('[PedometerService] Measurement:', data);
+        if (this.callback) {
+          this.callback({
+            steps: data.numberOfSteps || 0,
+            distance: data.distance || 0
+          });
+        }
       });
 
-      console.log('[PedometerService] New callback attached successfully');
+      // Start sensor - uses Android's REAL permission state
+      await CapacitorPedometer.startMeasurementUpdates();
+
+      this.isStarted = true;
+      this.callback = callback;
+      console.log('[PedometerService] ✓ Sensor active');
       return true;
     } catch (error) {
-      console.error('[PedometerService] attachCallback error:', error);
+      console.error('[PedometerService] Start failed:', error);
+      if (this.listener) {
+        try { await this.listener.remove(); } catch {}
+        this.listener = null;
+      }
       return false;
+    }
+  }
+
+  async stop(): Promise<void> {
+    if (!this.isStarted) return;
+    try {
+      console.log('[PedometerService] Stopping...');
+      await CapacitorPedometer.stopMeasurementUpdates();
+      if (this.listener) {
+        await this.listener.remove();
+        this.listener = null;
+      }
+      this.isStarted = false;
+      this.callback = null;
+      console.log('[PedometerService] Stopped');
+    } catch (error) {
+      console.error('[PedometerService] Stop error:', error);
     }
   }
 }
