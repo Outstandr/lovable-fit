@@ -225,13 +225,22 @@ export default function PedometerDebug() {
       addLog(`[2/5] removeAllListeners: ${e.message}`, 'warn');
     }
 
-    // Step 3: Request permission (refreshes OS state)
-    addLog('[3/5] Requesting permission...', 'info');
+    // Step 3: Check permission first, only request if needed
+    addLog('[3/5] Checking permission status...', 'info');
     try {
-      const permResult = await CapacitorPedometer.requestPermissions();
-      addLog(`[3/5] requestPermissions: ${JSON.stringify(permResult)}`, 'info');
+      const checkResult = await CapacitorPedometer.checkPermissions();
+      const permState = (checkResult as any).activityRecognition || 'unknown';
+      addLog(`[3/5] Current permission: ${permState}`, permState === 'granted' ? 'success' : 'warn');
+      
+      if (permState !== 'granted') {
+        addLog('[3/5] Requesting permission...', 'info');
+        const permResult = await CapacitorPedometer.requestPermissions();
+        addLog(`[3/5] Permission after request: ${JSON.stringify(permResult)}`, 'info');
+      } else {
+        addLog('[3/5] Already granted - skipping request', 'success');
+      }
     } catch (e: any) {
-      addLog(`[3/5] requestPermissions error: ${e.message}`, 'error');
+      addLog(`[3/5] Permission error: ${e.message}`, 'error');
     }
 
     await new Promise(r => setTimeout(r, 500));
