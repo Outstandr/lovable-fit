@@ -110,63 +110,6 @@ export function usePedometer() {
 
     let isMounted = true;
 
-    const initPedometer = async () => {
-      console.log('[usePedometer] Initializing...');
-
-      try {
-        // If already tracking (started during onboarding), just update callback
-        if (pedometerService.isTracking()) {
-          console.log('[usePedometer] Already running - updating callback');
-          const result = await pedometerService.start((data) => {
-            if (!isMounted) return;
-            updateState(data);
-          });
-          if (isMounted) {
-            setState(prev => ({
-              ...prev,
-              isTracking: result.success,
-              hasPermission: true,
-              dataSource: 'pedometer'
-            }));
-          }
-          return;
-        }
-
-        // Check availability
-        const isAvailable = await pedometerService.isAvailable();
-        if (!isAvailable) {
-          console.log('[usePedometer] Step counter not available');
-          if (isMounted) {
-            setState(prev => ({ ...prev, dataSource: 'database', error: 'Step counter not available' }));
-          }
-          return;
-        }
-
-        // Start sensor
-        console.log('[usePedometer] Starting sensor...');
-        const result = await pedometerService.start((data) => {
-          if (!isMounted) return;
-          updateState(data);
-        });
-
-        if (isMounted) {
-          setState(prev => ({
-            ...prev,
-            isTracking: result.success,
-            hasPermission: result.success,
-            dataSource: result.success ? 'pedometer' : 'database'
-          }));
-        }
-
-        console.log('[usePedometer] Started:', result.success, result.error || '');
-      } catch (error) {
-        console.error('[usePedometer] Init error:', error);
-        if (isMounted) {
-          setState(prev => ({ ...prev, error: String(error), dataSource: 'database' }));
-        }
-      }
-    };
-
     const updateState = (data: { steps: number; distance: number }) => {
       const totalSteps = baseSteps.current + data.steps;
       const distanceKm = (data.distance || (data.steps * 0.762)) / 1000;
@@ -183,6 +126,34 @@ export function usePedometer() {
         dataSource: 'pedometer',
         lastUpdate: Date.now()
       }));
+    };
+
+    const initPedometer = async () => {
+      console.log('[usePedometer] Initializing...');
+
+      try {
+        // Start sensor with callback
+        const success = await pedometerService.start((data) => {
+          if (!isMounted) return;
+          updateState(data);
+        });
+
+        if (isMounted) {
+          setState(prev => ({
+            ...prev,
+            isTracking: success,
+            hasPermission: success,
+            dataSource: success ? 'pedometer' : 'database'
+          }));
+        }
+
+        console.log('[usePedometer] Started:', success);
+      } catch (error) {
+        console.error('[usePedometer] Init error:', error);
+        if (isMounted) {
+          setState(prev => ({ ...prev, error: String(error), dataSource: 'database' }));
+        }
+      }
     };
 
     const timer = setTimeout(initPedometer, 500);
@@ -244,7 +215,7 @@ export function usePedometer() {
   const startTracking = useCallback(async (): Promise<boolean> => {
     if (!pedometerService.isNative()) return true;
 
-    const result = await pedometerService.start((data) => {
+    const success = await pedometerService.start((data) => {
       const totalSteps = baseSteps.current + data.steps;
       const distanceKm = (data.distance || (data.steps * 0.762)) / 1000;
       const totalDistance = (baseSteps.current * 0.762) / 1000 + distanceKm;
@@ -263,11 +234,11 @@ export function usePedometer() {
 
     setState(prev => ({
       ...prev,
-      isTracking: result.success,
-      dataSource: result.success ? 'pedometer' : 'unavailable'
+      isTracking: success,
+      dataSource: success ? 'pedometer' : 'unavailable'
     }));
 
-    return result.success;
+    return success;
   }, []);
 
   const stopTracking = useCallback(() => {
