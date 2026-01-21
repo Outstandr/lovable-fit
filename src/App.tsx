@@ -1,5 +1,5 @@
 // DEBUG MODE - Set to true for debug builds, false for production
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
