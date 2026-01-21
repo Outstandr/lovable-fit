@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Footprints } from 'lucide-react';
+import { Footprints, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
@@ -12,13 +12,30 @@ interface ActivityPermissionStepProps {
 
 export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) {
   const [isRequesting, setIsRequesting] = useState(false);
+  const [step, setStep] = useState<'idle' | 'notifications' | 'activity'>('idle');
 
   const handleContinue = async () => {
     setIsRequesting(true);
 
     if (Capacitor.isNativePlatform()) {
       try {
-        console.log('[Onboarding] Requesting activity recognition permission...');
+        // Step 1: Request POST_NOTIFICATIONS first (Android 13+ requirement for foreground service)
+        // This must be done BEFORE activity recognition on Android 14+
+        console.log('[Onboarding] Step 1: Requesting notification permission (Android 13+)...');
+        setStep('notifications');
+        try {
+          const notifResult = await PushNotifications.requestPermissions();
+          console.log('[Onboarding] Notification permission result:', notifResult.receive);
+        } catch (notifError) {
+          console.log('[Onboarding] Notification permission error (non-critical):', notifError);
+        }
+
+        // Small delay to let Android process the permission
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Step 2: Request activity recognition permission
+        console.log('[Onboarding] Step 2: Requesting activity recognition permission...');
+        setStep('activity');
         
         // Use unified permission flow with 3s timeout to prevent hanging
         await Promise.race([
@@ -27,16 +44,6 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
         ]);
         
         console.log('[Onboarding] Activity permission flow complete');
-
-        // Android 13+ requires POST_NOTIFICATIONS for foreground services
-        // Request notification permission alongside activity recognition
-        try {
-          console.log('[Onboarding] Requesting notification permission (Android 13+)...');
-          await PushNotifications.requestPermissions();
-          console.log('[Onboarding] Notification permission requested');
-        } catch (notifError) {
-          console.log('[Onboarding] Notification permission error (non-critical):', notifError);
-        }
         
       } catch (error) {
         console.log('[Onboarding] Permission error (proceeding):', error);
@@ -45,6 +52,7 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
     }
 
     setIsRequesting(false);
+    setStep('idle');
     onNext();
   };
 
@@ -101,13 +109,28 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
             </div>
           ))}
         </motion.div>
+
+        {/* Android 13+ notice */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="mt-6 p-4 rounded-xl bg-muted/50 border border-border w-full max-w-xs"
+        >
+          <div className="flex items-start gap-3">
+            <Bell className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <span className="font-medium text-foreground">Why notifications?</span> Android requires notification permission to track steps in the background. We'll only use it for step tracking, not marketing.
+            </p>
+          </div>
+        </motion.div>
       </div>
 
       {/* Continue Button */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
+        transition={{ delay: 0.6 }}
         className="px-6 pb-6 safe-area-pb"
       >
         <Button
@@ -115,7 +138,11 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
           disabled={isRequesting}
           className="w-full h-14 rounded-full bg-primary text-primary-foreground font-semibold text-base"
         >
-          {isRequesting ? 'Requesting...' : 'Enable Step Tracking'}
+          {isRequesting 
+            ? step === 'notifications' 
+              ? 'Requesting Notifications...' 
+              : 'Requesting Activity...'
+            : 'Enable Step Tracking'}
         </Button>
       </motion.div>
     </div>

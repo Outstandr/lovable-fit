@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
+import { PushNotifications } from '@capacitor/push-notifications';
 import { NativeSettings, AndroidSettings, IOSSettings } from 'capacitor-native-settings';
 import { motion } from 'framer-motion';
-import { Bug, Cpu, Shield, Play, Square, Settings, RefreshCw, Trash2, Copy, AlertTriangle } from 'lucide-react';
+import { Bug, Cpu, Shield, Play, Square, Settings, RefreshCw, Trash2, Copy, AlertTriangle, Bell, Battery } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { pedometerService } from '@/services/pedometerService';
+import { pedometerService, StartResult } from '@/services/pedometerService';
 
 interface DebugState {
   platform: string;
@@ -13,11 +14,13 @@ interface DebugState {
   isAvailable: boolean | null;
   stepCountingSupported: boolean | null;
   permissionStatus: string | null;
+  notificationPermissionStatus: string | null;
   isTracking: boolean;
   isStarting: boolean;
   lastMeasurement: { steps: number; distance: number } | null;
   logs: { time: string; message: string; type: 'info' | 'success' | 'error' | 'warn' }[];
   error: string | null;
+  lastError: StartResult | null;
 }
 
 export default function PedometerDebug() {
@@ -27,11 +30,13 @@ export default function PedometerDebug() {
     isAvailable: null,
     stepCountingSupported: null,
     permissionStatus: null,
+    notificationPermissionStatus: null,
     isTracking: pedometerService.isTracking(),
     isStarting: false,
     lastMeasurement: null,
     logs: [],
     error: null,
+    lastError: null,
   });
 
   const addLog = useCallback((message: string, type: 'info' | 'success' | 'error' | 'warn' = 'info') => {
@@ -49,7 +54,8 @@ export default function PedometerDebug() {
 
   // Full diagnostics
   const runFullDiagnostics = useCallback(async () => {
-    addLog('=== FULL SENSOR DIAGNOSTICS ===', 'info');
+    addLog('=== FULL SENSOR DIAGNOSTICS (Android 14/15/16) ===', 'info');
+    addLog(`Platform: ${Capacitor.getPlatform()}`, 'info');
 
     // Step 1: Check availability
     addLog('Step 1: Checking sensor availability...', 'info');
@@ -69,13 +75,30 @@ export default function PedometerDebug() {
 
     await new Promise(r => setTimeout(r, 200));
 
-    // Step 2: Check Capacitor permission state
-    addLog('Step 2: Checking permission state...', 'info');
+    // Step 2: Check notification permission (Android 13+ requirement)
+    addLog('Step 2: Checking notification permission (Android 13+)...', 'info');
+    let notifState = 'unknown';
+    try {
+      const result = await PushNotifications.checkPermissions();
+      notifState = result.receive || 'unknown';
+      addLog(`Notification permission: ${notifState}`, notifState === 'granted' ? 'success' : 'warn');
+      if (notifState !== 'granted') {
+        addLog('⚠️ Notifications required for foreground service on Android 13+', 'warn');
+      }
+      setState(prev => ({ ...prev, notificationPermissionStatus: notifState }));
+    } catch (error: any) {
+      addLog(`Notification check error: ${error.message || error}`, 'warn');
+    }
+
+    await new Promise(r => setTimeout(r, 200));
+
+    // Step 3: Check Capacitor permission state
+    addLog('Step 3: Checking activity recognition permission...', 'info');
     let permState = 'unknown';
     try {
       const result = await CapacitorPedometer.checkPermissions();
       permState = (result as any).activityRecognition || 'unknown';
-      addLog(`Plugin reports: ${permState}`, permState === 'granted' ? 'success' : 'warn');
+      addLog(`Activity recognition: ${permState}`, permState === 'granted' ? 'success' : 'warn');
       setState(prev => ({ ...prev, permissionStatus: permState }));
     } catch (error: any) {
       addLog(`checkPermissions error: ${error.message || error}`, 'error');
@@ -83,30 +106,36 @@ export default function PedometerDebug() {
 
     await new Promise(r => setTimeout(r, 200));
 
-    // Step 3: Try to start sensor
-    addLog('Step 3: Attempting to start sensor...', 'info');
+    // Step 4: Try to start sensor via service (handles Android 14+ properly)
+    addLog('Step 4: Starting sensor via pedometerService...', 'info');
     try {
-      await CapacitorPedometer.addListener('measurement', (data: any) => {
-        const steps = data.numberOfSteps || 0;
-        const distance = data.distance || 0;
-        addLog(`📊 SENSOR DATA: steps=${steps}, distance=${distance}m`, 'success');
-        setState(prev => ({ ...prev, lastMeasurement: { steps, distance } }));
+      const result = await pedometerService.start((data) => {
+        addLog(`🔬 RAW SENSOR DATA: steps=${data.steps}, distance=${data.distance}m`, 'success');
+        setState(prev => ({ ...prev, lastMeasurement: { steps: data.steps, distance: data.distance } }));
       });
       
-      await CapacitorPedometer.startMeasurementUpdates();
-      addLog('✓ Sensor started successfully! Walk to see steps.', 'success');
-      setState(prev => ({ ...prev, isTracking: true }));
+      if (result.success) {
+        addLog('✅ Sensor started successfully! Walk to see steps.', 'success');
+        setState(prev => ({ ...prev, isTracking: true, lastError: null }));
+      } else {
+        addLog(`❌ START FAILED: ${result.error}`, 'error');
+        if (result.guidance) {
+          addLog(`📋 FIX: ${result.guidance}`, 'warn');
+        }
+        
+        // Show specific guidance for Android 14+
+        if (result.error === 'FOREGROUND_SERVICE_BLOCKED') {
+          addLog('🔧 Android 14+ Issue Detected:', 'error');
+          addLog('1. Ensure Notifications are ALLOWED', 'warn');
+          addLog('2. Go to Settings > Apps > [App] > Battery > Unrestricted', 'warn');
+          addLog('3. Uninstall and reinstall the app after manifest changes', 'warn');
+        }
+        
+        setState(prev => ({ ...prev, error: result.guidance || result.error, lastError: result }));
+      }
     } catch (error: any) {
       const errorMsg = error.message || String(error);
       addLog(`START FAILED: ${errorMsg}`, 'error');
-      
-      if (errorMsg.includes('permission')) {
-        addLog('DIAGNOSIS: Permission issue detected', 'error');
-        addLog('FIX: Go to Settings > Apps > [App] > Permissions > Physical Activity > Allow', 'warn');
-      } else if (errorMsg.includes('sensor') || errorMsg.includes('available')) {
-        addLog('DIAGNOSIS: Sensor not available on this device', 'error');
-      }
-      
       setState(prev => ({ ...prev, error: errorMsg }));
     }
 
@@ -144,20 +173,22 @@ export default function PedometerDebug() {
 
     try {
       const result = await pedometerService.start((data) => {
-        addLog(`📊 Steps: ${data.steps}, Distance: ${data.distance}m`, 'success');
+        addLog(`🔬 RAW: steps=${data.steps}, distance=${data.distance}m`, 'success');
         setState(prev => ({
           ...prev,
           lastMeasurement: { steps: data.steps, distance: data.distance },
         }));
       });
 
-      addLog(`start() returned: ${result}`, result ? 'success' : 'error');
-      
-      if (result) {
-        addLog('✓ Sensor active - walk to see steps!', 'success');
-        setState(prev => ({ ...prev, isTracking: true }));
+      if (result.success) {
+        addLog('✅ Sensor active - walk to see steps!', 'success');
+        setState(prev => ({ ...prev, isTracking: true, lastError: null }));
       } else {
-        addLog('FAILED - Check permissions in system settings', 'error');
+        addLog(`❌ FAILED: ${result.error}`, 'error');
+        if (result.guidance) {
+          addLog(`📋 ${result.guidance}`, 'warn');
+        }
+        setState(prev => ({ ...prev, lastError: result }));
       }
     } catch (error: any) {
       addLog(`Unexpected error: ${error.message || error}`, 'error');
@@ -270,6 +301,30 @@ export default function PedometerDebug() {
     }
   }, [addLog]);
 
+  const openBatterySettings = useCallback(async () => {
+    addLog('Opening battery settings (for background activity)...', 'info');
+    try {
+      if (Capacitor.getPlatform() === 'android') {
+        await NativeSettings.openAndroid({ option: AndroidSettings.BatteryOptimization });
+      }
+      addLog('Battery settings opened', 'success');
+    } catch (error: any) {
+      addLog(`Open battery settings error: ${error.message || error}`, 'error');
+    }
+  }, [addLog]);
+
+  const requestNotificationPermission = useCallback(async () => {
+    addLog('Requesting notification permission...', 'info');
+    try {
+      const result = await PushNotifications.requestPermissions();
+      const status = result.receive || 'unknown';
+      addLog(`Notification permission: ${status}`, status === 'granted' ? 'success' : 'warn');
+      setState(prev => ({ ...prev, notificationPermissionStatus: status }));
+    } catch (error: any) {
+      addLog(`Notification permission error: ${error.message || error}`, 'error');
+    }
+  }, [addLog]);
+
   const copyLogs = useCallback(() => {
     const logText = state.logs.map(l => `[${l.time}] ${l.message}`).join('\n');
     navigator.clipboard.writeText(logText);
@@ -345,11 +400,21 @@ export default function PedometerDebug() {
             <div className={getStatusColor(state.permissionStatus)}>
               {state.permissionStatus || 'Unknown'}
             </div>
+            <div className="text-muted-foreground">Notifications (Android 13+):</div>
+            <div className={getStatusColor(state.notificationPermissionStatus)}>
+              {state.notificationPermissionStatus || 'Unknown'}
+            </div>
           </div>
-          <Button size="sm" variant="outline" onClick={ensurePermission} className="mt-3 w-full">
-            <RefreshCw className="h-3 w-3 mr-2" />
-            Request Permission
-          </Button>
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            <Button size="sm" variant="outline" onClick={ensurePermission}>
+              <RefreshCw className="h-3 w-3 mr-2" />
+              Activity
+            </Button>
+            <Button size="sm" variant="outline" onClick={requestNotificationPermission}>
+              <Bell className="h-3 w-3 mr-2" />
+              Notifications
+            </Button>
+          </div>
         </motion.div>
 
         {/* Tracking Controls */}
@@ -413,6 +478,38 @@ export default function PedometerDebug() {
           </Button>
         </motion.div>
 
+        {/* Foreground Service Issue Alert */}
+        {state.lastError?.error === 'FOREGROUND_SERVICE_BLOCKED' && (
+          <motion.div
+            className="tactical-card p-4 border-2 border-amber-500/50"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <h2 className="font-semibold text-amber-500 mb-2 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Android 14+ Foreground Service Issue
+            </h2>
+            <div className="text-sm text-muted-foreground space-y-2">
+              <p>The step sensor cannot start due to Android 14+ restrictions. Please:</p>
+              <ol className="list-decimal list-inside space-y-1">
+                <li>Allow <strong>Notifications</strong> for this app</li>
+                <li>Set Battery to <strong>Unrestricted</strong></li>
+                <li>Ensure AndroidManifest.xml has FOREGROUND_SERVICE_HEALTH</li>
+              </ol>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <Button size="sm" variant="outline" onClick={requestNotificationPermission}>
+                <Bell className="h-3 w-3 mr-2" />
+                Notifications
+              </Button>
+              <Button size="sm" variant="outline" onClick={openBatterySettings}>
+                <Battery className="h-3 w-3 mr-2" />
+                Battery Settings
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
         {/* Quick Actions */}
         <motion.div
           className="tactical-card p-4"
@@ -429,6 +526,10 @@ export default function PedometerDebug() {
             <Button variant="outline" size="sm" onClick={openAppSettings}>
               <Settings className="h-3 w-3 mr-2" />
               App Settings
+            </Button>
+            <Button variant="outline" size="sm" onClick={openBatterySettings}>
+              <Battery className="h-3 w-3 mr-2" />
+              Battery Settings
             </Button>
           </div>
         </motion.div>

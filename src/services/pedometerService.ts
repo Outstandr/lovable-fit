@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
+import { PushNotifications } from '@capacitor/push-notifications';
 
 export interface PedometerData {
   steps: number;
@@ -8,9 +9,15 @@ export interface PedometerData {
 
 export type PedometerCallback = (data: PedometerData) => void;
 
+export interface StartResult {
+  success: boolean;
+  error?: 'ACTIVITY_PERMISSION_DENIED' | 'NOTIFICATION_PERMISSION_DENIED' | 'FOREGROUND_SERVICE_BLOCKED' | 'SENSOR_UNAVAILABLE' | 'UNKNOWN';
+  guidance?: string;
+}
+
 /**
- * Simplified Pedometer Service
- * Core API: isNative, ensurePermission, start, stop
+ * Simplified Pedometer Service with Android 14+ Foreground Service Support
+ * Core API: isNative, ensurePermission, ensureNotificationPermission, start, stop
  */
 class PedometerService {
   private callback: PedometerCallback | null = null;
@@ -52,6 +59,32 @@ class PedometerService {
   }
 
   /**
+   * Check and request POST_NOTIFICATIONS permission (Android 13+ requirement for foreground services)
+   */
+  async ensureNotificationPermission(): Promise<'granted' | 'denied' | 'unavailable'> {
+    if (!this.isNative()) return 'unavailable';
+
+    try {
+      console.log('[Pedometer] Checking notification permission (Android 13+)...');
+      const checkResult = await PushNotifications.checkPermissions();
+      
+      if (checkResult.receive === 'granted') {
+        console.log('[Pedometer] Notification permission already granted');
+        return 'granted';
+      }
+
+      console.log('[Pedometer] Requesting notification permission...');
+      const requestResult = await PushNotifications.requestPermissions();
+      const finalState = requestResult.receive === 'granted' ? 'granted' : 'denied';
+      console.log(`[Pedometer] Notification permission after request: ${finalState}`);
+      return finalState;
+    } catch (error) {
+      console.log('[Pedometer] Notification permission check failed (non-critical):', error);
+      return 'unavailable';
+    }
+  }
+
+  /**
    * Legacy method - calls ensurePermission internally
    */
   async requestPermission(): Promise<boolean> {
@@ -68,28 +101,44 @@ class PedometerService {
 
   /**
    * Start step tracking with callback for updates
-   * Returns true if started successfully
+   * Returns detailed result with error type and user guidance
    */
-  async start(callback: PedometerCallback): Promise<boolean> {
-    if (!this.isNative()) return false;
+  async start(callback: PedometerCallback): Promise<StartResult> {
+    if (!this.isNative()) {
+      return { success: false, error: 'SENSOR_UNAVAILABLE', guidance: 'Step tracking only works on mobile devices' };
+    }
 
     // Update callback if already started
     if (this.isStarted) {
       this.callback = callback;
-      return true;
+      return { success: true };
     }
 
     try {
-      // Use unified permission flow
+      // Step 1: Check activity recognition permission
+      console.log('[Pedometer] Step 1: Checking activity recognition permission...');
       const permStatus = await this.ensurePermission();
       if (permStatus !== 'granted') {
-        console.log('[Pedometer] Permission denied, cannot start');
-        return false;
+        console.log('[Pedometer] ❌ Activity recognition permission denied');
+        return { 
+          success: false, 
+          error: 'ACTIVITY_PERMISSION_DENIED',
+          guidance: 'Go to Settings > Apps > [App] > Permissions > Physical Activity > Allow'
+        };
+      }
+
+      // Step 2: Check notification permission (Android 13+ requirement for foreground service)
+      console.log('[Pedometer] Step 2: Checking notification permission (Android 13+)...');
+      const notifStatus = await this.ensureNotificationPermission();
+      if (notifStatus === 'denied') {
+        console.log('[Pedometer] ⚠️ Notification permission denied - foreground service may fail on Android 13+');
+        // Don't block, but warn - some devices may still work
       }
 
       this.callback = callback;
 
-      // Add measurement listener with detailed logging
+      // Step 3: Add measurement listener with detailed logging
+      console.log('[Pedometer] Step 3: Adding measurement listener...');
       this.listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
         // 🔬 RAW SENSOR DATA - Critical for Android 14/15/16 debugging
         console.log('[Pedometer] 🔬 RAW SENSOR DATA:', JSON.stringify(data));
@@ -105,20 +154,41 @@ class PedometerService {
         }
       });
 
-      // Start measurement updates
-      console.log('[Pedometer] 🚀 Starting measurement updates...');
-      await CapacitorPedometer.startMeasurementUpdates();
-      this.isStarted = true;
-      console.log('[Pedometer] ✅ Measurement updates started successfully');
+      // Step 4: Start measurement updates with try/catch for foreground service issues
+      console.log('[Pedometer] Step 4: Calling startMeasurementUpdates()...');
+      try {
+        await CapacitorPedometer.startMeasurementUpdates();
+        this.isStarted = true;
+        console.log('[Pedometer] ✅ startMeasurementUpdates() SUCCESS');
+        return { success: true };
+      } catch (startError: any) {
+        const errorMsg = startError?.message || String(startError);
+        console.error('[Pedometer] ❌ startMeasurementUpdates() FAILED:', errorMsg);
+        
+        // Detect Android 14+ foreground service issue
+        if (errorMsg.toLowerCase().includes('permission') || 
+            errorMsg.toLowerCase().includes('foreground') ||
+            errorMsg.toLowerCase().includes('activity recognition')) {
+          console.log('[Pedometer] 🔧 Detected foreground service issue');
+          this.cleanup();
+          return { 
+            success: false, 
+            error: 'FOREGROUND_SERVICE_BLOCKED',
+            guidance: 'Android 14+ requires: 1) Allow Notifications, 2) Settings > Apps > [App] > Battery > Unrestricted'
+          };
+        }
+        
+        this.cleanup();
+        return { success: false, error: 'UNKNOWN', guidance: errorMsg };
+      }
       
-      return true;
     } catch (error: any) {
       console.error('[Pedometer] ❌ Start failed:', error);
       console.error('[Pedometer] Error name:', error?.name);
       console.error('[Pedometer] Error message:', error?.message);
       console.error('[Pedometer] Error stack:', error?.stack);
       this.cleanup();
-      return false;
+      return { success: false, error: 'UNKNOWN', guidance: error?.message || 'Unknown error' };
     }
   }
 
