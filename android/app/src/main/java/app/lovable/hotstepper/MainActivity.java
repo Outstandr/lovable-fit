@@ -9,6 +9,9 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // Register custom plugins
+        registerPlugin(PermissionProbePlugin.class);
+        
         // Apply the AppTheme to the activity
         setTheme(R.style.AppTheme);
         

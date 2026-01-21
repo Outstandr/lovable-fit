@@ -17,15 +17,15 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
 
     if (Capacitor.isNativePlatform()) {
       try {
-        console.log('[Onboarding] Requesting permission with 3s timeout...');
+        console.log('[Onboarding] Using ensurePermission with 3s timeout...');
         
-        // Request permission with 3s timeout to prevent hanging on Android 16
+        // Use unified permission flow with 3s timeout to prevent hanging
         await Promise.race([
-          pedometerService.requestPermission(),
+          pedometerService.ensurePermission(),
           new Promise(resolve => setTimeout(resolve, 3000))
         ]);
         
-        console.log('[Onboarding] Permission request complete (or timed out)');
+        console.log('[Onboarding] Permission flow complete (or timed out)');
       } catch (error) {
         console.log('[Onboarding] Permission error (proceeding):', error);
       }
