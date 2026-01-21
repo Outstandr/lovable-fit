@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
 import { toast } from '@/hooks/use-toast';
-import '@/types/cordova-permissions';
+/// <reference path="../types/cordova-permissions.d.ts" />
 
 // Storage keys for persistence across app restarts
 const STEP_BASELINE_KEY = 'step_tracker_baseline';
