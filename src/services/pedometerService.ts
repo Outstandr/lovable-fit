@@ -89,8 +89,14 @@ class PedometerService {
 
       this.callback = callback;
 
-      // Add measurement listener
+      // Add measurement listener with detailed logging
       this.listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
+        // 🔬 RAW SENSOR DATA - Critical for Android 14/15/16 debugging
+        console.log('[Pedometer] 🔬 RAW SENSOR DATA:', JSON.stringify(data));
+        console.log('[Pedometer] numberOfSteps:', data.numberOfSteps);
+        console.log('[Pedometer] distance:', data.distance);
+        console.log('[Pedometer] timestamp:', Date.now());
+        
         if (this.callback) {
           this.callback({
             steps: data.numberOfSteps || 0,
@@ -100,12 +106,17 @@ class PedometerService {
       });
 
       // Start measurement updates
+      console.log('[Pedometer] 🚀 Starting measurement updates...');
       await CapacitorPedometer.startMeasurementUpdates();
       this.isStarted = true;
+      console.log('[Pedometer] ✅ Measurement updates started successfully');
       
       return true;
-    } catch (error) {
-      console.error('[Pedometer] Start failed:', error);
+    } catch (error: any) {
+      console.error('[Pedometer] ❌ Start failed:', error);
+      console.error('[Pedometer] Error name:', error?.name);
+      console.error('[Pedometer] Error message:', error?.message);
+      console.error('[Pedometer] Error stack:', error?.stack);
       this.cleanup();
       return false;
     }

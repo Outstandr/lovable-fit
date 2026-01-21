@@ -41,6 +41,8 @@ export function usePedometer() {
   const lastSyncSteps = useRef<number>(0);
   const celebrated10K = useRef<string | null>(null);
   const baseSteps = useRef<number>(0);
+  // Sensor baseline for TYPE_STEP_COUNTER (cumulative since boot)
+  const sensorBaseline = useRef<number | null>(null);
 
   // 10K Milestone Celebration
   useEffect(() => {
@@ -111,10 +113,30 @@ export function usePedometer() {
     let isMounted = true;
 
     const updateState = (data: { steps: number; distance: number }) => {
-      const totalSteps = baseSteps.current + data.steps;
-      const distanceKm = (data.distance || (data.steps * 0.762)) / 1000;
+      // Handle TYPE_STEP_COUNTER which returns cumulative steps since boot
+      // Set baseline on first reading to calculate session steps correctly
+      if (sensorBaseline.current === null && data.steps > 0) {
+        sensorBaseline.current = data.steps;
+        console.log('[usePedometer] 📍 Sensor baseline set:', sensorBaseline.current);
+      }
+
+      // Calculate session steps as delta from baseline
+      const sessionSteps = sensorBaseline.current !== null 
+        ? Math.max(0, data.steps - sensorBaseline.current)
+        : 0;
+      
+      const totalSteps = baseSteps.current + sessionSteps;
+      const distanceKm = (data.distance || (sessionSteps * 0.762)) / 1000;
       const totalDistance = (baseSteps.current * 0.762) / 1000 + distanceKm;
       const calories = Math.round(totalSteps / STEPS_PER_CALORIE);
+
+      console.log('[usePedometer] 📊 Step calculation:', {
+        rawSensorSteps: data.steps,
+        sensorBaseline: sensorBaseline.current,
+        sessionSteps,
+        dbBaseSteps: baseSteps.current,
+        totalSteps
+      });
 
       setState(prev => ({
         ...prev,
@@ -130,6 +152,8 @@ export function usePedometer() {
 
     const initPedometer = async () => {
       console.log('[usePedometer] Initializing...');
+      // Reset sensor baseline for new session
+      sensorBaseline.current = null;
 
       try {
         // Start sensor with callback
