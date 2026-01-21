@@ -3,11 +3,15 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
 import { toast } from '@/hooks/use-toast';
+import '@/types/cordova-permissions';
 
 // Storage keys for persistence across app restarts
 const STEP_BASELINE_KEY = 'step_tracker_baseline';
 const STEP_DATE_KEY = 'step_tracker_date';
 const DAILY_STEPS_KEY = 'step_tracker_daily';
+
+// The Android permission string for activity recognition
+const ACTIVITY_RECOGNITION_PERMISSION = 'android.permission.ACTIVITY_RECOGNITION';
 
 export type PermissionStatus = 'unknown' | 'granted' | 'denied' | 'unavailable';
 
@@ -19,15 +23,67 @@ interface StepTrackerState {
 }
 
 /**
- * Hardware Sync Strategy Hook
+ * Hardware Sync Strategy Hook with Delegate Permission Pattern
  * 
  * Uses TYPE_STEP_COUNTER hardware chip which counts steps 24/7.
  * On app open/resume, we query the cumulative total and calculate daily steps.
  * 
- * CRITICAL: Never calls requestPermissions() or checkPermissions() due to NPE bug
- * in @capgo/capacitor-pedometer. Instead, we call startMeasurementUpdates() directly
- * which has a safer internal permission check path.
+ * CRITICAL: Uses cordova-plugin-android-permissions as a "delegate" to request
+ * ACTIVITY_RECOGNITION permission because @capgo/capacitor-pedometer's
+ * requestPermissions() crashes with NullPointerException on Android 14+.
+ * 
+ * The delegate pattern works because Android grants permissions at the app level,
+ * not per-plugin. Once the Cordova plugin gets permission, the Pedometer can use it.
  */
+
+// Helper: Check if we have activity recognition permission using Cordova plugin
+const checkActivityPermission = (): Promise<boolean> => {
+  return new Promise((resolve) => {
+    if (!window.cordova?.plugins?.permissions) {
+      console.log('[StepTracker] Cordova permissions plugin not available');
+      resolve(false);
+      return;
+    }
+    
+    const permissions = window.cordova.plugins.permissions;
+    permissions.checkPermission(
+      ACTIVITY_RECOGNITION_PERMISSION,
+      (status) => {
+        console.log('[StepTracker] Permission check result:', status.hasPermission);
+        resolve(status.hasPermission);
+      },
+      (err) => {
+        console.error('[StepTracker] Permission check error:', err);
+        resolve(false);
+      }
+    );
+  });
+};
+
+// Helper: Request activity recognition permission using Cordova plugin (THE DELEGATE)
+const requestActivityPermission = (): Promise<boolean> => {
+  return new Promise((resolve) => {
+    if (!window.cordova?.plugins?.permissions) {
+      console.log('[StepTracker] Cordova permissions plugin not available, falling back');
+      resolve(false);
+      return;
+    }
+    
+    console.log('[StepTracker] 🎯 Requesting permission via Cordova delegate...');
+    const permissions = window.cordova.plugins.permissions;
+    permissions.requestPermission(
+      ACTIVITY_RECOGNITION_PERMISSION,
+      (status) => {
+        console.log('[StepTracker] 🎯 Permission request result:', status.hasPermission);
+        resolve(status.hasPermission);
+      },
+      (err) => {
+        console.error('[StepTracker] Permission request error:', err);
+        resolve(false);
+      }
+    );
+  });
+};
 export function useStepTracker() {
   const [state, setState] = useState<StepTrackerState>({
     steps: 0,
@@ -131,8 +187,8 @@ export function useStepTracker() {
     }
   }, [persistData]);
 
-  // Start tracking - THE ONLY SAFE METHOD
-  // Bypasses buggy checkPermissions/requestPermissions entirely
+  // Start tracking with Delegate Pattern
+  // Uses Cordova plugin to request permission, then starts pedometer
   const startTracking = useCallback(async (): Promise<boolean> => {
     // Prevent concurrent starts
     if (isStartingRef.current) {
@@ -168,6 +224,34 @@ export function useStepTracker() {
       console.log('[StepTracker] isAvailable check failed (continuing anyway):', e);
     }
 
+    // DELEGATE PATTERN: Use Cordova plugin to check/request permission
+    // This avoids the NullPointerException in the Pedometer plugin's requestPermissions()
+    try {
+      let hasPermission = await checkActivityPermission();
+      console.log('[StepTracker] Current permission status:', hasPermission);
+
+      if (!hasPermission) {
+        // Request permission using Cordova delegate (shows native Android dialog!)
+        hasPermission = await requestActivityPermission();
+      }
+
+      if (!hasPermission) {
+        // User denied permission
+        console.log('[StepTracker] ❌ Permission denied by user');
+        setState(prev => ({
+          ...prev,
+          isTracking: false,
+          permissionStatus: 'denied',
+          error: 'Please enable Physical Activity permission in Settings'
+        }));
+        isStartingRef.current = false;
+        return false;
+      }
+    } catch (e) {
+      console.log('[StepTracker] Cordova permission check failed, trying direct start:', e);
+      // Fall through to try direct start anyway
+    }
+
     // Clean up any existing listener
     if (listenerRef.current) {
       try {
@@ -187,8 +271,7 @@ export function useStepTracker() {
         }
       );
 
-      // Start measurement updates - this triggers Android permission dialog if needed
-      // Uses hasActivityRecognitionPermission() internally, NOT the buggy getPermissionState()
+      // Start measurement updates - permission should already be granted by Cordova delegate
       console.log('[StepTracker] Starting measurement updates...');
       await CapacitorPedometer.startMeasurementUpdates();
 
