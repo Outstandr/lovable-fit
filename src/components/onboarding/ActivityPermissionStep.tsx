@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Footprints } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
 import { pedometerService } from '@/services/pedometerService';
 
 interface ActivityPermissionStepProps {
@@ -17,7 +18,7 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
 
     if (Capacitor.isNativePlatform()) {
       try {
-        console.log('[Onboarding] Using ensurePermission with 3s timeout...');
+        console.log('[Onboarding] Requesting activity recognition permission...');
         
         // Use unified permission flow with 3s timeout to prevent hanging
         await Promise.race([
@@ -25,7 +26,18 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
           new Promise(resolve => setTimeout(resolve, 3000))
         ]);
         
-        console.log('[Onboarding] Permission flow complete (or timed out)');
+        console.log('[Onboarding] Activity permission flow complete');
+
+        // Android 13+ requires POST_NOTIFICATIONS for foreground services
+        // Request notification permission alongside activity recognition
+        try {
+          console.log('[Onboarding] Requesting notification permission (Android 13+)...');
+          await PushNotifications.requestPermissions();
+          console.log('[Onboarding] Notification permission requested');
+        } catch (notifError) {
+          console.log('[Onboarding] Notification permission error (non-critical):', notifError);
+        }
+        
       } catch (error) {
         console.log('[Onboarding] Permission error (proceeding):', error);
       }
