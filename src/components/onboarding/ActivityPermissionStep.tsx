@@ -14,32 +14,24 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
 
   const handleContinue = async () => {
     setIsRequesting(true);
-    
+
     if (Capacitor.isNativePlatform()) {
       try {
-        console.log('[Onboarding] Step 1: Request permission (trigger system dialog)...');
+        console.log('[Onboarding] Requesting permission with 3s timeout...');
         
-        // Request permission to trigger system dialog (ignore result - it may be wrong on Android 16)
-        await pedometerService.requestPermission();
+        // Request permission with 3s timeout to prevent hanging on Android 16
+        await Promise.race([
+          pedometerService.requestPermission(),
+          new Promise(resolve => setTimeout(resolve, 3000))
+        ]);
         
-        // Small delay to let Android process
-        await new Promise(r => setTimeout(r, 300));
-        
-        console.log('[Onboarding] Step 2: Force start sensor (bypassing permission cache)...');
-        
-        // Force start regardless of reported permission status
-        const success = await pedometerService.forceStart((data) => {
-          console.log('[Onboarding] Step data:', data);
-        });
-        
-        console.log('[Onboarding] Force start result:', success);
-        
+        console.log('[Onboarding] Permission request complete (or timed out)');
       } catch (error) {
-        console.log('[Onboarding] Error (proceeding anyway):', error);
+        console.log('[Onboarding] Permission error (proceeding):', error);
       }
+      // DON'T start sensor here - usePedometer will handle it after onboarding
     }
-    
-    // Always proceed to next step
+
     setIsRequesting(false);
     onNext();
   };
@@ -66,7 +58,6 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
           Step Tracking
         </motion.h1>
 
-        {/* Description - Apple Guideline 5.1.1 Compliant */}
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

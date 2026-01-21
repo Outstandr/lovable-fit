@@ -1,10 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
 import { NativeSettings, AndroidSettings, IOSSettings } from 'capacitor-native-settings';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Bug, Cpu, Shield, Play, Square, Settings, RefreshCw, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Bug, Cpu, Shield, Play, Square, Settings, RefreshCw, Trash2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { pedometerService } from '@/services/pedometerService';
 
@@ -22,7 +21,6 @@ interface DebugState {
 }
 
 export default function PedometerDebug() {
-  const navigate = useNavigate();
   const [state, setState] = useState<DebugState>({
     platform: Capacitor.getPlatform(),
     isNative: Capacitor.isNativePlatform(),
@@ -40,7 +38,7 @@ export default function PedometerDebug() {
     const time = new Date().toLocaleTimeString('en-US', { hour12: false });
     setState(prev => ({
       ...prev,
-      logs: [...prev.logs, { time, message, type }].slice(-50) // Keep last 50 logs
+      logs: [...prev.logs, { time, message, type }].slice(-50)
     }));
   }, []);
 
@@ -48,132 +46,90 @@ export default function PedometerDebug() {
     setState(prev => ({ ...prev, logs: [] }));
   }, []);
 
-  const checkAvailability = useCallback(async () => {
-    addLog('Checking step counter availability...', 'info');
-    try {
-      const result = await CapacitorPedometer.isAvailable();
-      addLog(`isAvailable result: ${JSON.stringify(result)}`, result.stepCounting ? 'success' : 'warn');
-      setState(prev => ({
-        ...prev,
-        isAvailable: true,
-        stepCountingSupported: result.stepCounting === true,
-      }));
-    } catch (error: any) {
-      addLog(`isAvailable error: ${error.message || error}`, 'error');
-      setState(prev => ({
-        ...prev,
-        isAvailable: false,
-        stepCountingSupported: false,
-        error: error.message || String(error),
-      }));
-    }
-  }, [addLog]);
+  // Auto-run diagnostics on mount
+  useEffect(() => {
+    const runDiagnostics = async () => {
+      addLog('=== AUTO-DIAGNOSTIC ON LOAD ===', 'info');
+      
+      // Check availability
+      addLog('Checking step counter availability...', 'info');
+      try {
+        const result = await CapacitorPedometer.isAvailable();
+        addLog(`isAvailable: ${JSON.stringify(result)}`, result.stepCounting ? 'success' : 'warn');
+        setState(prev => ({
+          ...prev,
+          isAvailable: true,
+          stepCountingSupported: result.stepCounting === true,
+        }));
+      } catch (error: any) {
+        addLog(`isAvailable error: ${error.message || error}`, 'error');
+        setState(prev => ({
+          ...prev,
+          isAvailable: false,
+          stepCountingSupported: false,
+        }));
+      }
 
-  const checkPermission = useCallback(async () => {
-    addLog('Checking permission status...', 'info');
-    try {
-      const result = await CapacitorPedometer.checkPermissions();
-      addLog(`checkPermissions result: ${JSON.stringify(result)}`, 'success');
-      const permResult = result as any; // Handle different plugin property names
-      setState(prev => ({
-        ...prev,
-        permissionStatus: permResult.activityRecognition || permResult.receive || 'unknown',
-      }));
-    } catch (error: any) {
-      addLog(`checkPermissions error: ${error.message || error}`, 'error');
-      setState(prev => ({
-        ...prev,
-        error: error.message || String(error),
-      }));
-    }
+      await new Promise(r => setTimeout(r, 300));
+
+      // Check permission
+      addLog('Checking permission status...', 'info');
+      try {
+        const result = await CapacitorPedometer.checkPermissions();
+        addLog(`checkPermissions: ${JSON.stringify(result)}`, 'success');
+        setState(prev => ({
+          ...prev,
+          permissionStatus: (result as any).activityRecognition || 'unknown',
+        }));
+      } catch (error: any) {
+        addLog(`checkPermissions error: ${error.message || error}`, 'error');
+      }
+
+      addLog('=== READY - Tap "Start Sensor" to test ===', 'info');
+    };
+    
+    runDiagnostics();
   }, [addLog]);
 
   const requestPermission = useCallback(async () => {
-    addLog('Requesting permission (native dialog should appear)...', 'info');
+    addLog('Requesting permission...', 'info');
     try {
       const result = await CapacitorPedometer.requestPermissions();
-      addLog(`requestPermissions result: ${JSON.stringify(result)}`, 'success');
-      const permResult = result as any; // Handle different plugin property names
+      addLog(`requestPermissions: ${JSON.stringify(result)}`, 'success');
       setState(prev => ({
         ...prev,
-        permissionStatus: permResult.activityRecognition || permResult.receive || 'unknown',
+        permissionStatus: (result as any).activityRecognition || 'unknown',
       }));
     } catch (error: any) {
       addLog(`requestPermissions error: ${error.message || error}`, 'error');
-      setState(prev => ({
-        ...prev,
-        error: error.message || String(error),
-      }));
     }
   }, [addLog]);
 
-  // Force start - bypasses permission checks entirely
-  const forceStartTracking = useCallback(async () => {
+  const startTracking = useCallback(async () => {
     if (state.isTracking || state.isStarting) {
-      addLog('Already tracking or starting, ignoring', 'warn');
+      addLog('Already tracking or starting', 'warn');
       return;
     }
 
     setState(prev => ({ ...prev, isStarting: true }));
-    addLog('=== FORCE START (bypassing permission cache) ===', 'info');
+    addLog('=== STARTING SENSOR ===', 'info');
 
     try {
-      const success = await pedometerService.forceStart((data) => {
-        addLog(`Measurement: steps=${data.steps}, distance=${data.distance}m`, 'success');
+      const success = await pedometerService.start((data) => {
+        addLog(`Steps: ${data.steps}, Distance: ${data.distance}m`, 'success');
         setState(prev => ({
           ...prev,
           lastMeasurement: { steps: data.steps, distance: data.distance },
         }));
       });
 
-      addLog(`forceStart result: ${success}`, success ? 'success' : 'warn');
+      addLog(`start() result: ${success}`, success ? 'success' : 'error');
       setState(prev => ({ ...prev, isTracking: success }));
-      
+
       if (success) {
         addLog('✓ Sensor active - walk to see steps!', 'success');
       } else {
-        addLog('Sensor failed to start - check logs for error', 'error');
-      }
-    } catch (error: any) {
-      addLog(`Force start error: ${error.message || error}`, 'error');
-      setState(prev => ({ ...prev, error: error.message || String(error) }));
-    } finally {
-      setState(prev => ({ ...prev, isStarting: false }));
-    }
-  }, [state.isTracking, state.isStarting, addLog]);
-
-  // Request permission AND start - use for first-time or if startOnly fails
-  const requestAndStart = useCallback(async () => {
-    if (state.isTracking || state.isStarting) {
-      addLog('Already tracking or starting, ignoring', 'warn');
-      return;
-    }
-
-    setState(prev => ({ ...prev, isStarting: true }));
-    addLog('=== REQUEST + START (requestAndStart) ===', 'info');
-
-    try {
-      const result = await pedometerService.requestAndStart((data) => {
-        addLog(`Measurement: steps=${data.steps}, distance=${data.distance}m`, 'success');
-        setState(prev => ({
-          ...prev,
-          lastMeasurement: { steps: data.steps, distance: data.distance },
-        }));
-      });
-
-      addLog(`Result: granted=${result.granted}, tracking=${result.tracking}`, result.tracking ? 'success' : 'warn');
-      setState(prev => ({ 
-        ...prev, 
-        isTracking: result.tracking,
-        permissionStatus: result.granted ? 'granted' : 'denied',
-      }));
-      
-      if (result.tracking) {
-        addLog('✓ Tracking active - walk to see steps!', 'success');
-      } else if (result.granted) {
-        addLog('Permission granted but tracking failed to start', 'warn');
-      } else {
-        addLog('Permission denied - open Settings to grant manually', 'error');
+        addLog('Sensor failed to start', 'error');
       }
     } catch (error: any) {
       addLog(`Start error: ${error.message || error}`, 'error');
@@ -185,14 +141,14 @@ export default function PedometerDebug() {
 
   const stopTracking = useCallback(async () => {
     if (!state.isTracking) {
-      addLog('Not tracking, ignoring stop request', 'warn');
+      addLog('Not tracking', 'warn');
       return;
     }
 
-    addLog('Stopping via pedometerService...', 'info');
+    addLog('Stopping...', 'info');
     try {
       await pedometerService.stop();
-      addLog('Tracking stopped', 'success');
+      addLog('Stopped', 'success');
       setState(prev => ({ ...prev, isTracking: false }));
     } catch (error: any) {
       addLog(`Stop error: ${error.message || error}`, 'error');
@@ -213,14 +169,11 @@ export default function PedometerDebug() {
     }
   }, [addLog]);
 
-  const runFullTest = useCallback(async () => {
-    addLog('=== STARTING FULL DIAGNOSTIC TEST ===', 'info');
-    await checkAvailability();
-    await new Promise(r => setTimeout(r, 500));
-    await checkPermission();
-    await new Promise(r => setTimeout(r, 500));
-    addLog('=== DIAGNOSTIC TEST COMPLETE ===', 'info');
-  }, [checkAvailability, checkPermission]);
+  const copyLogs = useCallback(() => {
+    const logText = state.logs.map(l => `[${l.time}] ${l.message}`).join('\n');
+    navigator.clipboard.writeText(logText);
+    addLog('Logs copied to clipboard', 'success');
+  }, [state.logs, addLog]);
 
   const getStatusColor = (status: string | null) => {
     if (!status) return 'text-muted-foreground';
@@ -244,17 +197,13 @@ export default function PedometerDebug() {
       {/* Header */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="flex items-center gap-3 px-4 py-3 safe-area-pt">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <Bug className="h-5 w-5 text-amber-500" />
-            <h1 className="text-lg font-semibold">Pedometer Debug</h1>
-          </div>
+          <Bug className="h-5 w-5 text-amber-500" />
+          <h1 className="text-lg font-semibold">Pedometer Debug</h1>
+          <span className="text-xs text-muted-foreground ml-auto">v2.0</span>
         </div>
       </div>
 
-      <div className="pt-20 pb-8 px-4 space-y-4">
+      <div className="pt-16 pb-8 px-4 space-y-4">
         {/* Platform Info */}
         <motion.div
           className="tactical-card p-4"
@@ -272,33 +221,9 @@ export default function PedometerDebug() {
             <div className={state.isNative ? 'text-green-500' : 'text-red-500'}>
               {state.isNative ? 'Yes' : 'No (Web)'}
             </div>
-          </div>
-        </motion.div>
-
-        {/* Hardware Check */}
-        <motion.div
-          className="tactical-card p-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Cpu className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold">Hardware Check</h2>
-            </div>
-            <Button size="sm" variant="outline" onClick={checkAvailability}>
-              Check
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="text-muted-foreground">Plugin Available:</div>
-            <div className={state.isAvailable === true ? 'text-green-500' : state.isAvailable === false ? 'text-red-500' : 'text-muted-foreground'}>
-              {state.isAvailable === null ? 'Not checked' : state.isAvailable ? 'Yes' : 'No'}
-            </div>
             <div className="text-muted-foreground">Step Counter:</div>
             <div className={state.stepCountingSupported === true ? 'text-green-500' : state.stepCountingSupported === false ? 'text-red-500' : 'text-muted-foreground'}>
-              {state.stepCountingSupported === null ? 'Not checked' : state.stepCountingSupported ? 'Supported' : 'Not Supported'}
+              {state.stepCountingSupported === null ? 'Checking...' : state.stepCountingSupported ? 'Available' : 'Not Available'}
             </div>
           </div>
         </motion.div>
@@ -308,26 +233,21 @@ export default function PedometerDebug() {
           className="tactical-card p-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.1 }}
         >
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Shield className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold">Permission Status</h2>
+              <h2 className="font-semibold">Permission</h2>
             </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={checkPermission}>
-                Check
-              </Button>
-              <Button size="sm" variant="default" onClick={requestPermission}>
-                Request
-              </Button>
-            </div>
+            <Button size="sm" variant="default" onClick={requestPermission}>
+              Request
+            </Button>
           </div>
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div className="text-muted-foreground">Activity Recognition:</div>
             <div className={getStatusColor(state.permissionStatus)}>
-              {state.permissionStatus || 'Not checked'}
+              {state.permissionStatus || 'Checking...'}
             </div>
           </div>
         </motion.div>
@@ -337,52 +257,44 @@ export default function PedometerDebug() {
           className="tactical-card p-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.2 }}
         >
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Play className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold">Tracking Test</h2>
+              <h2 className="font-semibold">Sensor Test</h2>
             </div>
+            <div className={state.isTracking ? 'text-green-500 text-sm font-medium' : 'text-muted-foreground text-sm'}>
+              {state.isTracking ? '● Active' : '○ Inactive'}
+            </div>
+          </div>
+          
+          <div className="flex gap-2 mb-4">
+            <Button 
+              size="sm" 
+              variant="default" 
+              onClick={startTracking}
+              disabled={state.isTracking || state.isStarting}
+              className="flex-1"
+            >
+              <Play className="h-3 w-3 mr-1" />
+              {state.isStarting ? 'Starting...' : 'Start Sensor'}
+            </Button>
             <Button 
               size="sm" 
               variant="outline" 
               onClick={stopTracking}
-              disabled={!state.isTracking || state.isStarting}
+              disabled={!state.isTracking}
+              className="flex-1"
             >
               <Square className="h-3 w-3 mr-1" />
               Stop
             </Button>
           </div>
-          <div className="flex gap-2 mt-3">
-            <Button 
-              size="sm" 
-              variant="default" 
-              onClick={forceStartTracking}
-              disabled={state.isTracking || state.isStarting}
-              className="flex-1"
-            >
-              <Play className="h-3 w-3 mr-1" />
-              {state.isStarting ? 'Starting...' : 'Force Start'}
-            </Button>
-            <Button 
-              size="sm" 
-              variant="secondary" 
-              onClick={requestAndStart}
-              disabled={state.isTracking || state.isStarting}
-              className="flex-1"
-            >
-              <Shield className="h-3 w-3 mr-1" />
-              Request + Start
-            </Button>
-          </div>
+
           <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="text-muted-foreground">Status:</div>
-            <div className={state.isTracking ? 'text-green-500' : 'text-muted-foreground'}>
-              {state.isTracking ? '● Tracking Active' : '○ Not Tracking'}
-            </div>
             <div className="text-muted-foreground">Last Steps:</div>
-            <div className="font-mono">
+            <div className="font-mono text-lg">
               {state.lastMeasurement ? state.lastMeasurement.steps : '-'}
             </div>
             <div className="text-muted-foreground">Last Distance:</div>
@@ -397,24 +309,24 @@ export default function PedometerDebug() {
           className="tactical-card p-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.3 }}
         >
           <div className="flex items-center gap-2 mb-3">
             <Settings className="h-4 w-4 text-primary" />
             <h2 className="font-semibold">Quick Actions</h2>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={runFullTest}>
-              <RefreshCw className="h-3 w-3 mr-1" />
-              Run Full Test
-            </Button>
             <Button size="sm" variant="outline" onClick={openAppSettings}>
               <Settings className="h-3 w-3 mr-1" />
-              Open App Settings
+              App Settings
+            </Button>
+            <Button size="sm" variant="outline" onClick={copyLogs}>
+              <Copy className="h-3 w-3 mr-1" />
+              Copy Logs
             </Button>
             <Button size="sm" variant="ghost" onClick={clearLogs}>
               <Trash2 className="h-3 w-3 mr-1" />
-              Clear Logs
+              Clear
             </Button>
           </div>
         </motion.div>
@@ -424,14 +336,14 @@ export default function PedometerDebug() {
           className="tactical-card p-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.4 }}
         >
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold">Live Logs ({state.logs.length})</h2>
+            <h2 className="font-semibold">Logs ({state.logs.length})</h2>
           </div>
           <div className="bg-background/50 rounded-lg p-3 max-h-64 overflow-y-auto font-mono text-xs space-y-1">
             {state.logs.length === 0 ? (
-              <div className="text-muted-foreground">No logs yet. Run a test to see output.</div>
+              <div className="text-muted-foreground">Loading diagnostics...</div>
             ) : (
               state.logs.map((log, index) => (
                 <div key={index} className={getLogColor(log.type)}>
