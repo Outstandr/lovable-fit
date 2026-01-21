@@ -1,29 +1,36 @@
 import { Capacitor } from '@capacitor/core';
+import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
 
-// Dynamic import to avoid issues on web
-let Backgroundstep: any = null;
+// Dynamic import for foreground service (Android only)
+let ForegroundService: any = null;
 
 export interface BackgroundStepResult {
   success: boolean;
   error?: string;
 }
 
+export interface StepData {
+  steps: number;
+  distance: number;
+}
+
+const ACTIVITY_RECOGNITION_PERMISSION = 'android.permission.ACTIVITY_RECOGNITION';
+
 /**
  * Background Step Service
  * 
- * Wraps the capacitor-background-step plugin which provides TRUE background
- * step tracking via an Android foreground service. Steps are counted even
- * when the app is closed or the device is locked.
+ * Combines @capawesome-team/capacitor-android-foreground-service (for background persistence)
+ * with @capgo/capacitor-pedometer (for step counting).
  * 
- * Key differences from foreground-only pedometer:
- * - Runs a persistent foreground service (requires notification permission)
- * - Counts steps 24/7, not just when app is open
- * - Auto-restarts on device boot
- * - Stores step data locally for historical queries
+ * The foreground service keeps the app process alive in the background,
+ * allowing the pedometer to continue counting steps.
  */
 class BackgroundStepService {
   private initialized = false;
   private serviceRunning = false;
+  private stepCallback: ((data: StepData) => void) | null = null;
+  private listener: { remove: () => void } | null = null;
+  private lastSteps = 0;
 
   /**
    * Check if running on native platform
@@ -40,66 +47,179 @@ class BackgroundStepService {
   }
 
   /**
-   * Initialize the plugin (lazy load to avoid web issues)
+   * Initialize the foreground service plugin (lazy load)
    */
   async initialize(): Promise<boolean> {
     if (!this.isNative()) {
       console.log('[BackgroundStep] Not on native platform');
       return false;
     }
-    
+
     if (this.initialized) {
       return true;
     }
 
     try {
-      const module = await import('capacitor-background-step');
-      Backgroundstep = module.Backgroundstep;
+      // Only load on Android
+      if (Capacitor.getPlatform() === 'android') {
+        const module = await import('@capawesome-team/capacitor-android-foreground-service');
+        ForegroundService = module.ForegroundService;
+        console.log('[BackgroundStep] Foreground service plugin loaded');
+      }
       this.initialized = true;
-      console.log('[BackgroundStep] Plugin initialized');
       return true;
     } catch (e) {
-      console.error('[BackgroundStep] Failed to load plugin:', e);
+      console.error('[BackgroundStep] Failed to load foreground service:', e);
+      // Still allow initialization - pedometer can work without foreground service
+      this.initialized = true;
+      return true;
+    }
+  }
+
+  /**
+   * Request activity permission using Cordova delegate (avoids NPE in pedometer plugin)
+   */
+  private async requestActivityPermission(): Promise<boolean> {
+    return new Promise((resolve) => {
+      if (!window.cordova?.plugins?.permissions) {
+        console.log('[BackgroundStep] Cordova permissions plugin not available');
+        resolve(false);
+        return;
+      }
+
+      console.log('[BackgroundStep] 🎯 Requesting permission via Cordova...');
+      const permissions = window.cordova.plugins.permissions;
+      permissions.requestPermission(
+        ACTIVITY_RECOGNITION_PERMISSION,
+        (status: { hasPermission: boolean }) => {
+          console.log('[BackgroundStep] Permission result:', status.hasPermission);
+          resolve(status.hasPermission);
+        },
+        (err: any) => {
+          console.error('[BackgroundStep] Permission request error:', err);
+          resolve(false);
+        }
+      );
+    });
+  }
+
+  /**
+   * Start the foreground service (shows persistent notification)
+   */
+  private async startForegroundService(): Promise<boolean> {
+    if (!ForegroundService) {
+      console.log('[BackgroundStep] Foreground service not available');
+      return false;
+    }
+
+    try {
+      // Create notification channel first
+      await ForegroundService.createNotificationChannel({
+        id: 'step-tracking',
+        name: 'Step Tracking',
+        description: 'Tracks your steps in the background',
+        importance: 3 // Default importance
+      });
+
+      // Start the foreground service with a persistent notification
+      await ForegroundService.startForegroundService({
+        id: 1001,
+        title: 'Step Tracking Active',
+        body: `${this.lastSteps.toLocaleString()} steps today`,
+        smallIcon: 'ic_stat_directions_walk',
+        notificationChannelId: 'step-tracking',
+        silent: true
+      });
+
+      console.log('[BackgroundStep] ✅ Foreground service started');
+      return true;
+    } catch (e) {
+      console.error('[BackgroundStep] Failed to start foreground service:', e);
       return false;
     }
   }
 
   /**
-   * Request activity permission and start the background service.
-   * This shows the native permission dialog and then starts the
-   * foreground service which displays a persistent notification.
+   * Update the foreground notification with current step count
    */
-  async requestPermissionAndStart(): Promise<BackgroundStepResult> {
+  async updateNotification(steps: number): Promise<void> {
+    if (!ForegroundService || !this.serviceRunning) return;
+
+    try {
+      await ForegroundService.updateForegroundService({
+        id: 1001,
+        title: 'Step Tracking Active',
+        body: `${steps.toLocaleString()} steps today`,
+        smallIcon: 'ic_stat_directions_walk'
+      });
+    } catch (e) {
+      // Ignore update errors
+    }
+  }
+
+  /**
+   * Request permission and start background step tracking.
+   * This starts both the foreground service (for background persistence)
+   * and the pedometer (for step counting).
+   */
+  async requestPermissionAndStart(callback?: (data: StepData) => void): Promise<BackgroundStepResult> {
     if (!this.isNative()) {
       return { success: false, error: 'Not on native platform' };
     }
 
-    const initResult = await this.initialize();
-    if (!initResult || !Backgroundstep) {
-      return { success: false, error: 'Plugin not available' };
+    await this.initialize();
+
+    if (callback) {
+      this.stepCallback = callback;
+    }
+
+    // Already running? Just update callback
+    if (this.serviceRunning) {
+      console.log('[BackgroundStep] Already running - updated callback');
+      return { success: true };
     }
 
     try {
-      console.log('[BackgroundStep] Requesting permission...');
+      // Step 1: Request activity recognition permission
+      console.log('[BackgroundStep] Requesting activity permission...');
+      const hasPermission = await this.requestActivityPermission();
       
-      // This shows the native permission dialog for ACTIVITY_RECOGNITION
-      const permResult = await Backgroundstep.checkAndRequestPermission();
-      console.log('[BackgroundStep] Permission result:', permResult);
-      
-      if (!permResult.granted) {
-        return { 
-          success: false, 
-          error: 'Activity recognition permission denied. Please enable in Settings > Apps > HotStepper > Permissions.' 
+      if (!hasPermission) {
+        return {
+          success: false,
+          error: 'Activity recognition permission denied. Please enable in Settings > Apps > HotStepper > Permissions.'
         };
       }
 
-      // Start the background service (shows persistent notification)
-      console.log('[BackgroundStep] Starting background service...');
-      await Backgroundstep.serviceStart();
+      // Step 2: Start the foreground service (keeps app alive in background)
+      if (Capacitor.getPlatform() === 'android') {
+        await this.startForegroundService();
+      }
+
+      // Step 3: Start the pedometer listener
+      console.log('[BackgroundStep] Starting pedometer...');
+      this.listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
+        const steps = data.numberOfSteps || 0;
+        const distance = data.distance || 0;
+        
+        console.log('[BackgroundStep] 📊 Steps:', steps);
+        this.lastSteps = steps;
+
+        // Update notification with step count
+        this.updateNotification(steps);
+
+        if (this.stepCallback) {
+          this.stepCallback({ steps, distance });
+        }
+      });
+
+      // Step 4: Start measurement updates
+      await CapacitorPedometer.startMeasurementUpdates();
+
       this.serviceRunning = true;
-      
-      console.log('[BackgroundStep] ✅ Background service started successfully!');
+      console.log('[BackgroundStep] ✅ Background step tracking started!');
       return { success: true };
+
     } catch (e: any) {
       const errorMsg = e?.message || String(e);
       console.error('[BackgroundStep] Failed to start:', errorMsg);
@@ -108,58 +228,40 @@ class BackgroundStepService {
   }
 
   /**
-   * Get today's total step count from the background service
+   * Subscribe to step updates (if tracking is already running)
    */
-  async getTodaySteps(): Promise<number> {
-    if (!this.initialized || !Backgroundstep) {
-      return 0;
-    }
-
-    try {
-      const result = await Backgroundstep.getToday();
-      const steps = result?.stepCount ?? result?.steps ?? 0;
-      console.log('[BackgroundStep] Today steps:', steps);
-      return steps;
-    } catch (e) {
-      console.error('[BackgroundStep] Failed to get today steps:', e);
-      return 0;
-    }
+  subscribeToUpdates(callback: (data: StepData) => void): void {
+    this.stepCallback = callback;
+    console.log('[BackgroundStep] Subscribed to updates');
   }
 
   /**
-   * Get step count for a specific date range
-   * @param startDate - Start date in ISO format (YYYY-MM-DD)
-   * @param endDate - End date in ISO format (YYYY-MM-DD)
+   * Get the current step count (last known value)
    */
-  async getStepsForDateRange(startDate: string, endDate: string): Promise<number> {
-    if (!this.initialized || !Backgroundstep) {
-      return 0;
-    }
-
-    try {
-      const result = await Backgroundstep.getStepData({
-        sDateTime: startDate,
-        eDateTime: endDate
-      });
-      return result?.stepCount ?? result?.steps ?? 0;
-    } catch (e) {
-      console.error('[BackgroundStep] Failed to get step range:', e);
-      return 0;
-    }
+  getLastSteps(): number {
+    return this.lastSteps;
   }
 
   /**
-   * Stop the background step tracking service
+   * Stop background step tracking
    */
   async stop(): Promise<void> {
-    if (!this.initialized || !Backgroundstep) {
-      return;
-    }
-
     try {
-      await Backgroundstep.serviceStop();
+      // Stop pedometer
+      if (this.listener) {
+        this.listener.remove();
+        this.listener = null;
+      }
+      await CapacitorPedometer.stopMeasurementUpdates();
+
+      // Stop foreground service
+      if (ForegroundService) {
+        await ForegroundService.stopForegroundService();
+      }
+
       this.serviceRunning = false;
-      console.log('[BackgroundStep] Service stopped');
+      this.stepCallback = null;
+      console.log('[BackgroundStep] Stopped');
     } catch (e) {
       console.error('[BackgroundStep] Stop error:', e);
     }

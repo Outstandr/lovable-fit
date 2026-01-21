@@ -1,57 +1,53 @@
 # Background Step Tracking Setup
 
-This guide explains how to set up the `capacitor-background-step` plugin for true background step tracking on Android.
+This guide explains how to set up background step tracking on Android using a foreground service combined with the pedometer.
 
 ## Overview
 
-The app uses `capacitor-background-step` which provides:
-- **True background tracking**: Steps counted even when app is closed
-- **Persistent foreground service**: Runs 24/7 with a notification
-- **Boot auto-start**: Service restarts automatically after device reboot
-- **Historical queries**: Fetch step data for any date range
+The app uses a hybrid approach for background step tracking:
+1. **`@capawesome-team/capacitor-android-foreground-service`** - Keeps the app process alive in background
+2. **`@capgo/capacitor-pedometer`** - Counts steps using TYPE_STEP_COUNTER sensor
+
+This combination allows step counting to continue when the app is minimized.
 
 ## Android Manifest Configuration
 
 After running `npx cap sync android`, you need to manually add these configurations to `android/app/src/main/AndroidManifest.xml`:
 
-### 1. Add Permissions (inside `<manifest>` tag)
+### 1. Add Permissions (inside `<manifest>` tag, before `<application>`)
 
 ```xml
+<!-- Internet access -->
+<uses-permission android:name="android.permission.INTERNET" />
+
 <!-- Notification permission for foreground service (Android 13+) -->
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-<!-- Activity recognition permission -->
+<!-- Activity recognition permission for step counting -->
 <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
 <!-- Foreground service permissions -->
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
-<!-- Auto-restart on boot -->
-<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+<!-- Keep CPU running while tracking -->
+<uses-permission android:name="android.permission.WAKE_LOCK" />
+
+<!-- Location permissions (for GPS tracking) -->
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 ```
 
-### 2. Add Service and Receiver (inside `<application>` tag)
+### 2. Add Foreground Service (inside `<application>` tag)
 
 ```xml
-<!-- Background Step Counter Service -->
-<service
-  android:name="com.naeiut.plugins.backgroundstep.StepCountBackgroundService"
-  android:enabled="true"
-  android:exported="true"
-  android:foregroundServiceType="dataSync" />
+<!-- Notification action receiver for foreground service -->
+<receiver android:name="io.capawesome.capacitorjs.plugins.foregroundservice.NotificationActionBroadcastReceiver" />
 
-<!-- Restart Service on Boot -->
-<receiver
-  android:name="com.naeiut.plugins.backgroundstep.RestartService"
-  android:enabled="true"
-  android:exported="false"
-  android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
-  <intent-filter>
-    <action android:name="RestartService" />
-    <action android:name="android.intent.action.BOOT_COMPLETED" />
-  </intent-filter>
-</receiver>
+<!-- Foreground service for background step tracking -->
+<service 
+  android:name="io.capawesome.capacitorjs.plugins.foregroundservice.AndroidForegroundService" 
+  android:foregroundServiceType="dataSync" />
 ```
 
 ## Complete AndroidManifest.xml Example
@@ -66,9 +62,7 @@ After running `npx cap sync android`, you need to manually add these configurati
   <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-  
-  <!-- Location permissions (if also using GPS) -->
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
@@ -103,42 +97,43 @@ After running `npx cap sync android`, you need to manually add these configurati
         android:resource="@xml/file_paths" />
     </provider>
 
-    <!-- Background Step Counter Service -->
-    <service
-      android:name="com.naeiut.plugins.backgroundstep.StepCountBackgroundService"
-      android:enabled="true"
-      android:exported="true"
+    <!-- Foreground Service Components -->
+    <receiver android:name="io.capawesome.capacitorjs.plugins.foregroundservice.NotificationActionBroadcastReceiver" />
+    <service 
+      android:name="io.capawesome.capacitorjs.plugins.foregroundservice.AndroidForegroundService" 
       android:foregroundServiceType="dataSync" />
-
-    <!-- Restart Service on Boot -->
-    <receiver
-      android:name="com.naeiut.plugins.backgroundstep.RestartService"
-      android:enabled="true"
-      android:exported="false"
-      android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
-      <intent-filter>
-        <action android:name="RestartService" />
-        <action android:name="android.intent.action.BOOT_COMPLETED" />
-      </intent-filter>
-    </receiver>
 
   </application>
 </manifest>
 ```
+
+## Notification Icon
+
+The foreground service shows a persistent notification. For a custom icon:
+
+1. Create a drawable resource named `ic_stat_directions_walk.xml` in `android/app/src/main/res/drawable/`
+2. Or use the default Capacitor icons
 
 ## Build Steps
 
 After editing the manifest:
 
 ```bash
-# 1. Sync native project
+# 1. Pull latest code
+git pull
+
+# 2. Install dependencies
+npm install
+
+# 3. Sync native project
 npx cap sync android
 
-# 2. In Android Studio:
+# 4. In Android Studio:
+#    - Edit AndroidManifest.xml with the above configurations
 #    - Build > Clean Project
 #    - Build > Rebuild Project
 
-# 3. IMPORTANT: Uninstall old APK completely before installing new build
+# 5. IMPORTANT: Uninstall old APK completely before installing new build
 #    (Android caches permissions)
 ```
 
@@ -151,29 +146,41 @@ npx cap sync android
                         │
                         ▼
 ┌─────────────────────────────────────────────────────┐
-│     StepCountBackgroundService                      │
-│     (Android Foreground Service)                    │
+│     AndroidForegroundService                        │
+│     (Keeps app process alive)                       │
 │                                                     │
-│  • Uses TYPE_STEP_COUNTER hardware sensor           │
-│  • Runs 24/7 even when app is closed                │
-│  • Shows persistent notification (required)         │
-│  • Auto-restarts on boot                            │
-│  • Stores steps locally                             │
+│  • Shows persistent notification                    │
+│  • Prevents Android from killing the app            │
+│  • Allows background processing                     │
 └─────────────────────────────────────────────────────┘
                         │
                         ▼
 ┌─────────────────────────────────────────────────────┐
-│     App Opens (foreground)                          │
+│     CapacitorPedometer                              │
+│     (Step counting)                                 │
 │                                                     │
-│  • backgroundStepService.getTodaySteps()            │
-│  • Polls every 5 seconds                            │
+│  • Uses TYPE_STEP_COUNTER hardware sensor           │
+│  • Receives step updates via listener               │
+│  • Calculates distance and calories                 │
+└─────────────────────────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────┐
+│     usePedometer Hook                               │
+│                                                     │
+│  • Updates UI with live step count                  │
 │  • Syncs to database every 50 steps                 │
+│  • Handles app resume/background transitions        │
 └─────────────────────────────────────────────────────┘
 ```
 
 ## Persistent Notification
 
 The background service shows a persistent notification (required by Android for foreground services). This cannot be hidden as it's an Android system requirement for apps that run in the background.
+
+The notification displays:
+- "Step Tracking Active"
+- Current step count for today
 
 Users can customize the notification channel in their device settings if they want to minimize its visibility.
 
@@ -183,14 +190,25 @@ Users can customize the notification channel in their device settings if they wa
 1. Ensure all manifest permissions are added
 2. Check that notification permission is granted
 3. Disable battery optimization for the app
-4. Verify the service is declared correctly
+4. Verify the foreground service is declared correctly
 
-### Service not restarting after reboot
-1. Ensure `RECEIVE_BOOT_COMPLETED` permission is added
-2. Check the broadcast receiver is declared
-3. Some devices have aggressive battery management - add app to "protected" list
+### Foreground service not starting
+1. Check POST_NOTIFICATIONS permission is granted (Android 13+)
+2. Ensure FOREGROUND_SERVICE permission is in manifest
+3. Verify service declaration in manifest
 
 ### Permission denied errors
 1. Uninstall and reinstall the app (clears permission cache)
 2. Grant Physical Activity permission in device settings
 3. Grant Notification permission for the foreground service
+
+### App killed in background
+1. Disable battery optimization: Settings > Apps > HotStepper > Battery > Unrestricted
+2. Lock app in recents (varies by device manufacturer)
+3. Some devices have aggressive battery management - add app to "protected" list
+
+## Limitations
+
+- **Battery impact**: Foreground services consume more battery than background services
+- **Notification required**: Android requires a visible notification for foreground services
+- **Manufacturer restrictions**: Some devices (Xiaomi, Huawei, etc.) have aggressive battery optimization that may still kill the app
