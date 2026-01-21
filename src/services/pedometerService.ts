@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
-import '@/types/cordova-permissions';
+/// <reference path="../types/cordova-permissions.d.ts" />
 
 export interface PedometerData {
   steps: number;
