@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
 import { OnboardingPrompt } from "@/components/OnboardingPrompt";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
 import { StandardHeader } from "@/components/StandardHeader";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { DayView } from "@/components/dashboard/DayView";
@@ -348,8 +349,8 @@ const Dashboard = () => {
         background: 'radial-gradient(circle at top center, hsl(186, 100%, 50%, 0.05), transparent 60%)'
       }} />
 
-      <PullToRefresh onRefresh={handleRefresh} className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div className="flex-1 min-h-0 overflow-y-auto pb-48">
+      <PullToRefresh onRefresh={handleRefresh} className="flex-1 flex flex-col overflow-hidden">
+        <RubberBandScroll className="flex-1 overflow-y-auto" contentClassName="pb-48">
           <div className="px-4 pb-2 relative z-content">
             {/* Tabs Row */}
             <div className="flex justify-center mt-3 mb-2">
@@ -407,7 +408,7 @@ const Dashboard = () => {
               />
             )}
           </main>
-        </div>
+        </RubberBandScroll>
       </PullToRefresh>
 
       {/* Action Button */}

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Settings, Ruler, Info, RefreshCw, RotateCcw, LogOut, ChevronRight, Heart, CheckCircle2, XCircle } from "lucide-react";
 import { StandardHeader } from "@/components/StandardHeader";
+import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -132,7 +133,7 @@ const AppSettings = () => {
         backTo="/profile"
       />
 
-      <div className="flex-1 min-h-0 pt-20 overflow-y-auto p-4 space-y-4 pb-32">
+      <RubberBandScroll className="flex-1 pt-20" contentClassName="p-4 space-y-4 pb-32">
         {/* Unit Preference */}
         <motion.div
           className="tactical-card p-4"
@@ -355,7 +356,7 @@ const AppSettings = () => {
             © 2025 Outstandr. All rights reserved.
           </p>
         </motion.div>
-      </div>
+      </RubberBandScroll>
     </div>
   );
 };
