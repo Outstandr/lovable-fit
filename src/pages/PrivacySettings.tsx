@@ -164,7 +164,7 @@ const PrivacySettings = () => {
         backTo="/profile"
       />
 
-      <div className="flex-1 pt-20 overflow-y-auto p-4 space-y-4 pb-32">
+      <div className="flex-1 min-h-0 pt-20 overflow-y-auto p-4 space-y-4 pb-32">
         {/* Medical Disclaimer */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
