@@ -12,9 +12,9 @@ const config: CapacitorConfig = {
   
   ios: {
     scheme: 'App',
-    contentInset: 'automatic',
-    allowsLinkPreview: true,
-    scrollEnabled: true,
+    contentInset: 'always',
+    allowsLinkPreview: false,
+    scrollEnabled: false,
   },
   
   plugins: {
