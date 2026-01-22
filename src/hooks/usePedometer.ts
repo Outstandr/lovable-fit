@@ -274,35 +274,60 @@ export function usePedometer() {
     return () => clearInterval(intervalId);
   }, [state.isTracking, user, syncToDatabase]);
 
-  // Background Resume Sync - sync when app comes to foreground
-  // On iOS, also sync from HealthKit to capture steps taken while app was in background
+  // App State Change Listener - sync on background AND resume
+  // CRITICAL: Sync when app goes to background to prevent data loss
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
     let appStateListener: { remove: () => void } | null = null;
     const platform = Capacitor.getPlatform();
+    const stepsRef = { current: state.steps }; // Capture current steps for background sync
 
     const setupListener = async () => {
       appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
-        if (isActive && user) {
+        if (!user) return;
+
+        if (!isActive) {
+          // App going to BACKGROUND - sync immediately to prevent data loss
+          console.log('[usePedometer] App going to background - syncing steps:', stepsRef.current);
+          
+          if (stepsRef.current > 0) {
+            const today = new Date().toISOString().split('T')[0];
+            try {
+              await supabase
+                .from('daily_steps')
+                .upsert({
+                  user_id: user.id,
+                  date: today,
+                  steps: stepsRef.current,
+                  distance_km: state.distance,
+                  calories: state.calories,
+                  updated_at: new Date().toISOString()
+                }, { onConflict: 'user_id,date' });
+              console.log('[usePedometer] ✅ Background sync successful:', stepsRef.current);
+              lastSyncSteps.current = stepsRef.current;
+            } catch (e) {
+              console.error('[usePedometer] Background sync error:', e);
+              // Queue for offline sync
+              queueStepData(today, stepsRef.current, state.distance, state.calories);
+            }
+          }
+        } else {
+          // App RESUMED - sync from health source and update
           console.log('[usePedometer] App resumed - syncing');
           
           // Reset baseline to capture background steps
           sensorBaseline.current = null;
           
           // On iOS, sync from HealthKit to capture background steps
-          // iOS doesn't have foreground services, so HealthKit is the source of truth
           if (platform === 'ios') {
             try {
               console.log('[usePedometer] iOS: Syncing from HealthKit...');
               const healthData = await healthService.readTodayData();
               if (healthData && healthData.steps > 0) {
-                // Use HealthKit steps as the base if higher than current
                 if (healthData.steps > baseSteps.current) {
                   console.log('[usePedometer] iOS: HealthKit has more steps:', healthData.steps, 'vs', baseSteps.current);
                   baseSteps.current = healthData.steps;
-                  
-                  // Reset sensor baseline since we're using HealthKit data
                   sensorBaseline.current = 0;
                   
                   setState(prev => ({
@@ -325,6 +350,9 @@ export function usePedometer() {
       });
     };
 
+    // Update the stepsRef whenever steps change so background sync uses latest value
+    stepsRef.current = state.steps;
+
     setupListener();
 
     return () => {
@@ -332,7 +360,7 @@ export function usePedometer() {
         appStateListener.remove();
       }
     };
-  }, [user, syncToDatabase]);
+  }, [user, state.steps, state.distance, state.calories, syncToDatabase, queueStepData]);
 
   // Manual Actions
   const requestPermission = useCallback(async (): Promise<boolean> => {

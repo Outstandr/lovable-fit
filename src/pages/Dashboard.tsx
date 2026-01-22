@@ -9,7 +9,7 @@ import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { DayView } from "@/components/dashboard/DayView";
 import { WeekView } from "@/components/dashboard/WeekView";
 import { MonthView } from "@/components/dashboard/MonthView";
-import { OfflineBanner } from "@/components/OfflineBanner";
+
 import { useSteps } from "@/contexts/StepContext";
 import { useStreak } from "@/hooks/useStreak";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
@@ -317,8 +317,6 @@ const Dashboard = () => {
 
   return (
     <div className="h-[100dvh] flex flex-col page-with-both-fixed relative">
-      {/* Offline Banner */}
-      <OfflineBanner />
 
       {/* Fixed Header - Outside scroll container */}
       <StandardHeader
