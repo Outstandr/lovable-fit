@@ -358,6 +358,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_access_code: {
+        Args: { code_input: string }
+        Returns: {
+          id: string
+          is_valid: boolean
+        }[]
+      }
       get_monthly_leaderboard: {
         Args: never
         Returns: {
