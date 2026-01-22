@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Shield, Eye, Download, Trash2, Loader2, ExternalLink, FileText } from "lucide-react";
+import { Shield, Eye, Download, Trash2, Loader2, ExternalLink, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,6 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { Browser } from '@capacitor/browser';
+import { StandardHeader } from "@/components/StandardHeader";
+import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
 
 import {
   AlertDialog,
@@ -155,25 +157,14 @@ const PrivacySettings = () => {
   };
 
   return (
-    <div className="min-h-screen-safe bg-background safe-area-pb">
-      {/* Header */}
-      <motion.header
-        className="flex items-center gap-4 p-4 border-b border-border header-safe"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <button
-          onClick={() => navigate("/profile")}
-          className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-smooth"
-        >
-          <ArrowLeft className="h-5 w-5 text-foreground" />
-        </button>
-        <h1 className="text-lg font-bold uppercase tracking-wider text-foreground">
-          Privacy & Security
-        </h1>
-      </motion.header>
+    <div className="min-h-screen bg-background flex flex-col">
+      <StandardHeader
+        title="Privacy & Security"
+        showBack={true}
+        backTo="/profile"
+      />
 
-      <div className="p-4 space-y-4">
+      <RubberBandScroll className="flex-1 pt-20" contentClassName="p-4 space-y-4 pb-32">
         {/* Medical Disclaimer */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -375,7 +366,7 @@ const PrivacySettings = () => {
             </div>
           </div>
         </motion.div>
-      </div>
+      </RubberBandScroll>
     </div>
   );
 };
