@@ -2,7 +2,6 @@ import { motion } from "framer-motion";
 import { User, Settings, Bell, Shield, LogOut, ChevronRight, Zap, Target, Calendar, Heart, TrendingUp, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
-import { OfflineBanner } from "@/components/OfflineBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -139,8 +138,6 @@ const Profile = () => {
 
   return (
     <div className="h-screen flex flex-col page-with-bottom-nav relative overflow-hidden">
-      {/* Offline Banner */}
-      <OfflineBanner />
 
       {/* Background gradient */}
       <div className="absolute inset-0 pointer-events-none">
