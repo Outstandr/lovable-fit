@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Footprints } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
-import { backgroundStepService } from '@/services/backgroundStepService';
+import { stepTrackingService } from '@/services/stepTrackingService';
 
 interface ActivityPermissionStepProps {
   onNext: () => void;
@@ -11,21 +11,21 @@ interface ActivityPermissionStepProps {
 
 export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) {
   const [isRequesting, setIsRequesting] = useState(false);
+  const platform = Capacitor.getPlatform();
 
   const handleContinue = async () => {
     setIsRequesting(true);
 
     if (Capacitor.isNativePlatform()) {
-      console.log('[Onboarding] Starting background step tracking...');
+      console.log('[Onboarding] Starting step tracking...');
       
-      // Wait for permission request and service start
-      // This ensures the native dialog appears before we navigate
-      const result = await backgroundStepService.requestPermissionAndStart((data) => {
+      // Use platform-aware step tracking service
+      const result = await stepTrackingService.requestPermissionAndStart((data) => {
         console.log('[Onboarding] Step update:', data.steps, 'steps');
       });
       
       if (result.success) {
-        console.log('[Onboarding] ✅ Background step tracking started!');
+        console.log('[Onboarding] ✅ Step tracking started!');
       } else {
         console.log('[Onboarding] ⚠️ Tracking failed:', result.error);
         // User can still continue - they can grant permission later in settings
@@ -35,6 +35,9 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
     setIsRequesting(false);
     onNext();
   };
+
+  // Platform-specific messaging
+  const permissionName = platform === 'ios' ? 'Motion & Fitness' : 'Physical Activity';
 
   return (
     <div className="absolute inset-0 flex flex-col bg-background safe-area-y">
@@ -98,7 +101,7 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
           className="mt-6 p-4 rounded-xl bg-muted/50 border border-border w-full max-w-xs"
         >
           <p className="text-xs text-muted-foreground leading-relaxed text-center">
-            When prompted, please <span className="font-medium text-foreground">Allow</span> access to Physical Activity to enable step tracking.
+            When prompted, please <span className="font-medium text-foreground">Allow</span> access to {permissionName} to enable step tracking.
           </p>
         </motion.div>
       </div>

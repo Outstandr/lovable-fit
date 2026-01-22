@@ -52,7 +52,14 @@ npx cap add ios
 
 Open `ios/App/App/Info.plist` in Xcode and add the following entries:
 
-#### HealthKit Permissions (REQUIRED)
+#### Motion & Fitness Permissions (REQUIRED for Step Tracking)
+
+```xml
+<key>NSMotionUsageDescription</key>
+<string>Hotstepper uses motion sensors to count your steps and track your activity progress in real-time.</string>
+```
+
+#### HealthKit Permissions (REQUIRED for background step sync)
 
 ```xml
 <key>NSHealthShareUsageDescription</key>
@@ -169,6 +176,11 @@ Before submitting to the App Store, verify:
 - [ ] Dashboard shows step count
 - [ ] Navigation between tabs works
 
+### Motion & Fitness (Step Tracking)
+- [ ] Motion & Fitness permission prompt appears on first step tracking
+- [ ] Steps update in real-time while app is open
+- [ ] Steps sync from HealthKit when app resumes from background
+
 ### HealthKit Integration
 - [ ] HealthKit permission prompt appears on first launch
 - [ ] Steps sync from Apple Health
@@ -202,9 +214,18 @@ Before submitting to the App Store, verify:
 
 ## Troubleshooting
 
+### Step Tracking Not Working (Motion & Fitness)
+
+**Problem**: Steps not updating in real-time
+**Solutions**:
+1. Check Info.plist has `NSMotionUsageDescription`
+2. Verify Motion & Fitness is enabled in Settings → Privacy & Security → Motion & Fitness → Hotstepper
+3. Walk a few steps with the app open to verify sensor is working
+4. If steps were taken while app was closed, they will sync from HealthKit when app resumes
+
 ### HealthKit Not Working
 
-**Problem**: No step data appearing
+**Problem**: No step data appearing after background period
 **Solutions**:
 1. Ensure HealthKit is enabled in **Signing & Capabilities**
 2. Check Info.plist has both `NSHealthShareUsageDescription` and `NSHealthUpdateUsageDescription`
