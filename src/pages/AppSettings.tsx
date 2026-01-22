@@ -133,7 +133,7 @@ const AppSettings = () => {
         backTo="/profile"
       />
 
-      <RubberBandScroll className="flex-1 pt-20" contentClassName="p-4 space-y-4 pb-32">
+      <RubberBandScroll className="flex-1 pt-20" contentClassName="p-4 space-y-4 pb-56">
         {/* Unit Preference */}
         <motion.div
           className="tactical-card p-4"
