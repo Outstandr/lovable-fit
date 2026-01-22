@@ -83,19 +83,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signUp = async (email: string, password: string, displayName: string, accessCode: string): Promise<{ error: string | null }> => {
     try {
-      // Validate access code
+      // Validate access code using secure function (no direct table access)
       const { data: codeData, error: codeError } = await supabase
-        .from("access_codes")
-        .select("*")
-        .eq("code", accessCode.toUpperCase().trim())
-        .eq("is_used", false)
-        .maybeSingle();
+        .rpc("check_access_code", { code_input: accessCode.toUpperCase().trim() });
 
       if (codeError) {
+        console.error("[Auth] Access code validation error:", codeError);
         return { error: "Error validating access code" };
       }
 
-      if (!codeData) {
+      // codeData is an array from the function
+      const codeResult = codeData?.[0];
+      if (!codeResult || !codeResult.is_valid) {
         return { error: "Invalid or already used access code" };
       }
 
@@ -120,15 +119,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (data.user) {
-        // Mark access code as used
-        await supabase
+        // Mark access code as used (RLS policy enforces proper claim)
+        const { error: updateError } = await supabase
           .from("access_codes")
           .update({
             is_used: true,
             used_by: data.user.id,
             used_at: new Date().toISOString()
           })
-          .eq("id", codeData.id);
+          .eq("id", codeResult.id);
+        
+        if (updateError) {
+          console.error("[Auth] Error marking access code as used:", updateError);
+          // Don't fail signup if code update fails - user is already created
+        }
       }
 
       return { error: null };
