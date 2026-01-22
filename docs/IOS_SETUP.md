@@ -182,11 +182,12 @@ Before submitting to the App Store, verify:
 - [ ] Steps sync from HealthKit when app resumes from background
 
 ### HealthKit Integration
-- [ ] HealthKit permission prompt appears on first launch
-- [ ] Steps sync from Apple Health
+- [ ] HealthKit permission prompt appears during onboarding (after Activity step)
+- [ ] HealthKit step auto-skips on Android/web platforms
+- [ ] Steps sync from Apple Health when app resumes from background
 - [ ] Distance data reads correctly
 - [ ] Calories data reads correctly
-- [ ] Data updates periodically (every 30 seconds)
+- [ ] Data updates when app returns to foreground
 
 ### Location Services
 - [ ] Location permission prompt appears

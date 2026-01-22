@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { ActivityPermissionStep } from '@/components/onboarding/ActivityPermissionStep';
+import { HealthKitPermissionStep } from '@/components/onboarding/HealthKitPermissionStep';
 import { LocationPermissionStep } from '@/components/onboarding/LocationPermissionStep';
 import { BodyMeasurementsStep } from '@/components/onboarding/BodyMeasurementsStep';
 import { BatteryOptimizationStep } from '@/components/onboarding/BatteryOptimizationStep';
@@ -14,6 +15,7 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 
 export type OnboardingStep =
   | 'activity'
+  | 'healthkit'
   | 'location'
   | 'body'
   | 'battery'
@@ -95,7 +97,20 @@ const Onboarding = () => {
             transition={{ duration: 0.3 }}
             className="absolute inset-0"
           >
-            <ActivityPermissionStep onNext={() => handleNext('location')} />
+            <ActivityPermissionStep onNext={() => handleNext('healthkit')} />
+          </motion.div>
+        )}
+
+        {currentStep === 'healthkit' && (
+          <motion.div
+            key="healthkit"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+            className="absolute inset-0"
+          >
+            <HealthKitPermissionStep onNext={() => handleNext('location')} />
           </motion.div>
         )}
 
