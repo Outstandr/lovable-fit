@@ -116,15 +116,13 @@ We aim to respond within 48 hours.`
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <RubberBandScroll className="h-screen" contentClassName="pb-8">
+    <div className="min-h-screen bg-background flex flex-col">
+      <StandardHeader
+        title="Privacy Policy"
+        showBack={true}
+      />
 
-        {/* Standard Header */}
-        <StandardHeader
-          title="Privacy Policy"
-          showBack={true}
-        />
-
+      <RubberBandScroll className="flex-1 pt-24" contentClassName="pb-56">
         {/* Content */}
         <div className="px-4 py-6 space-y-6">
           <motion.p
