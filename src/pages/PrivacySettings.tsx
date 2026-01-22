@@ -164,7 +164,7 @@ const PrivacySettings = () => {
         backTo="/profile"
       />
 
-      <RubberBandScroll className="flex-1 pt-24" contentClassName="p-4 space-y-4 pb-56">
+      <RubberBandScroll className="flex-1 pt-24" contentClassName="p-4 space-y-4 pb-16">
         {/* Medical Disclaimer */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
