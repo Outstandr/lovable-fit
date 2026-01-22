@@ -63,9 +63,40 @@ class IosStepService {
     }
 
     try {
-      console.log('[IosStepService] Starting pedometer...');
+      // Step 1: Check if step counting is available on this device
+      console.log('[IosStepService] Checking availability...');
+      const availability = await CapacitorPedometer.isAvailable();
       
-      // Add step measurement listener
+      if (!availability.stepCounting) {
+        console.error('[IosStepService] Step counting not available on this device');
+        return { 
+          success: false, 
+          error: 'Step counting is not available on this device' 
+        };
+      }
+      console.log('[IosStepService] ✓ Step counting available');
+
+      // Step 2: Check current permission status
+      console.log('[IosStepService] Checking permissions...');
+      let permission = await CapacitorPedometer.checkPermissions();
+      
+      // Step 3: Request permission if not granted
+      if (permission.activityRecognition !== 'granted') {
+        console.log('[IosStepService] Requesting permissions...');
+        permission = await CapacitorPedometer.requestPermissions();
+        
+        if (permission.activityRecognition !== 'granted') {
+          console.log('[IosStepService] Permission denied:', permission.activityRecognition);
+          return { 
+            success: false, 
+            error: 'Motion & Fitness permission denied. Please enable in Settings > Privacy > Motion & Fitness.' 
+          };
+        }
+      }
+      console.log('[IosStepService] ✓ Permission granted');
+
+      // Step 4: Add measurement listener
+      console.log('[IosStepService] Starting pedometer...');
       this.listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
         const steps = data.numberOfSteps || 0;
         const distance = data.distance || 0;
@@ -78,7 +109,7 @@ class IosStepService {
         }
       });
 
-      // Start measurement updates - iOS will prompt for Motion permission here
+      // Step 5: Start measurement updates (now safe to call)
       await CapacitorPedometer.startMeasurementUpdates();
 
       this.serviceRunning = true;
@@ -89,11 +120,10 @@ class IosStepService {
       const errorMsg = e?.message || String(e);
       console.error('[IosStepService] Failed to start:', errorMsg);
       
-      // Check for permission denial
       if (errorMsg.includes('denied') || errorMsg.includes('restricted')) {
         return { 
           success: false, 
-          error: 'Motion & Fitness permission denied. Please enable in Settings > Privacy > Motion & Fitness.' 
+          error: 'Motion & Fitness permission denied. Enable in Settings > Privacy > Motion & Fitness.' 
         };
       }
       
