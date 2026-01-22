@@ -58,7 +58,15 @@ class HealthService {
     try {
       console.log(`${LOG_PREFIX} Checking availability...`);
       const result = await Health.isAvailable();
-      console.log(`${LOG_PREFIX} Availability:`, result);
+      console.log(`${LOG_PREFIX} Availability result:`, JSON.stringify(result));
+      
+      // Log specific reason if not available (helps debug Xcode configuration issues)
+      if (!result.available) {
+        console.warn(`${LOG_PREFIX} HealthKit NOT available. This usually means:`);
+        console.warn(`${LOG_PREFIX} - HealthKit capability not enabled in Xcode`);
+        console.warn(`${LOG_PREFIX} - NSHealthShareUsageDescription missing from Info.plist`);
+        console.warn(`${LOG_PREFIX} - Running on unsupported device/simulator`);
+      }
       
       this.state.isAvailable = result.available;
       this.state.lastChecked = Date.now();
@@ -66,6 +74,7 @@ class HealthService {
       return result.available;
     } catch (error) {
       console.error(`${LOG_PREFIX} checkAvailability error:`, error);
+      console.error(`${LOG_PREFIX} Full error details:`, JSON.stringify(error, Object.getOwnPropertyNames(error)));
       return false;
     }
   }
