@@ -157,14 +157,14 @@ const PrivacySettings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-[100dvh] bg-background flex flex-col">
       <StandardHeader
         title="Privacy & Security"
         showBack={true}
         backTo="/profile"
       />
 
-      <div className="flex-1 overflow-y-auto scrollbar-hide pt-24 p-4 space-y-4 pb-16">
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide pt-24 p-4 space-y-4 pb-16">
         {/* Medical Disclaimer */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

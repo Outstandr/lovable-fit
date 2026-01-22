@@ -83,9 +83,9 @@ export function HealthKitPermissionStep({ onNext }: HealthKitPermissionStepProps
   const showError = permissionState === 'denied' || permissionState === 'unavailable';
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col h-[100dvh] bg-background">
       {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto p-6 pt-12">
+      <div className="flex-1 min-h-0 overflow-y-auto p-6 pt-12">
         {/* Icon */}
         <motion.div
           initial={{ scale: 0 }}

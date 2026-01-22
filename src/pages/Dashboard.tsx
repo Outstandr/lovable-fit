@@ -316,7 +316,7 @@ const Dashboard = () => {
   const today = new Date();
 
   return (
-    <div className="min-h-screen flex flex-col page-with-both-fixed relative">
+    <div className="h-[100dvh] flex flex-col page-with-both-fixed relative">
       {/* Offline Banner */}
       <OfflineBanner />
 
@@ -339,7 +339,7 @@ const Dashboard = () => {
       }} />
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide pb-72">
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide pb-72">
         <div className="px-4 pb-2 relative z-content">
           {/* Tabs Row */}
           <div className="flex justify-center mt-3 mb-2">
