@@ -22,7 +22,8 @@ export const RubberBandScroll: React.FC<RubberBandScrollProps> = ({
   return (
     <div
       ref={containerRef}
-      className={cn('scroll-rubber-band flex-1', className)}
+      className={cn('scroll-rubber-band flex-1 overflow-y-scroll', className)}
+      style={{ WebkitOverflowScrolling: 'touch' }}
     >
       <div
         ref={contentRef}
