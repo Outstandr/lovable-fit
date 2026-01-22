@@ -1,11 +1,9 @@
 import { motion } from "framer-motion";
-import { User, Share2, Settings, Play, AlertCircle, RefreshCw, PersonStanding } from "lucide-react";
+import { Settings, Play } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
 import { OnboardingPrompt } from "@/components/OnboardingPrompt";
-import { PullToRefresh } from "@/components/PullToRefresh";
-import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
 import { StandardHeader } from "@/components/StandardHeader";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { DayView } from "@/components/dashboard/DayView";
@@ -16,12 +14,10 @@ import { useSteps } from "@/contexts/StepContext";
 import { useStreak } from "@/hooks/useStreak";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useLocalCache } from "@/hooks/useLocalCache";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-
 import { haptics } from '@/utils/haptics';
-import { SkeletonCard } from "@/components/ui/SkeletonCard";
 
 
 type TabType = "day" | "week" | "month";
@@ -314,13 +310,6 @@ const Dashboard = () => {
     checkOnboarding();
   }, [user]);
 
-  const handleRefresh = useCallback(async () => {
-    try {
-      await syncToDatabase();
-    } catch (error) {
-      console.error('Failed to refresh:', error);
-    }
-  }, [syncToDatabase]);
 
   const displayDistance = distance > 0 ? distance : (steps * 0.762) / 1000;
   const activeMinutes = Math.floor(steps / 120);
@@ -349,14 +338,14 @@ const Dashboard = () => {
         background: 'radial-gradient(circle at top center, hsl(186, 100%, 50%, 0.05), transparent 60%)'
       }} />
 
-      <PullToRefresh onRefresh={handleRefresh} className="flex-1 flex flex-col min-h-0">
-        <RubberBandScroll className="flex-1" contentClassName="pb-72">
-          <div className="px-4 pb-2 relative z-content">
-            {/* Tabs Row */}
-            <div className="flex justify-center mt-3 mb-2">
-              <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
-            </div>
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto scrollbar-hide pb-72">
+        <div className="px-4 pb-2 relative z-content">
+          {/* Tabs Row */}
+          <div className="flex justify-center mt-3 mb-2">
+            <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
           </div>
+        </div>
 
           {/* Main Content */}
           <main className="px-4 relative z-content">
@@ -408,8 +397,7 @@ const Dashboard = () => {
               />
             )}
           </main>
-        </RubberBandScroll>
-      </PullToRefresh>
+      </div>
 
       {/* Action Button */}
       <div className="fixed left-4 right-4 z-fixed fixed-above-nav" style={{ marginBottom: '1rem' }}>
