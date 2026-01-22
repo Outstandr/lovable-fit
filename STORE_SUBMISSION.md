@@ -23,7 +23,7 @@ KEY FEATURES:
 🗺️ ACTIVE GPS SESSIONS
 • Track your walking routes with live GPS mapping
 • View pace, speed, and route history
-• Background tracking keeps recording even when your screen is off
+• GPS tracking active while app is open
 
 🔥 STREAK SYSTEM
 • Build daily walking streaks to stay motivated
@@ -58,8 +58,8 @@ step counter,walking,fitness,health,pedometer,steps,exercise,tracker,walking tra
 
 ### What's New (Release Notes)
 ```
-• Enhanced GPS tracking accuracy
-• Improved battery optimization for background sessions
+• Improved GPS tracking accuracy
+• Foreground-only location for better battery life
 • New streak celebration animations
 • Bug fixes and performance improvements
 ```
@@ -71,19 +71,13 @@ step counter,walking,fitness,health,pedometer,steps,exercise,tracker,walking tra
 Copy these EXACTLY into your Info.plist:
 
 ```xml
-<!-- Location Permissions -->
+<!-- Location Permissions (Foreground Only) -->
 <key>NSLocationWhenInUseUsageDescription</key>
 <string>We need access to your location so that you can track your walking routes with GPS accuracy during active sessions.</string>
 
-<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-<string>We need background location access so that you can continue tracking your route accurately even when your screen is off during active walking sessions.</string>
-
-<!-- Health Permissions -->
+<!-- Health Permissions (Read Only) -->
 <key>NSHealthShareUsageDescription</key>
-<string>We need access to Apple Health so that you can see your step count and activity progress in real-time.</string>
-
-<key>NSHealthUpdateUsageDescription</key>
-<string>We need to save your activity data to Apple Health so that you can track your walking progress alongside your other health metrics.</string>
+<string>We need read-only access to Apple Health so that you can see your step count and activity progress in real-time.</string>
 
 <!-- Motion Permissions -->
 <key>NSMotionUsageDescription</key>
@@ -92,7 +86,6 @@ Copy these EXACTLY into your Info.plist:
 <!-- Push Notifications -->
 <key>UIBackgroundModes</key>
 <array>
-    <string>location</string>
     <string>remote-notification</string>
     <string>processing</string>
 </array>
@@ -153,18 +146,6 @@ Create this file in your iOS project:
         </dict>
         <dict>
             <key>NSPrivacyCollectedDataType</key>
-            <string>NSPrivacyCollectedDataTypeHealth</string>
-            <key>NSPrivacyCollectedDataTypeLinked</key>
-            <true/>
-            <key>NSPrivacyCollectedDataTypeTracking</key>
-            <false/>
-            <key>NSPrivacyCollectedDataTypePurposes</key>
-            <array>
-                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
-            </array>
-        </dict>
-        <dict>
-            <key>NSPrivacyCollectedDataType</key>
             <string>NSPrivacyCollectedDataTypeDeviceID</string>
             <key>NSPrivacyCollectedDataTypeLinked</key>
             <false/>
@@ -214,7 +195,7 @@ Transform your daily walks into an engaging fitness journey. Hotstepper combines
 ★ ACTIVE GPS SESSIONS
 • Track your walking routes with live GPS mapping
 • View pace, speed, and route history
-• Background tracking keeps recording even when your screen is off
+• GPS tracking active while app is open
 
 ★ STREAK SYSTEM
 • Build daily walking streaks to stay motivated
@@ -256,36 +237,25 @@ Everyone
 | Data Type | Collected | Shared | Purpose |
 |-----------|-----------|--------|---------|
 | Email address | Yes | No | Account authentication |
-| Precise location | Yes | No | GPS route tracking (only during active sessions) |
-| Health info (steps, calories) | Yes | No | Core app functionality |
+| Precise location | Yes | No | GPS route tracking (foreground only during active sessions) |
+| Health info (steps, calories, distance) | Yes | No | Core app functionality (READ only) |
 | Device ID | Yes | No | Push notifications |
 
 ### Security Practices:
 - ✅ Data is encrypted in transit (HTTPS/TLS)
 - ✅ Users can request data deletion
-- ✅ Data is encrypted at rest (Supabase)
+- ✅ Data is encrypted at rest
 
----
+### Health Connect Permissions (READ only):
+- `android.permission.health.READ_STEPS`
+- `android.permission.health.READ_DISTANCE`
+- `android.permission.health.READ_ACTIVE_CALORIES_BURNED`
 
-## Background Location Justification (Google Play)
+### Location Permissions (Foreground only):
+- `android.permission.ACCESS_FINE_LOCATION`
+- `android.permission.ACCESS_COARSE_LOCATION`
 
-**Feature Name:** Active Mode GPS Tracking
-
-**Why Background Location is Required:**
-The app requires ACCESS_BACKGROUND_LOCATION to continuously track the user's walking route during "Active Mode" sessions. When users start an active session:
-1. They press "Start Active Mode" to begin GPS tracking
-2. The route is recorded with GPS coordinates
-3. Real-time metrics (pace, speed, distance) are calculated
-4. Users may lock their phone or switch apps during walks
-
-Without background location access, route tracking would stop when:
-- The user's screen turns off (common during long walks)
-- The user switches to another app (e.g., to check messages)
-- The device enters power-saving mode
-
-**User-Visible Feature:** Active Mode session tracking with live map, route history, and metrics display.
-
-**Tied to User Action:** Yes - only activated when user explicitly presses "Start Active Mode" button.
+**Note:** This app does NOT request background location access (`ACCESS_BACKGROUND_LOCATION`).
 
 ---
 
@@ -318,8 +288,8 @@ Without background location access, route tracking would stop when:
 - [ ] App Review Information (demo account if needed)
 - [ ] PrivacyInfo.xcprivacy added to Xcode project
 - [ ] All Info.plist permission strings added
-- [ ] Background modes configured in Xcode capabilities
-- [ ] HealthKit capability enabled
+- [ ] HealthKit capability enabled (read-only)
+- [ ] NO background location mode enabled
 
 ### Google Play Store
 - [ ] App icon (512x512)
@@ -329,5 +299,5 @@ Without background location access, route tracking would stop when:
 - [ ] Data Safety form completed
 - [ ] Content rating questionnaire completed
 - [ ] Target API level 34 or higher
-- [ ] Health Connect permissions declared in manifest
-- [ ] Background location justification submitted
+- [ ] Health Connect READ permissions declared in manifest
+- [ ] NO background location permissions declared
