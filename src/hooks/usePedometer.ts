@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { backgroundStepService } from '@/services/backgroundStepService';
+import { stepTrackingService } from '@/services/stepTrackingService';
+import { healthService } from '@/services/healthService';
 import { useAuth } from '@/hooks/useAuth';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { supabase } from '@/integrations/supabase/client';
@@ -162,9 +163,9 @@ export function usePedometer() {
       sensorBaseline.current = null;
 
       // Check if already running
-      if (backgroundStepService.isRunning()) {
+      if (stepTrackingService.isRunning()) {
         console.log('[usePedometer] ✅ Already running - subscribing to updates');
-        backgroundStepService.subscribeToUpdates(updateState);
+        stepTrackingService.subscribeToUpdates(updateState);
         setState(prev => ({
           ...prev,
           isTracking: true,
@@ -174,8 +175,8 @@ export function usePedometer() {
         return;
       }
 
-      // Start background tracking
-      const result = await backgroundStepService.requestPermissionAndStart(updateState);
+      // Start step tracking via platform router
+      const result = await stepTrackingService.requestPermissionAndStart(updateState);
 
       if (isMounted) {
         if (result.success) {
@@ -274,10 +275,12 @@ export function usePedometer() {
   }, [state.isTracking, user, syncToDatabase]);
 
   // Background Resume Sync - sync when app comes to foreground
+  // On iOS, also sync from HealthKit to capture steps taken while app was in background
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
     let appStateListener: { remove: () => void } | null = null;
+    const platform = Capacitor.getPlatform();
 
     const setupListener = async () => {
       appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
@@ -286,6 +289,35 @@ export function usePedometer() {
           
           // Reset baseline to capture background steps
           sensorBaseline.current = null;
+          
+          // On iOS, sync from HealthKit to capture background steps
+          // iOS doesn't have foreground services, so HealthKit is the source of truth
+          if (platform === 'ios') {
+            try {
+              console.log('[usePedometer] iOS: Syncing from HealthKit...');
+              const healthData = await healthService.readTodayData();
+              if (healthData && healthData.steps > 0) {
+                // Use HealthKit steps as the base if higher than current
+                if (healthData.steps > baseSteps.current) {
+                  console.log('[usePedometer] iOS: HealthKit has more steps:', healthData.steps, 'vs', baseSteps.current);
+                  baseSteps.current = healthData.steps;
+                  
+                  // Reset sensor baseline since we're using HealthKit data
+                  sensorBaseline.current = 0;
+                  
+                  setState(prev => ({
+                    ...prev,
+                    steps: healthData.steps,
+                    distance: healthData.distance,
+                    calories: healthData.calories,
+                    dataSource: 'pedometer'
+                  }));
+                }
+              }
+            } catch (e) {
+              console.error('[usePedometer] iOS HealthKit sync error:', e);
+            }
+          }
           
           // Force sync to database
           await syncToDatabase(true);
@@ -306,7 +338,7 @@ export function usePedometer() {
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!Capacitor.isNativePlatform()) return true;
 
-    const result = await backgroundStepService.requestPermissionAndStart();
+    const result = await stepTrackingService.requestPermissionAndStart();
     setState(prev => ({ ...prev, hasPermission: result.success }));
     return result.success;
   }, []);
@@ -314,7 +346,7 @@ export function usePedometer() {
   const startTracking = useCallback(async (): Promise<boolean> => {
     if (!Capacitor.isNativePlatform()) return true;
 
-    const result = await backgroundStepService.requestPermissionAndStart((data) => {
+    const result = await stepTrackingService.requestPermissionAndStart((data: { steps: number; distance: number }) => {
       const sessionSteps = sensorBaseline.current !== null
         ? Math.max(0, data.steps - sensorBaseline.current)
         : 0;
@@ -354,7 +386,7 @@ export function usePedometer() {
   }, []);
 
   const stopTracking = useCallback(async () => {
-    await backgroundStepService.stop();
+    await stepTrackingService.stop();
     setState(prev => ({ ...prev, isTracking: false }));
   }, []);
 
