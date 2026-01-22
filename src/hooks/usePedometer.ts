@@ -47,6 +47,11 @@ export function usePedometer() {
   const baseSteps = useRef<number>(0);
   // Sensor baseline for TYPE_STEP_COUNTER (cumulative since boot)
   const sensorBaseline = useRef<number | null>(null);
+  
+  // Refs for background sync - ensures latest values are available in stale closures
+  const backgroundSyncSteps = useRef<number>(0);
+  const backgroundSyncDistance = useRef<number>(0);
+  const backgroundSyncCalories = useRef<number>(0);
 
   // 10K Milestone Celebration
   useEffect(() => {
@@ -274,52 +279,64 @@ export function usePedometer() {
     return () => clearInterval(intervalId);
   }, [state.isTracking, user, syncToDatabase]);
 
+  // Keep refs updated with latest state for background sync (avoids stale closure)
+  useEffect(() => {
+    backgroundSyncSteps.current = state.steps;
+    backgroundSyncDistance.current = state.distance;
+    backgroundSyncCalories.current = state.calories;
+  }, [state.steps, state.distance, state.calories]);
+
   // App State Change Listener - sync on background AND resume
-  // CRITICAL: Sync when app goes to background to prevent data loss
+  // CRITICAL: Set up ONCE and use refs to avoid stale closure bug
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
     let appStateListener: { remove: () => void } | null = null;
     const platform = Capacitor.getPlatform();
-    const stepsRef = { current: state.steps }; // Capture current steps for background sync
 
     const setupListener = async () => {
       appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
         if (!user) return;
 
+        const today = new Date().toISOString().split('T')[0];
+
         if (!isActive) {
-          // App going to BACKGROUND - sync immediately to prevent data loss
-          console.log('[usePedometer] App going to background - syncing steps:', stepsRef.current);
+          // App going to BACKGROUND - sync immediately using REFS (always current)
+          const stepsToSync = backgroundSyncSteps.current;
+          const distanceToSync = backgroundSyncDistance.current;
+          const caloriesToSync = backgroundSyncCalories.current;
           
-          if (stepsRef.current > 0) {
-            const today = new Date().toISOString().split('T')[0];
+          console.log('[usePedometer] App going to background - syncing steps:', stepsToSync);
+          
+          if (stepsToSync > 0) {
             try {
               await supabase
                 .from('daily_steps')
                 .upsert({
                   user_id: user.id,
                   date: today,
-                  steps: stepsRef.current,
-                  distance_km: state.distance,
-                  calories: state.calories,
+                  steps: stepsToSync,
+                  distance_km: distanceToSync,
+                  calories: caloriesToSync,
                   updated_at: new Date().toISOString()
                 }, { onConflict: 'user_id,date' });
-              console.log('[usePedometer] ✅ Background sync successful:', stepsRef.current);
-              lastSyncSteps.current = stepsRef.current;
+              console.log('[usePedometer] ✅ Background sync successful:', stepsToSync);
+              lastSyncSteps.current = stepsToSync;
             } catch (e) {
               console.error('[usePedometer] Background sync error:', e);
-              // Queue for offline sync
-              queueStepData(today, stepsRef.current, state.distance, state.calories);
+              queueStepData(today, stepsToSync, distanceToSync, caloriesToSync);
             }
           }
         } else {
-          // App RESUMED - sync from health source and update
+          // App RESUMED - sync from health source OR reload from database
           console.log('[usePedometer] App resumed - syncing');
           
           // Reset baseline to capture background steps
           sensorBaseline.current = null;
           
-          // On iOS, sync from HealthKit to capture background steps
+          let loadedFromHealth = false;
+          
+          // On iOS, try HealthKit first
           if (platform === 'ios') {
             try {
               console.log('[usePedometer] iOS: Syncing from HealthKit...');
@@ -329,6 +346,9 @@ export function usePedometer() {
                   console.log('[usePedometer] iOS: HealthKit has more steps:', healthData.steps, 'vs', baseSteps.current);
                   baseSteps.current = healthData.steps;
                   sensorBaseline.current = 0;
+                  backgroundSyncSteps.current = healthData.steps;
+                  backgroundSyncDistance.current = healthData.distance;
+                  backgroundSyncCalories.current = healthData.calories;
                   
                   setState(prev => ({
                     ...prev,
@@ -337,6 +357,7 @@ export function usePedometer() {
                     calories: healthData.calories,
                     dataSource: 'pedometer'
                   }));
+                  loadedFromHealth = true;
                 }
               }
             } catch (e) {
@@ -344,14 +365,40 @@ export function usePedometer() {
             }
           }
           
-          // Force sync to database
-          await syncToDatabase(true);
+          // If HealthKit unavailable/empty, reload from database as fallback
+          if (platform === 'ios' && !loadedFromHealth) {
+            console.log('[usePedometer] iOS: HealthKit unavailable, reloading from DB');
+            try {
+              const { data } = await supabase
+                .from('daily_steps')
+                .select('steps, distance_km, calories')
+                .eq('user_id', user.id)
+                .eq('date', today)
+                .maybeSingle();
+              
+              if (data && data.steps > baseSteps.current) {
+                console.log('[usePedometer] iOS: Restored from DB:', data.steps);
+                baseSteps.current = data.steps;
+                lastSyncSteps.current = data.steps;
+                backgroundSyncSteps.current = data.steps;
+                backgroundSyncDistance.current = data.distance_km || 0;
+                backgroundSyncCalories.current = data.calories || 0;
+                
+                setState(prev => ({
+                  ...prev,
+                  steps: data.steps,
+                  distance: data.distance_km || 0,
+                  calories: data.calories || 0,
+                  dataSource: 'database'
+                }));
+              }
+            } catch (e) {
+              console.error('[usePedometer] DB reload error:', e);
+            }
+          }
         }
       });
     };
-
-    // Update the stepsRef whenever steps change so background sync uses latest value
-    stepsRef.current = state.steps;
 
     setupListener();
 
@@ -360,7 +407,7 @@ export function usePedometer() {
         appStateListener.remove();
       }
     };
-  }, [user, state.steps, state.distance, state.calories, syncToDatabase, queueStepData]);
+  }, [user, queueStepData]); // Minimal deps - listener set up once, uses refs for current values
 
   // Manual Actions
   const requestPermission = useCallback(async (): Promise<boolean> => {
