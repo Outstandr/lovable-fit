@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { Browser } from '@capacitor/browser';
 import { StandardHeader } from "@/components/StandardHeader";
-import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
+
 
 import {
   AlertDialog,
@@ -164,7 +164,7 @@ const PrivacySettings = () => {
         backTo="/profile"
       />
 
-      <RubberBandScroll className="flex-1 pt-24" contentClassName="p-4 space-y-4 pb-16">
+      <div className="flex-1 overflow-y-auto scrollbar-hide pt-24 p-4 space-y-4 pb-16">
         {/* Medical Disclaimer */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -366,7 +366,7 @@ const PrivacySettings = () => {
             </div>
           </div>
         </motion.div>
-      </RubberBandScroll>
+      </div>
     </div>
   );
 };
