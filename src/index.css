@@ -183,12 +183,15 @@
 
   /* Rubber band scroll effect container */
   .scroll-rubber-band {
-    overflow-y: auto;
+    overflow-y: scroll !important;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
     overscroll-behavior-y: contain;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    height: 100%;
+    touch-action: pan-y;
+    position: relative;
   }
 
   .scroll-rubber-band::-webkit-scrollbar {
@@ -199,6 +202,7 @@
   .scroll-rubber-band-content {
     min-height: 100%;
     transition: transform 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    touch-action: pan-y;
   }
 
   /* Prevent overscroll on fixed elements */

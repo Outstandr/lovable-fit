@@ -97,7 +97,7 @@ export const PullToRefresh = ({ onRefresh, children, className = '' }: PullToRef
   const smoothY = useSpring(pullDistance, springConfig);
   
   return (
-    <div className={`relative overflow-hidden scroll-lock ${className}`}>
+    <div className={`relative flex flex-col ${className}`}>
       {/* Pull indicator */}
       <motion.div 
         className="absolute left-0 right-0 flex items-center justify-center pointer-events-none z-50"
@@ -127,13 +127,12 @@ export const PullToRefresh = ({ onRefresh, children, className = '' }: PullToRef
         </motion.div>
       </motion.div>
       
-      {/* Content with enhanced scrolling */}
+      {/* Content - let children handle their own scrolling */}
       <motion.div
         ref={containerRef}
-        className="h-full overflow-y-auto scroll-smooth-native"
+        className="flex-1 flex flex-col"
         style={{ 
           y: smoothY,
-          WebkitOverflowScrolling: 'touch',
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
