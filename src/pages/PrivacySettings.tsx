@@ -64,9 +64,8 @@ const PrivacySettings = () => {
 
   const openPrivacyPolicy = async () => {
     try {
-      // ⚠️ REPLACE WITH YOUR ACTUAL PRIVACY POLICY URL
       await Browser.open({ 
-        url: 'https://outstandr.github.io/lionelx-legal/privacy.html', // Update this!
+        url: 'https://outstandr.github.io/lionelx-legal/privacy-ios',
         presentationStyle: 'popover',
         toolbarColor: '#0a0a0a'
       });
