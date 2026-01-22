@@ -6,37 +6,32 @@ import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Capacitor } from '@capacitor/core';
 
-// Configure status bar for native iOS feel
-const configureStatusBar = async () => {
+// Initialize native features after DOM is ready
+const initializeNativeFeatures = async () => {
   if (Capacitor.isNativePlatform()) {
     try {
-      // Make status bar overlay the webview (true edge-to-edge)
+      // Configure status bar for native iOS feel
       await StatusBar.setOverlaysWebView({ overlay: true });
-      // Light text for dark background (Midnight Ops theme)
       await StatusBar.setStyle({ style: Style.Dark });
     } catch (e) {
       console.log('StatusBar not available');
     }
   }
-};
-
-// Hide splash screen after app loads
-const hideSplash = async () => {
+  
+  // Hide splash screen
   try {
-    await SplashScreen.hide({
-      fadeOutDuration: 500
-    });
-  } catch (error) {
+    await SplashScreen.hide({ fadeOutDuration: 500 });
+  } catch (e) {
     console.log('Splash screen not available');
   }
 };
 
-// Initialize native features
-configureStatusBar();
-setTimeout(hideSplash, 2000);
-
+// Render React app first, then initialize native features
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
   </StrictMode>
 );
+
+// Initialize native features after a brief delay to ensure app is mounted
+setTimeout(initializeNativeFeatures, 2000);
