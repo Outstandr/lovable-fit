@@ -22,7 +22,7 @@ export const TrendChart = ({ data, showGoalLine = true, goalValue = 10000 }: Tre
 
   return (
     <motion.div
-      className="tactical-card"
+      className="tactical-card app-tour-trend-chart"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.5 }}

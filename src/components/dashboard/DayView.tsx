@@ -42,7 +42,7 @@ export const DayView = ({
     <div className="space-y-6">
       {/* Progress Ring */}
       <motion.div
-        className="flex justify-center py-4"
+        className="flex justify-center py-4 app-tour-progress-ring"
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}

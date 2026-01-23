@@ -788,3 +788,94 @@
     opacity: 0.5;
   }
 }
+
+/* ======================================
+   App Tour / Driver.js Custom Styles
+   ====================================== */
+
+.driver-popover.app-tour-popover {
+  background: hsl(220 50% 14%);
+  border: 1px solid hsl(186 100% 50% / 0.3);
+  border-radius: 16px;
+  color: hsl(225 20% 93%);
+  box-shadow: 
+    0 0 40px hsl(186 100% 50% / 0.15),
+    0 20px 60px hsl(220 60% 5% / 0.6);
+  padding: 20px;
+}
+
+.driver-popover.app-tour-popover .driver-popover-title {
+  color: hsl(186 100% 50%);
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+
+.driver-popover.app-tour-popover .driver-popover-description {
+  color: hsl(215 30% 75%);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.driver-popover.app-tour-popover .driver-popover-progress-text {
+  color: hsl(215 30% 55%);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.driver-popover.app-tour-popover .driver-popover-navigation-btns {
+  gap: 8px;
+}
+
+.driver-popover.app-tour-popover .driver-popover-prev-btn {
+  background: hsl(220 45% 22%);
+  color: hsl(225 20% 93%);
+  border: 1px solid hsl(220 40% 30%);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.driver-popover.app-tour-popover .driver-popover-prev-btn:hover {
+  background: hsl(220 45% 28%);
+  border-color: hsl(186 100% 50% / 0.3);
+}
+
+.driver-popover.app-tour-popover .driver-popover-next-btn,
+.driver-popover.app-tour-popover .driver-popover-close-btn {
+  background: linear-gradient(135deg, hsl(186 100% 50%) 0%, hsl(186 100% 40%) 100%);
+  color: hsl(220 60% 10%);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 20px hsl(186 100% 50% / 0.3);
+}
+
+.driver-popover.app-tour-popover .driver-popover-next-btn:hover,
+.driver-popover.app-tour-popover .driver-popover-close-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 30px hsl(186 100% 50% / 0.5);
+}
+
+.driver-popover.app-tour-popover .driver-popover-arrow-side-left.driver-popover-arrow,
+.driver-popover.app-tour-popover .driver-popover-arrow-side-right.driver-popover-arrow,
+.driver-popover.app-tour-popover .driver-popover-arrow-side-top.driver-popover-arrow,
+.driver-popover.app-tour-popover .driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-color: hsl(220 50% 14%);
+}
+
+.driver-popover.app-tour-popover .driver-popover-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid hsl(220 40% 25%);
+}

@@ -19,7 +19,7 @@ export const BottomNav = () => {
 
   return (
     <nav 
-      className="bottom-nav"
+      className="bottom-nav app-tour-bottom-nav"
       role="navigation"
       aria-label="Main navigation"
     >
