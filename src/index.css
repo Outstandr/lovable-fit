@@ -812,6 +812,29 @@
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-bottom: 8px;
+  padding-right: 32px;
+}
+
+/* X close button in top-right corner */
+.driver-popover.app-tour-popover .driver-popover-close-btn {
+  position: absolute !important;
+  top: 16px !important;
+  right: 16px !important;
+  padding: 4px 8px !important;
+  min-width: auto !important;
+  font-size: 18px !important;
+  background: transparent !important;
+  color: hsl(215 30% 55%) !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 4px !important;
+}
+
+.driver-popover.app-tour-popover .driver-popover-close-btn:hover {
+  color: hsl(186 100% 50%) !important;
+  background: hsl(220 45% 22%) !important;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .driver-popover.app-tour-popover .driver-popover-description {
@@ -846,8 +869,7 @@
   border-color: hsl(186 100% 50% / 0.3);
 }
 
-.driver-popover.app-tour-popover .driver-popover-next-btn,
-.driver-popover.app-tour-popover .driver-popover-close-btn {
+.driver-popover.app-tour-popover .driver-popover-next-btn {
   background: linear-gradient(135deg, hsl(186 100% 50%) 0%, hsl(186 100% 40%) 100%);
   color: hsl(220 60% 10%);
   border: none;
@@ -861,8 +883,7 @@
   box-shadow: 0 0 20px hsl(186 100% 50% / 0.3);
 }
 
-.driver-popover.app-tour-popover .driver-popover-next-btn:hover,
-.driver-popover.app-tour-popover .driver-popover-close-btn:hover {
+.driver-popover.app-tour-popover .driver-popover-next-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 0 30px hsl(186 100% 50% / 0.5);
 }
