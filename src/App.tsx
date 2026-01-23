@@ -11,6 +11,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PushNotificationInitializer } from "@/components/PushNotificationInitializer";
 import { PageTransition } from "@/components/PageTransition";
 import AudioMiniPlayer from "@/components/audiobook/AudioMiniPlayer";
+import { AppTour } from "@/components/AppTour";
+import { AppTourProvider, useAppTour } from "@/contexts/AppTourContext";
 import Index from "./pages/Index";
 import Onboarding from "./pages/Onboarding";
 import ActiveSession from "./pages/ActiveSession";
@@ -131,6 +133,23 @@ const AnimatedRoutes = () => {
   );
 };
 
+const AppChrome = () => {
+  const { isTourOpen, onTourComplete, getDashboardTabSetter } = useAppTour();
+
+  return (
+    <div className="w-full h-[100dvh] overflow-hidden">
+      <AnimatedRoutes />
+      <AudioMiniPlayer />
+      {/* Keep tour mounted across route changes so it continues on /leaderboard */}
+      <AppTour
+        isOpen={isTourOpen}
+        onComplete={onTourComplete}
+        onTabChange={(tab) => getDashboardTabSetter()?.(tab)}
+      />
+    </div>
+  );
+};
+
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
@@ -142,10 +161,9 @@ const App = () => {
             <StepProvider>
               <AudiobookProvider>
                 <PushNotificationInitializer>
-                  <div className="w-full h-[100dvh] overflow-hidden">
-                    <AnimatedRoutes />
-                    <AudioMiniPlayer />
-                  </div>
+                  <AppTourProvider>
+                    <AppChrome />
+                  </AppTourProvider>
                 </PushNotificationInitializer>
               </AudiobookProvider>
             </StepProvider>
