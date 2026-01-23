@@ -95,24 +95,22 @@ const AudioProgressBar = ({ className = "", showBookmarks = true }: AudioProgres
           />
         </div>
 
-        {/* Bookmark markers */}
+        {/* Bookmark markers - subtle tick marks below track */}
         {showBookmarks && chapterBookmarks.map((bookmark) => {
           const position = duration > 0 ? (bookmark.timestamp_seconds / duration) * 100 : 0;
           return (
             <Tooltip key={bookmark.id}>
               <TooltipTrigger asChild>
                 <div
-                  className="absolute top-1/2 -translate-y-1/2 h-3 w-3 -ml-1.5 cursor-pointer z-10"
+                  className="absolute top-full mt-1 w-0.5 h-2 -ml-px cursor-pointer z-10 bg-primary/60 hover:bg-primary transition-colors rounded-full"
                   style={{ left: `${position}%` }}
                   onClick={(e) => {
                     e.stopPropagation();
                     seekTo(bookmark.timestamp_seconds);
                   }}
-                >
-                  <div className="h-full w-full rounded-full bg-primary border-2 border-background shadow-sm" />
-                </div>
+                />
               </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">
+              <TooltipContent side="bottom" className="text-xs">
                 <p className="font-medium">{formatTime(bookmark.timestamp_seconds)}</p>
                 {bookmark.label && <p className="text-muted-foreground">{bookmark.label}</p>}
               </TooltipContent>
