@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Pause, Headphones } from "lucide-react";
+import { Play, Pause, Headphones, X } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAudiobookContext } from "@/contexts/AudiobookContext";
 import { haptics } from "@/utils/haptics";
@@ -15,6 +15,7 @@ const AudioMiniPlayer = () => {
     togglePlay,
     isMiniPlayerVisible,
     wasRecentlyPlaying,
+    closeMiniPlayer,
   } = useAudiobookContext();
 
   // Don't show on audiobook page
@@ -34,6 +35,12 @@ const AudioMiniPlayer = () => {
     e.stopPropagation();
     haptics.medium();
     togglePlay();
+  };
+
+  const handleClose = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    haptics.light();
+    closeMiniPlayer();
   };
 
   return (
@@ -66,6 +73,15 @@ const AudioMiniPlayer = () => {
             </div>
 
             <div className="flex items-center gap-3 p-3">
+              {/* Close button */}
+              <motion.button
+                onClick={handleClose}
+                className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex-shrink-0"
+                whileTap={{ scale: 0.9 }}
+              >
+                <X className="h-4 w-4" />
+              </motion.button>
+
               {/* Album art / icon */}
               <div className="relative h-10 w-10 rounded-lg bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
                 <Headphones className="h-5 w-5 text-primary" />
