@@ -13,20 +13,20 @@ export const WelcomeStep = forwardRef<HTMLDivElement, WelcomeStepProps>(
     return (
       <div
         ref={ref}
-        className="flex flex-col min-h-screen bg-background text-foreground"
+        className="flex flex-col h-full bg-background text-foreground overflow-hidden"
       >
-        {/* Hero Section */}
-        <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+        {/* Scrollable Hero Section */}
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center px-6 py-8">
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="mb-8"
+            className="mb-6"
           >
             <img
               src={hotStepperLogo}
               alt="HotStepper"
-              className="w-32 h-32 object-contain"
+              className="w-28 h-28 object-contain"
             />
           </motion.div>
 
@@ -34,7 +34,7 @@ export const WelcomeStep = forwardRef<HTMLDivElement, WelcomeStepProps>(
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.5 }}
-            className="text-4xl font-bold text-center mb-4 tracking-tight"
+            className="text-4xl font-bold text-center mb-3 tracking-tight"
           >
             HOTSTEPPER
           </motion.h1>
@@ -62,7 +62,7 @@ export const WelcomeStep = forwardRef<HTMLDivElement, WelcomeStepProps>(
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6, duration: 0.5 }}
-            className="mt-12 space-y-4 w-full max-w-xs"
+            className="mt-8 space-y-3 w-full max-w-xs"
           >
             {[
               'Automatic step tracking',
@@ -85,12 +85,12 @@ export const WelcomeStep = forwardRef<HTMLDivElement, WelcomeStepProps>(
           </motion.div>
         </div>
 
-        {/* CTA Section */}
+        {/* Fixed CTA Section - always visible */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.9, duration: 0.5 }}
-          className="px-6 pb-12 pt-6"
+          className="flex-shrink-0 px-6 pt-4 pb-8 safe-area-pb"
         >
           <Button
             onClick={onNext}
