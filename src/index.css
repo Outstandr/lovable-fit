@@ -802,6 +802,7 @@
     0 0 40px hsl(186 100% 50% / 0.15),
     0 20px 60px hsl(220 60% 5% / 0.6);
   padding: 20px;
+  z-index: 100001 !important;
 }
 
 .driver-popover.app-tour-popover .driver-popover-title {
