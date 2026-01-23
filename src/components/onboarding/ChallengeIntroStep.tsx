@@ -30,7 +30,7 @@ export const ChallengeIntroStep = forwardRef<HTMLDivElement, ChallengeIntroStepP
     return (
       <div
         ref={ref}
-        className="flex flex-col min-h-screen bg-background text-foreground"
+        className="flex flex-col h-[100dvh] bg-background text-foreground overflow-y-auto"
       >
         {/* Header */}
         <div className="px-6 pt-12 pb-6">
