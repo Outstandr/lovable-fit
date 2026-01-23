@@ -4,6 +4,7 @@ import App from "./App.tsx";
 import "./index.css";
 import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
+import { Keyboard } from '@capacitor/keyboard';
 import { Capacitor } from '@capacitor/core';
 
 // Initialize native features after DOM is ready
@@ -15,6 +16,13 @@ const initializeNativeFeatures = async () => {
       await StatusBar.setStyle({ style: Style.Dark });
     } catch (e) {
       console.log('StatusBar not available');
+    }
+    
+    try {
+      // Hide the web form accessory bar (arrows + Done button) on iOS
+      await Keyboard.setAccessoryBarVisible({ isVisible: false });
+    } catch (e) {
+      console.log('Keyboard plugin not available');
     }
   }
   

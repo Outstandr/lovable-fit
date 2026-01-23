@@ -12,12 +12,16 @@ const config: CapacitorConfig = {
   
   ios: {
     scheme: 'App',
-    contentInset: 'always',
+    contentInset: 'never',
     allowsLinkPreview: false,
     scrollEnabled: false,
   },
   
   plugins: {
+    Keyboard: {
+      resize: 'body',
+      style: 'dark',
+    },
     SplashScreen: {
       launchShowDuration: 2000,
       launchAutoHide: true,
