@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { signInWithGoogle as googleAuthSignIn, signOutFromGoogle } from "@/services/googleAuthService";
 
 interface AuthContextType {
   user: User | null;
@@ -136,22 +137,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signInWithGoogle = async (): Promise<{ error: string | null }> => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/onboarding`,
-        },
-      });
-
-      if (error) {
-        return { error: error.message };
-      }
-
-      return { error: null };
-    } catch (err) {
-      return { error: "Failed to connect with Google" };
-    }
+    // Use the new platform-aware Google Auth service
+    // This uses native sign-in on iOS/Android, web OAuth on browsers
+    return await googleAuthSignIn();
   };
 
   const signOut = async () => {
@@ -159,6 +147,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setSession(null);
     setUser(null);
     setLoading(false);
+
+    // Sign out from Google (native platforms only)
+    await signOutFromGoogle();
 
     // Perform Supabase sign out
     await supabase.auth.signOut();
