@@ -330,11 +330,17 @@ const Dashboard = () => {
   const handleTourComplete = () => {
     localStorage.setItem('app_tour_completed', 'true');
     setShowAppTour(false);
+    setActiveTab('day'); // Reset to day view after tour
   };
 
   const handleRestartTour = () => {
     haptics.light();
+    setActiveTab('day'); // Start tour from day view
     setShowAppTour(true);
+  };
+
+  const handleTourTabChange = (tab: 'day' | 'week' | 'month') => {
+    setActiveTab(tab);
   };
 
 
@@ -476,7 +482,7 @@ const Dashboard = () => {
         onSkip={() => localStorage.setItem('onboarding_completed', 'true')}
       />
 
-      <AppTour isOpen={showAppTour} onComplete={handleTourComplete} />
+      <AppTour isOpen={showAppTour} onComplete={handleTourComplete} onTabChange={handleTourTabChange} />
     </div>
   );
 };

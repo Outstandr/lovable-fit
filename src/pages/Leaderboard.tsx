@@ -242,7 +242,7 @@ const Leaderboard = () => {
       <RubberBandScroll className="flex-1 overflow-y-auto">
         <PullToRefresh onRefresh={handleRefresh} className="h-full">
           {/* Tab Switcher */}
-          <div className="px-4 pb-4">
+          <div className="px-4 pb-4 app-tour-leaderboard-tabs">
             <div className="flex rounded-lg bg-secondary p-1 gap-1">
               {TAB_CONFIG.map((tab) => (
                 <button
@@ -289,7 +289,7 @@ const Leaderboard = () => {
           {/* Top 3 Podium */}
           {!loading && top3.length >= 3 && (
             <motion.div
-              className="flex items-end justify-center gap-3 px-4 py-6"
+              className="flex items-end justify-center gap-3 px-4 py-6 app-tour-leaderboard-podium"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2 }}

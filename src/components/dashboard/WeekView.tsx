@@ -74,7 +74,7 @@ export const WeekView = ({
 
       {/* Week Bar Chart */}
       <motion.div
-        className="tactical-card"
+        className="tactical-card app-tour-week-chart"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}

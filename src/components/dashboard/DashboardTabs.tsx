@@ -21,6 +21,8 @@ export const DashboardTabs = ({ activeTab, onTabChange }: DashboardTabsProps) =>
           key={tab.id}
           onClick={() => onTabChange(tab.id)}
           className={`relative px-2 py-1 text-sm font-semibold uppercase tracking-wider transition-colors ${
+            tab.id === 'week' ? 'app-tour-week-tab' : ''
+          } ${
             activeTab === tab.id
               ? "text-foreground"
               : "text-muted-foreground hover:text-foreground/70"
