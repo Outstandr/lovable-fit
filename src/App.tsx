@@ -6,9 +6,11 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { AuthProvider } from "@/hooks/useAuth";
 import { StepProvider } from "@/contexts/StepContext";
+import { AudiobookProvider } from "@/contexts/AudiobookContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PushNotificationInitializer } from "@/components/PushNotificationInitializer";
 import { PageTransition } from "@/components/PageTransition";
+import AudioMiniPlayer from "@/components/audiobook/AudioMiniPlayer";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
@@ -146,11 +148,14 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <StepProvider>
-              <PushNotificationInitializer>
-                <div className="w-full h-[100dvh] overflow-hidden">
-                  <AnimatedRoutes />
-                </div>
-              </PushNotificationInitializer>
+              <AudiobookProvider>
+                <PushNotificationInitializer>
+                  <div className="w-full h-[100dvh] overflow-hidden">
+                    <AnimatedRoutes />
+                    <AudioMiniPlayer />
+                  </div>
+                </PushNotificationInitializer>
+              </AudiobookProvider>
             </StepProvider>
           </BrowserRouter>
         </TooltipProvider>
