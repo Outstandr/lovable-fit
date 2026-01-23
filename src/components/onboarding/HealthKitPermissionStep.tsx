@@ -83,9 +83,9 @@ export function HealthKitPermissionStep({ onNext }: HealthKitPermissionStepProps
   const showError = permissionState === 'denied' || permissionState === 'unavailable';
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background">
+    <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* Scrollable Content Area */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-6 pt-12">
+      <div className="flex-1 min-h-0 overflow-y-auto p-6 pt-8">
         {/* Icon */}
         <motion.div
           initial={{ scale: 0 }}
@@ -159,7 +159,7 @@ export function HealthKitPermissionStep({ onNext }: HealthKitPermissionStepProps
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="bg-muted/50 rounded-lg p-4 mb-6"
+          className="bg-muted/50 rounded-lg p-4"
         >
           <p className="text-xs text-muted-foreground text-center">
             🔒 We only <strong>read</strong> your step, distance, and calorie data. We never write to or modify your Apple Health data.
@@ -168,7 +168,7 @@ export function HealthKitPermissionStep({ onNext }: HealthKitPermissionStepProps
       </div>
 
       {/* Fixed Button Area - Always Visible */}
-      <div className="flex-shrink-0 bg-background p-6 pb-safe border-t border-border/50 space-y-3">
+      <div className="flex-shrink-0 px-6 pt-4 space-y-3 safe-area-pb-cta">
         {/* Compact Error State */}
         {showError && (
           <motion.div

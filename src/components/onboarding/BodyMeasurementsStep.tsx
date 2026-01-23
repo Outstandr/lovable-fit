@@ -151,7 +151,7 @@ export function BodyMeasurementsStep({ onNext }: BodyMeasurementsStepProps) {
   };
 
   return (
-    <div className="absolute inset-0 flex flex-col bg-background safe-area-y">
+    <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* Header */}
       <div className="flex-shrink-0 px-6 pt-8 pb-4">
         <div className="flex items-center justify-center mb-4">
@@ -189,7 +189,7 @@ export function BodyMeasurementsStep({ onNext }: BodyMeasurementsStepProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="flex-1 overflow-y-auto px-6 min-h-0"
+        className="flex-1 min-h-0 overflow-y-auto px-6"
       >
         <div className="space-y-6 pb-4">
           {/* Units Toggle */}
@@ -342,12 +342,12 @@ export function BodyMeasurementsStep({ onNext }: BodyMeasurementsStepProps) {
         </div>
       </motion.div>
 
-      {/* Continue Button */}
+      {/* Fixed Continue Button - Always Visible */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="flex-shrink-0 px-6 pb-6 safe-area-pb"
+        className="flex-shrink-0 px-6 pt-4 safe-area-pb-cta"
       >
         <div className="text-center mb-4">
           {error && <p className="text-sm text-destructive font-medium">{error}</p>}

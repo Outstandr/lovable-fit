@@ -55,66 +55,68 @@ export function BatteryOptimizationStep({ onNext }: BatteryOptimizationStepProps
   };
 
   return (
-    <div className="absolute inset-0 flex flex-col bg-background safe-area-y">
-      {/* Icon */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 min-h-0">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-          className="relative mb-8"
-        >
-          {/* Battery icon with fill */}
-          <div className="w-24 h-40 rounded-2xl border-4 border-muted-foreground/50 relative overflow-hidden">
-            {/* Battery cap */}
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-8 h-3 bg-muted-foreground/50 rounded-t-lg" />
-            {/* Battery fill */}
-            <motion.div
-              initial={{ height: 0 }}
-              animate={{ height: '70%' }}
-              transition={{ delay: 0.3, duration: 0.8 }}
-              className="absolute bottom-0 left-0 right-0 bg-accent rounded-b-lg"
-            />
-          </div>
-        </motion.div>
+    <div className="flex flex-col h-full bg-background overflow-hidden">
+      {/* Scrollable Content */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex flex-col items-center justify-center px-6 py-8 min-h-full">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+            className="relative mb-8"
+          >
+            {/* Battery icon with fill */}
+            <div className="w-24 h-40 rounded-2xl border-4 border-muted-foreground/50 relative overflow-hidden">
+              {/* Battery cap */}
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-8 h-3 bg-muted-foreground/50 rounded-t-lg" />
+              {/* Battery fill */}
+              <motion.div
+                initial={{ height: 0 }}
+                animate={{ height: '70%' }}
+                transition={{ delay: 0.3, duration: 0.8 }}
+                className="absolute bottom-0 left-0 right-0 bg-accent rounded-b-lg"
+              />
+            </div>
+          </motion.div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="text-2xl font-bold text-foreground text-center mb-4"
-        >
-          Battery Optimization
-        </motion.h1>
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-2xl font-bold text-foreground text-center mb-4"
+          >
+            Battery Optimization
+          </motion.h1>
 
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="text-muted-foreground text-center max-w-xs leading-relaxed"
-        >
-          Allow Hotstepper to run in the background to count your steps when you don't have the app open.
-        </motion.p>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-muted-foreground text-center max-w-xs leading-relaxed"
+          >
+            Allow Hotstepper to run in the background to count your steps when you don't have the app open.
+          </motion.p>
 
-        {/* Info box */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="mt-8 p-4 rounded-xl bg-secondary/50 max-w-xs"
-        >
-          <p className="text-sm text-foreground/80 text-center">
-            When prompted, select <span className="font-semibold text-primary">"Allow"</span> to let Hotstepper run in the background without battery restrictions.
-          </p>
-        </motion.div>
+          {/* Info box */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="mt-8 p-4 rounded-xl bg-secondary/50 max-w-xs"
+          >
+            <p className="text-sm text-foreground/80 text-center">
+              When prompted, select <span className="font-semibold text-primary">"Allow"</span> to let Hotstepper run in the background without battery restrictions.
+            </p>
+          </motion.div>
+        </div>
       </div>
 
-      {/* Continue Button */}
+      {/* Fixed Continue Button - Always Visible */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="px-6 pb-6 safe-area-pb"
+        className="flex-shrink-0 px-6 pt-4 safe-area-pb-cta"
       >
         <Button
           onClick={handleContinue}
@@ -127,7 +129,7 @@ export function BatteryOptimizationStep({ onNext }: BatteryOptimizationStepProps
           variant="ghost"
           onClick={handleSkip}
           disabled={isRequesting}
-          className="w-full h-12 text-muted-foreground"
+          className="w-full h-12 text-muted-foreground mt-2"
         >
           Skip for now
         </Button>

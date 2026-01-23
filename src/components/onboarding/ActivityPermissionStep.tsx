@@ -40,78 +40,80 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
   const permissionName = platform === 'ios' ? 'Motion & Fitness' : 'Physical Activity';
 
   return (
-    <div className="absolute inset-0 flex flex-col bg-background safe-area-y">
-      {/* Icon */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 min-h-0">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-          className="w-32 h-32 rounded-3xl bg-accent/20 flex items-center justify-center mb-8"
-        >
-          <Footprints className="w-16 h-16 text-accent" />
-        </motion.div>
+    <div className="flex flex-col h-full bg-background overflow-hidden">
+      {/* Scrollable Content */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex flex-col items-center justify-center px-6 py-8 min-h-full">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+            className="w-32 h-32 rounded-3xl bg-accent/20 flex items-center justify-center mb-8"
+          >
+            <Footprints className="w-16 h-16 text-accent" />
+          </motion.div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="text-2xl font-bold text-foreground text-center mb-4"
-        >
-          Step Tracking
-        </motion.h1>
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-2xl font-bold text-foreground text-center mb-4"
+          >
+            Step Tracking
+          </motion.h1>
 
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="text-muted-foreground text-center max-w-xs leading-relaxed"
-        >
-          We need access to your device's physical activity sensor so that you can see your step count and activity progress in real-time.
-        </motion.p>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-muted-foreground text-center max-w-xs leading-relaxed"
+          >
+            We need access to your device's physical activity sensor so that you can see your step count and activity progress in real-time.
+          </motion.p>
 
-        {/* Benefits list */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="mt-8 space-y-3 w-full max-w-xs"
-        >
-          {[
-            'Automatic step counting',
-            'Real-time progress updates',
-            'Background step tracking',
-            'Calorie estimation',
-          ].map((benefit) => (
-            <div
-              key={benefit}
-              className="flex items-center gap-3 text-sm text-foreground/80"
-            >
-              <div className="w-2 h-2 rounded-full bg-primary" />
-              <span>{benefit}</span>
-            </div>
-          ))}
-        </motion.div>
+          {/* Benefits list */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="mt-8 space-y-3 w-full max-w-xs"
+          >
+            {[
+              'Automatic step counting',
+              'Real-time progress updates',
+              'Background step tracking',
+              'Calorie estimation',
+            ].map((benefit) => (
+              <div
+                key={benefit}
+                className="flex items-center gap-3 text-sm text-foreground/80"
+              >
+                <div className="w-2 h-2 rounded-full bg-primary" />
+                <span>{benefit}</span>
+              </div>
+            ))}
+          </motion.div>
 
-        {/* Info notice */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="mt-6 p-4 rounded-xl bg-muted/50 border border-border w-full max-w-xs"
-        >
-          <p className="text-xs text-muted-foreground leading-relaxed text-center">
-            When prompted, please <span className="font-medium text-foreground">Allow</span> access to {permissionName} to enable step tracking.
-          </p>
-        </motion.div>
+          {/* Info notice */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="mt-6 p-4 rounded-xl bg-muted/50 border border-border w-full max-w-xs"
+          >
+            <p className="text-xs text-muted-foreground leading-relaxed text-center">
+              When prompted, please <span className="font-medium text-foreground">Allow</span> access to {permissionName} to enable step tracking.
+            </p>
+          </motion.div>
+        </div>
       </div>
 
-      {/* Continue Button */}
+      {/* Fixed Continue Button - Always Visible */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
-        className="px-6 pb-6 safe-area-pb"
+        className="flex-shrink-0 px-6 pt-4 safe-area-pb-cta"
       >
         <Button
           onClick={handleContinue}

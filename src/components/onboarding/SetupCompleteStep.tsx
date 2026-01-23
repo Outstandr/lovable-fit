@@ -10,9 +10,9 @@ interface SetupCompleteStepProps {
 export const SetupCompleteStep = forwardRef<HTMLDivElement, SetupCompleteStepProps>(
   ({ onComplete }, ref) => {
     return (
-      <div ref={ref} className="absolute inset-0 flex flex-col bg-background safe-area-y">
+      <div ref={ref} className="flex flex-col h-full bg-background overflow-hidden">
         {/* Content */}
-        <div className="flex-1 flex flex-col items-center justify-center px-6 min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center px-6">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -47,12 +47,12 @@ export const SetupCompleteStep = forwardRef<HTMLDivElement, SetupCompleteStepPro
           </motion.p>
         </div>
 
-        {/* Done Button */}
+        {/* Fixed Done Button - Always Visible */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="px-6 pb-6 safe-area-pb"
+          className="flex-shrink-0 px-6 pt-4 safe-area-pb-cta"
         >
           <Button
             onClick={onComplete}
