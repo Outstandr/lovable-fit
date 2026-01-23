@@ -18,6 +18,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { haptics } from '@/utils/haptics';
+import { useAudiobookContext } from "@/contexts/AudiobookContext";
 
 
 type TabType = "day" | "week" | "month";
@@ -29,6 +30,7 @@ const Dashboard = () => {
   const { streak, updateStreakOnTargetHit } = useStreak();
   const { isOnline } = useOfflineSync();
   const { getCachedWeekData, setCachedWeekData, getCachedMonthData, setCachedMonthData, setLastSyncTime } = useLocalCache();
+  const { isMiniPlayerVisible, wasRecentlyPlaying, currentChapter, isPlaying } = useAudiobookContext();
 
   const [activeTab, setActiveTab] = useState<TabType>("day");
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -314,6 +316,9 @@ const Dashboard = () => {
   const displayDistance = distance > 0 ? distance : (steps * 0.762) / 1000;
   const activeMinutes = Math.floor(steps / 120);
   const today = new Date();
+  
+  // Check if mini player is showing to offset the action button
+  const miniPlayerActive = isMiniPlayerVisible && (isPlaying || wasRecentlyPlaying) && currentChapter;
 
   return (
     <div className="h-[100dvh] flex flex-col relative overflow-hidden">
@@ -404,7 +409,10 @@ const Dashboard = () => {
       </div>
 
       {/* Action Button */}
-      <div className="fixed left-4 right-4 z-fixed fixed-above-nav" style={{ marginBottom: '1rem' }}>
+      <div 
+        className="fixed left-4 right-4 z-fixed fixed-above-nav transition-all duration-300" 
+        style={{ marginBottom: miniPlayerActive ? 'calc(60px + 1rem)' : '1rem' }}
+      >
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

@@ -15,6 +15,7 @@ import { Capacitor } from "@capacitor/core";
 import { useAudiobookContext } from "@/contexts/AudiobookContext";
 import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
 import { NativeSettings, AndroidSettings, IOSSettings } from 'capacitor-native-settings';
+import ActiveSessionAudioControls from "@/components/audiobook/ActiveSessionAudioControls";
 
 const ActiveSession = () => {
   const navigate = useNavigate();
@@ -422,22 +423,13 @@ const ActiveSession = () => {
         </div>
       </motion.div>
 
-      {/* Bottom Buttons with safe area */}
-      <div className="px-4 safe-area-pb space-y-2 pb-3 flex-shrink-0">
-        {/* Audiobook Button */}
-        <motion.div whileTap={{ scale: 0.98 }}>
-          <Button
-            variant="tactical"
-            size="full"
-            onClick={() => navigate('/audiobook')}
-            disabled={allChaptersComplete}
-            className="h-12 text-xs font-bold uppercase tracking-widest shadow-glow-sm hover:shadow-glow-md transition-all"
-          >
-            <Headphones className="mr-2 h-4 w-4" />
-            {isAudioPlaying ? "⏸ AUDIOBOOK PLAYING" : "🎧 OPEN AUDIOBOOK"}
-          </Button>
-        </motion.div>
+      {/* Embedded Audio Controls */}
+      <div className="px-4 flex-shrink-0">
+        <ActiveSessionAudioControls />
+      </div>
 
+      {/* Bottom Buttons with safe area */}
+      <div className="px-4 safe-area-pb space-y-2 pb-3 pt-2 flex-shrink-0">
         {/* Stop Button */}
         <motion.div whileTap={{ scale: 0.98 }}>
           <Button
