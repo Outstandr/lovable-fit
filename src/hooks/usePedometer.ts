@@ -14,6 +14,13 @@ const ONBOARDING_KEY = 'device_onboarding_completed';
 const STEPS_PER_CALORIE = 20;
 const SYNC_THRESHOLD = 50; // Sync to database every 50 steps
 
+// Step validation constants
+const MAX_STEPS_PER_UPDATE = 5000; // ~50 min of walking in one update is max realistic
+const MAX_DAILY_STEPS = 100000;    // Ultra-marathon territory
+
+// Midnight rollover storage key
+const LAST_TRACKED_DATE_KEY = 'last_tracked_date';
+
 export interface PedometerState {
   steps: number;
   distance: number;
@@ -53,6 +60,14 @@ export function usePedometer() {
   const backgroundSyncSteps = useRef<number>(0);
   const backgroundSyncDistance = useRef<number>(0);
   const backgroundSyncCalories = useRef<number>(0);
+
+  // Midnight rollover tracking
+  const lastTrackedDate = useRef<string>(
+    localStorage.getItem(LAST_TRACKED_DATE_KEY) || getLocalDateString()
+  );
+
+  // Previous session steps for anomaly detection
+  const previousSessionSteps = useRef<number>(0);
 
   // 10K Milestone Celebration
   useEffect(() => {
@@ -105,6 +120,53 @@ export function usePedometer() {
     loadTodayData();
   }, [user]);
 
+  // Handle midnight rollover - sync previous day and reset counters
+  const handleMidnightRollover = useCallback(async (previousDate: string, currentDate: string) => {
+    console.log('[usePedometer] 🌙 Midnight rollover detected!', {
+      previousDate,
+      newDate: currentDate
+    });
+
+    // Force sync previous day's data before resetting
+    if (user && backgroundSyncSteps.current > 0) {
+      try {
+        await supabase.from('daily_steps').upsert({
+          user_id: user.id,
+          date: previousDate,
+          steps: backgroundSyncSteps.current,
+          distance_km: backgroundSyncDistance.current,
+          calories: backgroundSyncCalories.current,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id,date' });
+        console.log('[usePedometer] ✅ Previous day synced on rollover:', backgroundSyncSteps.current);
+      } catch (e) {
+        console.error('[usePedometer] Failed to sync on rollover:', e);
+      }
+    }
+
+    // Reset all counters for new day
+    baseSteps.current = 0;
+    sensorBaseline.current = null; // Will be set on next sensor reading
+    lastSyncSteps.current = 0;
+    backgroundSyncSteps.current = 0;
+    backgroundSyncDistance.current = 0;
+    backgroundSyncCalories.current = 0;
+    previousSessionSteps.current = 0;
+    celebrated10K.current = null;
+
+    // Update tracked date
+    lastTrackedDate.current = currentDate;
+    localStorage.setItem(LAST_TRACKED_DATE_KEY, currentDate);
+
+    // Reset state
+    setState(prev => ({
+      ...prev,
+      steps: 0,
+      distance: 0,
+      calories: 0
+    }));
+  }, [user]);
+
   // Initialize Background Step Tracking
   useEffect(() => {
     const isOnboarding = location.pathname === '/onboarding';
@@ -123,6 +185,14 @@ export function usePedometer() {
     let isMounted = true;
 
     const updateState = (data: { steps: number; distance: number }) => {
+      const currentDate = getLocalDateString();
+
+      // MIDNIGHT ROLLOVER DETECTION
+      if (lastTrackedDate.current !== currentDate) {
+        handleMidnightRollover(lastTrackedDate.current, currentDate);
+        return; // Skip this update, next one will use fresh counters
+      }
+
       // Handle TYPE_STEP_COUNTER which returns cumulative steps since boot
       // Set baseline on first reading to calculate session steps correctly
       if (sensorBaseline.current === null && data.steps > 0) {
@@ -135,7 +205,32 @@ export function usePedometer() {
         ? Math.max(0, data.steps - sensorBaseline.current)
         : 0;
 
-      const totalSteps = baseSteps.current + sessionSteps;
+      // STEP VALIDATION - Reject anomalous increments
+      const stepIncrement = sessionSteps - previousSessionSteps.current;
+      
+      if (stepIncrement > MAX_STEPS_PER_UPDATE) {
+        console.warn('[usePedometer] ⚠️ Anomaly: Step increment too large', {
+          increment: stepIncrement,
+          threshold: MAX_STEPS_PER_UPDATE,
+          previousSession: previousSessionSteps.current,
+          currentSession: sessionSteps
+        });
+        // Skip this update - likely sensor glitch
+        return;
+      }
+
+      // Update previous session steps for next comparison
+      previousSessionSteps.current = sessionSteps;
+
+      // Calculate total steps
+      let totalSteps = baseSteps.current + sessionSteps;
+
+      // Cap at maximum daily steps
+      if (totalSteps > MAX_DAILY_STEPS) {
+        console.warn('[usePedometer] ⚠️ Capping steps at maximum:', MAX_DAILY_STEPS);
+        totalSteps = MAX_DAILY_STEPS;
+      }
+
       const distanceKm = (data.distance || (sessionSteps * 0.762)) / 1000;
       const totalDistance = (baseSteps.current * 0.762) / 1000 + distanceKm;
       const calories = Math.round(totalSteps / STEPS_PER_CALORIE);
@@ -165,8 +260,29 @@ export function usePedometer() {
     const initBackgroundTracking = async () => {
       console.log('[usePedometer] Initializing background step tracking...');
       
+      // Check for midnight rollover on init
+      const currentDate = getLocalDateString();
+      if (lastTrackedDate.current !== currentDate) {
+        await handleMidnightRollover(lastTrackedDate.current, currentDate);
+      }
+
       // Reset sensor baseline for new session
       sensorBaseline.current = null;
+
+      // Set up reboot detection callback (Android only)
+      if (Capacitor.getPlatform() === 'android') {
+        try {
+          const { backgroundStepService } = await import('@/services/backgroundStepService');
+          backgroundStepService.setRebootCallback((lostSensorValue) => {
+            console.log('[usePedometer] ⚠️ Device reboot detected - preserving steps');
+            // Reset the sensor baseline so new readings start from 0
+            sensorBaseline.current = null;
+            previousSessionSteps.current = 0;
+          });
+        } catch (e) {
+          console.error('[usePedometer] Failed to set reboot callback:', e);
+        }
+      }
 
       // Check if already running
       if (stepTrackingService.isRunning()) {
@@ -214,7 +330,7 @@ export function usePedometer() {
       clearTimeout(timer);
       // Don't stop service on unmount - it should keep running in background
     };
-  }, [location.pathname]);
+  }, [location.pathname, handleMidnightRollover]);
 
   // Sync to Database
   const syncToDatabase = useCallback(async (force = false) => {
@@ -301,6 +417,11 @@ export function usePedometer() {
 
         const today = getLocalDateString();
 
+        // Check for midnight rollover on any state change
+        if (lastTrackedDate.current !== today) {
+          await handleMidnightRollover(lastTrackedDate.current, today);
+        }
+
         if (!isActive) {
           // App going to BACKGROUND - sync immediately using REFS (always current)
           const stepsToSync = backgroundSyncSteps.current;
@@ -334,6 +455,7 @@ export function usePedometer() {
           
           // Reset baseline to capture background steps
           sensorBaseline.current = null;
+          previousSessionSteps.current = 0;
           
           let loadedFromHealth = false;
           
@@ -408,7 +530,7 @@ export function usePedometer() {
         appStateListener.remove();
       }
     };
-  }, [user, queueStepData]); // Minimal deps - listener set up once, uses refs for current values
+  }, [user, queueStepData, handleMidnightRollover]); // Minimal deps - listener set up once, uses refs for current values
 
   // Manual Actions
   const requestPermission = useCallback(async (): Promise<boolean> => {
@@ -426,7 +548,7 @@ export function usePedometer() {
       const sessionSteps = sensorBaseline.current !== null
         ? Math.max(0, data.steps - sensorBaseline.current)
         : 0;
-      const totalSteps = baseSteps.current + sessionSteps;
+      const totalSteps = Math.min(baseSteps.current + sessionSteps, MAX_DAILY_STEPS);
       const distanceKm = (data.distance || (sessionSteps * 0.762)) / 1000;
       const totalDistance = (baseSteps.current * 0.762) / 1000 + distanceKm;
       const calories = Math.round(totalSteps / STEPS_PER_CALORIE);

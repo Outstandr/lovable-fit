@@ -16,6 +16,18 @@ export interface StepData {
 
 const ACTIVITY_RECOGNITION_PERMISSION = 'android.permission.ACTIVITY_RECOGNITION';
 
+// Sensor state storage for reboot detection
+const SENSOR_STATE_KEY = 'sensor_state';
+
+interface SensorState {
+  lastValue: number;
+  timestamp: number;
+}
+
+// Retry configuration for foreground service
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = [1000, 2000, 4000]; // Exponential backoff
+
 /**
  * Background Step Service
  * 
@@ -31,6 +43,7 @@ class BackgroundStepService {
   private stepCallback: ((data: StepData) => void) | null = null;
   private listener: { remove: () => void } | null = null;
   private lastSteps = 0;
+  private onRebootDetected: ((lostSensorValue: number) => void) | null = null;
 
   /**
    * Check if running on native platform
@@ -44,6 +57,36 @@ class BackgroundStepService {
    */
   isRunning(): boolean {
     return this.serviceRunning;
+  }
+
+  /**
+   * Get sensor state from localStorage for reboot detection
+   */
+  private getSensorState(): SensorState | null {
+    try {
+      const stored = localStorage.getItem(SENSOR_STATE_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Save sensor state to localStorage for reboot detection
+   */
+  private saveSensorState(value: number): void {
+    localStorage.setItem(SENSOR_STATE_KEY, JSON.stringify({
+      lastValue: value,
+      timestamp: Date.now()
+    }));
+  }
+
+  /**
+   * Set callback for when device reboot is detected
+   */
+  setRebootCallback(callback: (lostSensorValue: number) => void): void {
+    this.onRebootDetected = callback;
+    console.log('[BackgroundStep] Reboot callback registered');
   }
 
   /**
@@ -140,6 +183,44 @@ class BackgroundStepService {
   }
 
   /**
+   * Start foreground service with retry logic and verification
+   */
+  private async startForegroundServiceWithRetry(): Promise<boolean> {
+    if (!ForegroundService) {
+      console.log('[BackgroundStep] Foreground service not available - skipping');
+      return false;
+    }
+
+    for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
+      const success = await this.startForegroundService();
+
+      if (success) {
+        // Verify service is actually running
+        try {
+          // Some versions have checkForegroundService, fallback if not
+          if (typeof ForegroundService.checkForegroundService === 'function') {
+            await ForegroundService.checkForegroundService();
+          }
+          console.log('[BackgroundStep] ✅ Foreground service verified (attempt', attempt + 1, ')');
+          return true;
+        } catch (verifyError) {
+          console.warn('[BackgroundStep] Service started but verification failed:', verifyError);
+          // Still count as success if start didn't throw
+          return true;
+        }
+      }
+
+      if (attempt < MAX_RETRY_ATTEMPTS - 1) {
+        console.log('[BackgroundStep] Retry', attempt + 2, 'in', RETRY_DELAY_MS[attempt], 'ms');
+        await new Promise(r => setTimeout(r, RETRY_DELAY_MS[attempt]));
+      }
+    }
+
+    console.error('[BackgroundStep] ❌ Failed to start foreground service after', MAX_RETRY_ATTEMPTS, 'attempts');
+    return false;
+  }
+
+  /**
    * Update the foreground notification with current step count
    */
   async updateNotification(steps: number): Promise<void> {
@@ -191,9 +272,13 @@ class BackgroundStepService {
         };
       }
 
-      // Step 2: Start the foreground service (keeps app alive in background)
+      // Step 2: Start the foreground service with retry logic (keeps app alive in background)
       if (Capacitor.getPlatform() === 'android') {
-        await this.startForegroundService();
+        const serviceStarted = await this.startForegroundServiceWithRetry();
+        if (!serviceStarted) {
+          // Service failed but continue with pedometer anyway
+          console.warn('[BackgroundStep] ⚠️ Proceeding without foreground service - background tracking may be unreliable');
+        }
       }
 
       // Step 3: Start the pedometer listener
@@ -201,6 +286,30 @@ class BackgroundStepService {
       this.listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
         const steps = data.numberOfSteps || 0;
         const distance = data.distance || 0;
+
+        // REBOOT DETECTION
+        const savedState = this.getSensorState();
+        if (savedState) {
+          const timeDiff = Date.now() - savedState.timestamp;
+          const stepDiff = steps - savedState.lastValue;
+
+          // If steps decreased significantly AND more than 5 minutes passed, likely reboot
+          if (stepDiff < -100 && timeDiff > 5 * 60 * 1000) {
+            console.log('[BackgroundStep] ⚠️ Reboot detected!', {
+              previousSteps: savedState.lastValue,
+              currentSteps: steps,
+              timeSinceLastUpdate: Math.round(timeDiff / 1000) + 's'
+            });
+            
+            // Emit reboot event so usePedometer can handle it
+            if (this.onRebootDetected) {
+              this.onRebootDetected(savedState.lastValue);
+            }
+          }
+        }
+
+        // Save current state for future reboot detection
+        this.saveSensorState(steps);
         
         console.log('[BackgroundStep] 📊 Steps:', steps);
         this.lastSteps = steps;

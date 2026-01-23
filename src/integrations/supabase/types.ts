@@ -121,6 +121,7 @@ export type Database = {
       }
       daily_steps: {
         Row: {
+          anomaly_detected: boolean | null
           calories: number | null
           created_at: string
           date: string
@@ -132,6 +133,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          anomaly_detected?: boolean | null
           calories?: number | null
           created_at?: string
           date?: string
@@ -143,6 +145,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          anomaly_detected?: boolean | null
           calories?: number | null
           created_at?: string
           date?: string
