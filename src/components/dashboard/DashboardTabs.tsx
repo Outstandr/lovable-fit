@@ -16,28 +16,34 @@ export const DashboardTabs = ({ activeTab, onTabChange }: DashboardTabsProps) =>
 
   return (
     <div className="flex items-center justify-center gap-6">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => onTabChange(tab.id)}
-          className={`relative px-2 py-1 text-sm font-semibold uppercase tracking-wider transition-colors ${
-            tab.id === 'week' ? 'app-tour-week-tab' : ''
-          } ${
-            activeTab === tab.id
-              ? "text-foreground"
-              : "text-muted-foreground hover:text-foreground/70"
-          }`}
-        >
-          {tab.label}
-          {activeTab === tab.id && (
-            <motion.div
-              layoutId="activeTab"
-              className="absolute -bottom-1 left-0 right-0 h-0.5 bg-primary rounded-full"
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
-            />
-          )}
-        </button>
-      ))}
+      {tabs.map((tab) => {
+        const tourClass = tab.id === 'week' 
+          ? 'app-tour-week-tab' 
+          : tab.id === 'month' 
+            ? 'app-tour-month-tab' 
+            : '';
+        
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onTabChange(tab.id)}
+            className={`relative px-2 py-1 text-sm font-semibold uppercase tracking-wider transition-colors ${tourClass} ${
+              activeTab === tab.id
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground/70"
+            }`}
+          >
+            {tab.label}
+            {activeTab === tab.id && (
+              <motion.div
+                layoutId="activeTab"
+                className="absolute -bottom-1 left-0 right-0 h-0.5 bg-primary rounded-full"
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              />
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 };
