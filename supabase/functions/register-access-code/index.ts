@@ -43,6 +43,15 @@ serve(async (req) => {
     const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
     const authHeader = req.headers.get("authorization");
 
+    // Diagnostic logging to debug secret mismatch
+    console.log("[register-access-code] Auth diagnostic:", {
+      hasExpectedSecret: Boolean(WEBHOOK_SECRET),
+      expectedSecretLength: WEBHOOK_SECRET?.length ?? 0,
+      expectedSecretEnding: WEBHOOK_SECRET ? WEBHOOK_SECRET.slice(-4) : 'N/A',
+      receivedAuthHeader: authHeader ? `${authHeader.slice(0, 10)}...${authHeader.slice(-4)}` : 'MISSING',
+      receivedHeaderLength: authHeader?.length ?? 0,
+    });
+
     if (WEBHOOK_SECRET) {
       if (!authHeader) {
         console.error("Missing Authorization header");
@@ -53,8 +62,14 @@ serve(async (req) => {
       }
 
       const expectedToken = `Bearer ${WEBHOOK_SECRET}`;
+      console.log("[register-access-code] Token comparison:", {
+        expectedTokenLength: expectedToken.length,
+        receivedTokenLength: authHeader.length,
+        lengthMatch: expectedToken.length === authHeader.length,
+      });
+      
       if (!timingSafeEqual(authHeader, expectedToken)) {
-        console.error("Invalid Bearer token");
+        console.error("Invalid Bearer token - mismatch detected");
         return new Response(
           JSON.stringify({ success: false, error: 'Unauthorized - invalid token' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
