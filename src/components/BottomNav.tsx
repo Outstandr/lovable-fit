@@ -54,6 +54,7 @@ export const BottomNav = () => {
           {navItems.map((item, index) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
+            const isLeaderboard = item.path === '/leaderboard';
             
             return (
               <motion.button
@@ -62,7 +63,9 @@ export const BottomNav = () => {
                   haptics.light();
                   navigate(item.path);
                 }}
-                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full touch-target relative z-10"
+                className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full touch-target relative z-10 ${
+                  isLeaderboard ? 'app-tour-leaderboard-nav' : ''
+                }`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
