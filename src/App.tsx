@@ -12,7 +12,6 @@ import { PushNotificationInitializer } from "@/components/PushNotificationInitia
 import { PageTransition } from "@/components/PageTransition";
 import AudioMiniPlayer from "@/components/audiobook/AudioMiniPlayer";
 import Index from "./pages/Index";
-import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import ActiveSession from "./pages/ActiveSession";
 import Leaderboard from "./pages/Leaderboard";
@@ -35,17 +34,10 @@ const AnimatedRoutes = () => {
   return (
     <AnimatePresence mode="wait" initial={false}>
       <Routes location={location} key={location.pathname}>
-        <Route path="/auth" element={
-          <PageTransition>
-            <Auth />
-          </PageTransition>
-        } />
         <Route path="/onboarding" element={
-          <ProtectedRoute skipOnboardingCheck>
-            <PageTransition>
-              <Onboarding />
-            </PageTransition>
-          </ProtectedRoute>
+          <PageTransition>
+            <Onboarding />
+          </PageTransition>
         } />
         <Route path="/" element={
           <ProtectedRoute>

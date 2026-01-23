@@ -6,8 +6,9 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, displayName: string, accessCode: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -81,32 +82,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  const signUp = async (email: string, password: string, displayName: string, accessCode: string): Promise<{ error: string | null }> => {
+  const signUp = async (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string
+  ): Promise<{ error: string | null }> => {
     try {
-      // Validate access code using secure function (no direct table access)
-      const { data: codeData, error: codeError } = await supabase
-        .rpc("check_access_code", { code_input: accessCode.toUpperCase().trim() });
-
-      if (codeError) {
-        console.error("[Auth] Access code validation error:", codeError);
-        return { error: "Error validating access code" };
-      }
-
-      // codeData is an array from the function
-      const codeResult = codeData?.[0];
-      if (!codeResult || !codeResult.is_valid) {
-        return { error: "Invalid or already used access code" };
-      }
-
-      // Sign up user
       const redirectUrl = `${window.location.origin}/`;
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            display_name: displayName.toUpperCase(),
+            first_name: firstName,
+            last_name: lastName,
           },
         },
       });
@@ -116,23 +107,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return { error: "This email is already registered. Please sign in instead." };
         }
         return { error: error.message };
-      }
-
-      if (data.user) {
-        // Mark access code as used (RLS policy enforces proper claim)
-        const { error: updateError } = await supabase
-          .from("access_codes")
-          .update({
-            is_used: true,
-            used_by: data.user.id,
-            used_at: new Date().toISOString()
-          })
-          .eq("id", codeResult.id);
-        
-        if (updateError) {
-          console.error("[Auth] Error marking access code as used:", updateError);
-          // Don't fail signup if code update fails - user is already created
-        }
       }
 
       return { error: null };
@@ -161,6 +135,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const signInWithGoogle = async (): Promise<{ error: string | null }> => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/onboarding`,
+        },
+      });
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      return { error: null };
+    } catch (err) {
+      return { error: "Failed to connect with Google" };
+    }
+  };
+
   const signOut = async () => {
     // Explicitly clear local state immediately to prevent race conditions
     setSession(null);
@@ -172,7 +165,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );

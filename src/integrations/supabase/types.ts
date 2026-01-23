@@ -166,10 +166,16 @@ export type Database = {
           daily_step_goal: number | null
           data_source: string | null
           display_name: string
+          first_name: string | null
           gender: string | null
           height_cm: number | null
           id: string
+          last_name: string | null
+          marketing_consent_at: string | null
+          newsletter_subscribed: boolean | null
+          phone_number: string | null
           profile_completed: boolean | null
+          registration_source: string | null
           show_on_leaderboard: boolean | null
           unit_preference: string | null
           updated_at: string
@@ -182,10 +188,16 @@ export type Database = {
           daily_step_goal?: number | null
           data_source?: string | null
           display_name: string
+          first_name?: string | null
           gender?: string | null
           height_cm?: number | null
           id: string
+          last_name?: string | null
+          marketing_consent_at?: string | null
+          newsletter_subscribed?: boolean | null
+          phone_number?: string | null
           profile_completed?: boolean | null
+          registration_source?: string | null
           show_on_leaderboard?: boolean | null
           unit_preference?: string | null
           updated_at?: string
@@ -198,10 +210,16 @@ export type Database = {
           daily_step_goal?: number | null
           data_source?: string | null
           display_name?: string
+          first_name?: string | null
           gender?: string | null
           height_cm?: number | null
           id?: string
+          last_name?: string | null
+          marketing_consent_at?: string | null
+          newsletter_subscribed?: boolean | null
+          phone_number?: string | null
           profile_completed?: boolean | null
+          registration_source?: string | null
           show_on_leaderboard?: boolean | null
           unit_preference?: string | null
           updated_at?: string
@@ -361,13 +379,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      check_access_code: {
-        Args: { code_input: string }
-        Returns: {
-          id: string
-          is_valid: boolean
-        }[]
-      }
       get_monthly_leaderboard: {
         Args: never
         Returns: {

@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { WelcomeStep } from '@/components/onboarding/WelcomeStep';
+import { ChallengeIntroStep } from '@/components/onboarding/ChallengeIntroStep';
+import { SignUpStep } from '@/components/onboarding/SignUpStep';
+import { PersonalInfoStep } from '@/components/onboarding/PersonalInfoStep';
+import { NewsletterStep } from '@/components/onboarding/NewsletterStep';
 import { ActivityPermissionStep } from '@/components/onboarding/ActivityPermissionStep';
 import { HealthKitPermissionStep } from '@/components/onboarding/HealthKitPermissionStep';
 import { LocationPermissionStep } from '@/components/onboarding/LocationPermissionStep';
@@ -14,6 +19,11 @@ import { SetupCompleteStep } from '@/components/onboarding/SetupCompleteStep';
 import { LoadingScreen } from '@/components/LoadingScreen';
 
 export type OnboardingStep =
+  | 'welcome'
+  | 'challenge'
+  | 'signup'
+  | 'personalInfo'
+  | 'newsletter'
   | 'activity'
   | 'healthkit'
   | 'location'
@@ -26,37 +36,39 @@ export type OnboardingStep =
 const ONBOARDING_KEY = 'device_onboarding_completed';
 
 const Onboarding = () => {
-  const [currentStep, setCurrentStep] = useState<OnboardingStep>('activity');
+  const [currentStep, setCurrentStep] = useState<OnboardingStep>('welcome');
   const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   // Lock body scroll while onboarding is mounted
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    
+
     return () => {
       document.body.style.overflow = originalOverflow;
     };
   }, []);
 
   useEffect(() => {
-    // Check if user is authenticated
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
+    // Wait for auth to finish loading
+    if (authLoading) return;
 
     // Check if device onboarding was already completed (localStorage)
     const deviceOnboardingCompleted = localStorage.getItem(ONBOARDING_KEY) === 'true';
-    if (deviceOnboardingCompleted) {
+    if (deviceOnboardingCompleted && user) {
       navigate('/');
       return;
     }
 
+    // If user is already authenticated (e.g., returned from OAuth), skip to post-auth steps
+    if (user) {
+      setCurrentStep('personalInfo');
+    }
+
     setIsLoading(false);
-  }, [user, navigate]);
+  }, [user, authLoading, navigate]);
 
   const handleNext = (nextStep: OnboardingStep) => {
     setCurrentStep(nextStep);
@@ -81,116 +93,69 @@ const Onboarding = () => {
     navigate('/');
   };
 
-  if (isLoading) {
-    return <LoadingScreen variant="protocol" message="Initializing Onboarding..." />;
+  if (isLoading || authLoading) {
+    return <LoadingScreen variant="protocol" message="Initializing..." />;
   }
+
+  // Step configuration for cleaner rendering
+  const stepConfig: Record<
+    OnboardingStep,
+    { component: React.ReactNode; nextStep?: OnboardingStep }
+  > = {
+    welcome: {
+      component: <WelcomeStep onNext={() => handleNext('challenge')} />,
+    },
+    challenge: {
+      component: <ChallengeIntroStep onNext={() => handleNext('signup')} />,
+    },
+    signup: {
+      component: <SignUpStep onNext={() => handleNext('personalInfo')} />,
+    },
+    personalInfo: {
+      component: <PersonalInfoStep onNext={() => handleNext('newsletter')} />,
+    },
+    newsletter: {
+      component: <NewsletterStep onNext={() => handleNext('activity')} />,
+    },
+    activity: {
+      component: <ActivityPermissionStep onNext={() => handleNext('healthkit')} />,
+    },
+    healthkit: {
+      component: <HealthKitPermissionStep onNext={() => handleNext('location')} />,
+    },
+    location: {
+      component: <LocationPermissionStep onNext={() => handleNext('body')} />,
+    },
+    body: {
+      component: <BodyMeasurementsStep onNext={() => handleNext('battery')} />,
+    },
+    battery: {
+      component: <BatteryOptimizationStep onNext={() => handleNext('notification')} />,
+    },
+    notification: {
+      component: <NotificationStep onNext={() => handleNext('goal')} />,
+    },
+    goal: {
+      component: <GoalStep onNext={() => handleNext('complete')} />,
+    },
+    complete: {
+      component: <SetupCompleteStep onComplete={handleComplete} />,
+    },
+  };
 
   return (
     <div className="fixed inset-0 bg-background overflow-hidden">
       <AnimatePresence mode="wait">
-        {currentStep === 'activity' && (
-          <motion.div
-            key="activity"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            transition={{ duration: 0.3 }}
-            className="absolute inset-0"
-          >
-            <ActivityPermissionStep onNext={() => handleNext('healthkit')} />
-          </motion.div>
-        )}
-
-        {currentStep === 'healthkit' && (
-          <motion.div
-            key="healthkit"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            transition={{ duration: 0.3 }}
-            className="absolute inset-0"
-          >
-            <HealthKitPermissionStep onNext={() => handleNext('location')} />
-          </motion.div>
-        )}
-
-        {currentStep === 'location' && (
-          <motion.div
-            key="location"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            transition={{ duration: 0.3 }}
-            className="absolute inset-0"
-          >
-            <LocationPermissionStep onNext={() => handleNext('body')} />
-          </motion.div>
-        )}
-
-        {currentStep === 'body' && (
-          <motion.div
-            key="body"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            transition={{ duration: 0.3 }}
-            className="absolute inset-0"
-          >
-            <BodyMeasurementsStep onNext={() => handleNext('battery')} />
-          </motion.div>
-        )}
-
-        {currentStep === 'battery' && (
-          <motion.div
-            key="battery"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            transition={{ duration: 0.3 }}
-            className="absolute inset-0"
-          >
-            <BatteryOptimizationStep onNext={() => handleNext('notification')} />
-          </motion.div>
-        )}
-
-        {currentStep === 'notification' && (
-          <motion.div
-            key="notification"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            transition={{ duration: 0.3 }}
-            className="absolute inset-0"
-          >
-            <NotificationStep onNext={() => handleNext('goal')} />
-          </motion.div>
-        )}
-
-        {currentStep === 'goal' && (
-          <motion.div
-            key="goal"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            transition={{ duration: 0.3 }}
-            className="absolute inset-0"
-          >
-            <GoalStep onNext={() => handleNext('complete')} />
-          </motion.div>
-        )}
-
-        {currentStep === 'complete' && (
-          <motion.div
-            key="complete"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            transition={{ duration: 0.3 }}
-            className="absolute inset-0"
-          >
-            <SetupCompleteStep onComplete={handleComplete} />
-          </motion.div>
-        )}
+        <motion.div
+          key={currentStep}
+          initial={{ opacity: 0, x: 50 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -50 }}
+          transition={{ duration: 0.3 }}
+          className="absolute inset-0"
+        >
+          {stepConfig[currentStep]?.component}
+        </motion.div>
       </AnimatePresence>
     </div>
   );
