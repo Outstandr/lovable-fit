@@ -3,31 +3,24 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-signature',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Verify webhook signature using HMAC-SHA256
-async function verifyWebhookSignature(body: string, signature: string, secret: string): Promise<boolean> {
-  try {
-    const encoder = new TextEncoder();
-    const key = await crypto.subtle.importKey(
-      "raw",
-      encoder.encode(secret),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"]
-    );
-    
-    const signatureBytes = await crypto.subtle.sign("HMAC", key, encoder.encode(body));
-    const expectedSignature = Array.from(new Uint8Array(signatureBytes))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-    
-    return signature === expectedSignature;
-  } catch (error) {
-    console.error("Signature verification error:", error);
+// Constant-time string comparison to prevent timing attacks
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    // Still do comparison to maintain constant time
+    let result = 0;
+    for (let i = 0; i < a.length; i++) {
+      result |= a.charCodeAt(i) ^ (b.charCodeAt(i % b.length) || 0);
+    }
     return false;
   }
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
 }
 
 serve(async (req) => {
@@ -46,35 +39,34 @@ serve(async (req) => {
       );
     }
 
-    // Verify webhook signature for security
+    // Validate Bearer token authentication
     const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
-    const signature = req.headers.get("x-webhook-signature");
-    
-    // Read body as text for signature verification
-    const bodyText = await req.text();
-    
+    const authHeader = req.headers.get("authorization");
+
     if (WEBHOOK_SECRET) {
-      if (!signature) {
-        console.error("Missing webhook signature");
+      if (!authHeader) {
+        console.error("Missing Authorization header");
         return new Response(
-          JSON.stringify({ success: false, error: 'Unauthorized - missing signature' }),
+          JSON.stringify({ success: false, error: 'Unauthorized - missing token' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
-      const isValid = await verifyWebhookSignature(bodyText, signature, WEBHOOK_SECRET);
-      if (!isValid) {
-        console.error("Invalid webhook signature");
+
+      const expectedToken = `Bearer ${WEBHOOK_SECRET}`;
+      if (!timingSafeEqual(authHeader, expectedToken)) {
+        console.error("Invalid Bearer token");
         return new Response(
-          JSON.stringify({ success: false, error: 'Unauthorized - invalid signature' }),
+          JSON.stringify({ success: false, error: 'Unauthorized - invalid token' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      console.log("Webhook signature verified successfully");
+      console.log("Bearer token verified successfully");
     } else {
-      console.warn("WEBHOOK_SECRET not configured - skipping signature verification");
+      console.warn("WEBHOOK_SECRET not configured - skipping authentication");
     }
 
+    // Read body after auth check
+    const bodyText = await req.text();
     const { access_code, customer_email, customer_name, product_name, purchase_id } = JSON.parse(bodyText);
 
     console.log('Received request to register access code:', { 
