@@ -6,6 +6,7 @@ interface QueuedStep {
   steps: number;
   distance: number;
   calories: number;
+  targetHit: boolean;
   timestamp: number;
 }
 
@@ -72,12 +73,13 @@ export const useOfflineSync = () => {
               steps: item.steps,
               distance_km: item.distance,
               calories: item.calories,
+              target_hit: item.targetHit,
               updated_at: new Date().toISOString()
             }, {
               onConflict: 'user_id,date'
             });
 
-          console.log('[OfflineSync] Synced:', item.date, item.steps);
+          console.log('[OfflineSync] Synced:', item.date, item.steps, 'target_hit:', item.targetHit);
         } catch (error) {
           console.error('[OfflineSync] Sync error:', error);
         }
@@ -95,7 +97,7 @@ export const useOfflineSync = () => {
   }, [isOnline, syncQueue]);
 
   // Function to queue step data when offline - WITH DEDUPLICATION
-  const queueStepData = useCallback((date: string, steps: number, distance: number, calories: number) => {
+  const queueStepData = useCallback((date: string, steps: number, distance: number, calories: number, targetHit: boolean = false) => {
     setSyncQueue(prev => {
       // Check if an entry for this date already exists
       const existingIndex = prev.findIndex(item => item.date === date);
@@ -113,9 +115,10 @@ export const useOfflineSync = () => {
             steps,
             distance,
             calories,
+            targetHit,
             timestamp: Date.now()
           };
-          console.log('[OfflineSync] Updated queued data:', date, steps, '(was', existing.steps, ')');
+          console.log('[OfflineSync] Updated queued data:', date, steps, 'target_hit:', targetHit, '(was', existing.steps, ')');
         } else {
           console.log('[OfflineSync] Skipped lower value:', steps, '<=', existing.steps);
           return prev; // No change needed
@@ -127,9 +130,10 @@ export const useOfflineSync = () => {
           steps,
           distance,
           calories,
+          targetHit,
           timestamp: Date.now()
         }];
-        console.log('[OfflineSync] Queued new offline data:', date, steps);
+        console.log('[OfflineSync] Queued new offline data:', date, steps, 'target_hit:', targetHit);
       }
 
       localStorage.setItem('offlineStepQueue', JSON.stringify(newQueue));

@@ -44,10 +44,33 @@ export function useStreak(): UseStreakReturn {
 
       if (error) throw error;
 
+      const today = getLocalDateString();
+      const yesterday = getLocalDateString(new Date(Date.now() - 86400000));
+      const lastHitDate = data?.last_target_hit_date || null;
+
+      // STREAK VALIDATION: Reset if last target hit was NOT today or yesterday
+      if (lastHitDate && lastHitDate !== today && lastHitDate !== yesterday && data?.current_streak > 0) {
+        console.log('[useStreak] Streak broken! Last hit:', lastHitDate, 'Today:', today);
+        
+        // Reset streak in database
+        await supabase.from('streaks').update({
+          current_streak: 0
+        }).eq('user_id', user.id);
+
+        setStreak({
+          currentStreak: 0,
+          longestStreak: data?.longest_streak || 0,
+          lastTargetHitDate: lastHitDate,
+          isLoading: false,
+          error: null
+        });
+        return;
+      }
+
       setStreak({
         currentStreak: data?.current_streak || 0,
         longestStreak: data?.longest_streak || 0,
-        lastTargetHitDate: data?.last_target_hit_date || null,
+        lastTargetHitDate: lastHitDate,
         isLoading: false,
         error: null
       });
