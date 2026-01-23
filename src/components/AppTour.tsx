@@ -119,6 +119,10 @@ export const AppTour = ({ isOpen, onComplete, onTabChange }: AppTourProps) => {
                 setTimeout(() => {
                   driverObj.movePrevious();
                 }, 400);
+              },
+              onNextClick: () => {
+                // Just move to next step, we're already on leaderboard
+                driverObj.moveNext();
               }
             }
           },
@@ -127,6 +131,16 @@ export const AppTour = ({ isOpen, onComplete, onTabChange }: AppTourProps) => {
             popover: {
               title: 'Time Periods',
               description: "Switch between Today, Week, and Month to see different ranking periods.",
+              onPrevClick: () => {
+                driverObj.movePrevious();
+              },
+              onNextClick: () => {
+                // Return to dashboard for final step
+                navigate('/');
+                setTimeout(() => {
+                  driverObj.moveNext();
+                }, 400);
+              }
             }
           },
           {
@@ -134,6 +148,13 @@ export const AppTour = ({ isOpen, onComplete, onTabChange }: AppTourProps) => {
             popover: {
               title: 'Explore the App',
               description: 'Listen to the Audiobook while walking, complete Protocol tasks, and manage your Profile.',
+              onPrevClick: () => {
+                // Go back to leaderboard
+                navigate('/leaderboard');
+                setTimeout(() => {
+                  driverObj.movePrevious();
+                }, 400);
+              }
             }
           },
         ],
