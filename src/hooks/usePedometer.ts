@@ -69,6 +69,30 @@ export function usePedometer() {
   // Previous session steps for anomaly detection
   const previousSessionSteps = useRef<number>(0);
 
+  // Daily goal tracking for target_hit calculation
+  const dailyGoalRef = useRef<number>(10000);
+
+  // Fetch user's daily goal for target_hit calculation
+  useEffect(() => {
+    const fetchGoal = async () => {
+      if (!user) return;
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('daily_step_goal')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (data?.daily_step_goal) {
+          dailyGoalRef.current = data.daily_step_goal;
+          console.log('[usePedometer] Daily goal loaded:', dailyGoalRef.current);
+        }
+      } catch (e) {
+        console.error('[usePedometer] Failed to load daily goal:', e);
+      }
+    };
+    fetchGoal();
+  }, [user]);
+
   // 10K Milestone Celebration
   useEffect(() => {
     const today = getLocalDateString();
@@ -130,15 +154,17 @@ export function usePedometer() {
     // Force sync previous day's data before resetting
     if (user && backgroundSyncSteps.current > 0) {
       try {
+        const targetHit = backgroundSyncSteps.current >= dailyGoalRef.current;
         await supabase.from('daily_steps').upsert({
           user_id: user.id,
           date: previousDate,
           steps: backgroundSyncSteps.current,
           distance_km: backgroundSyncDistance.current,
           calories: backgroundSyncCalories.current,
+          target_hit: targetHit,
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id,date' });
-        console.log('[usePedometer] ✅ Previous day synced on rollover:', backgroundSyncSteps.current);
+        console.log('[usePedometer] ✅ Previous day synced on rollover:', backgroundSyncSteps.current, 'target_hit:', targetHit);
       } catch (e) {
         console.error('[usePedometer] Failed to sync on rollover:', e);
       }
@@ -350,18 +376,20 @@ export function usePedometer() {
     }
 
     const today = getLocalDateString();
+    const targetHit = state.steps >= dailyGoalRef.current;
     const data = {
       user_id: user.id,
       date: today,
       steps: state.steps,
       distance_km: state.distance,
       calories: state.calories,
+      target_hit: targetHit,
       updated_at: new Date().toISOString()
     };
 
     try {
       if (isOnline) {
-        console.log('[usePedometer] Syncing to DB:', state.steps);
+        console.log('[usePedometer] Syncing to DB:', state.steps, 'target_hit:', targetHit);
         const { error } = await supabase
           .from('daily_steps')
           .upsert(data, { onConflict: 'user_id,date' });
@@ -369,11 +397,11 @@ export function usePedometer() {
         lastSyncSteps.current = state.steps;
         console.log('[usePedometer] ✅ Synced successfully');
       } else {
-        queueStepData(today, state.steps, state.distance, state.calories);
+        queueStepData(today, state.steps, state.distance, state.calories, targetHit);
       }
     } catch (error) {
       console.error('[usePedometer] Sync error:', error);
-      queueStepData(today, state.steps, state.distance, state.calories);
+      queueStepData(today, state.steps, state.distance, state.calories, targetHit);
     }
   }, [user, state.steps, state.distance, state.calories, isOnline, queueStepData]);
 
@@ -432,6 +460,7 @@ export function usePedometer() {
           
           if (stepsToSync > 0) {
             try {
+              const targetHit = stepsToSync >= dailyGoalRef.current;
               await supabase
                 .from('daily_steps')
                 .upsert({
@@ -440,13 +469,15 @@ export function usePedometer() {
                   steps: stepsToSync,
                   distance_km: distanceToSync,
                   calories: caloriesToSync,
+                  target_hit: targetHit,
                   updated_at: new Date().toISOString()
                 }, { onConflict: 'user_id,date' });
-              console.log('[usePedometer] ✅ Background sync successful:', stepsToSync);
+              console.log('[usePedometer] ✅ Background sync successful:', stepsToSync, 'target_hit:', targetHit);
               lastSyncSteps.current = stepsToSync;
             } catch (e) {
               console.error('[usePedometer] Background sync error:', e);
-              queueStepData(today, stepsToSync, distanceToSync, caloriesToSync);
+              const targetHit = stepsToSync >= dailyGoalRef.current;
+              queueStepData(today, stepsToSync, distanceToSync, caloriesToSync, targetHit);
             }
           }
         } else {
