@@ -38,78 +38,80 @@ export function NotificationStep({ onNext }: NotificationStepProps) {
   };
 
   return (
-    <div className="absolute inset-0 flex flex-col bg-background safe-area-y">
-      {/* Icon */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 min-h-0">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-          className="w-32 h-32 rounded-3xl bg-accent flex items-center justify-center mb-8"
-        >
+    <div className="flex flex-col h-full bg-background overflow-hidden">
+      {/* Scrollable Content */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex flex-col items-center justify-center px-6 py-8 min-h-full">
           <motion.div
-            animate={{ 
-              rotate: [0, -10, 10, -10, 10, 0],
-            }}
-            transition={{ 
-              duration: 0.5,
-              delay: 0.5,
-              repeat: Infinity,
-              repeatDelay: 2
-            }}
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+            className="w-32 h-32 rounded-3xl bg-accent flex items-center justify-center mb-8"
           >
-            <Bell className="w-16 h-16 text-accent-foreground" />
-          </motion.div>
-        </motion.div>
-
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="text-2xl font-bold text-foreground text-center mb-4"
-        >
-          Goal Reminder
-        </motion.h1>
-
-        {/* Description - Apple Guideline 5.1.1 Compliant */}
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="text-muted-foreground text-center max-w-xs leading-relaxed"
-        >
-          We need to send you notifications so that you can receive daily reminders and goal achievements.
-        </motion.p>
-
-        {/* Benefits */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="mt-8 space-y-3 w-full max-w-xs"
-        >
-          {[
-            'Morning motivation',
-            'Midday progress check',
-            'Evening goal reminders',
-          ].map((benefit) => (
-            <div
-              key={benefit}
-              className="flex items-center gap-3 text-sm text-foreground/80"
+            <motion.div
+              animate={{ 
+                rotate: [0, -10, 10, -10, 10, 0],
+              }}
+              transition={{ 
+                duration: 0.5,
+                delay: 0.5,
+                repeat: Infinity,
+                repeatDelay: 2
+              }}
             >
-              <div className="w-2 h-2 rounded-full bg-accent" />
-              <span>{benefit}</span>
-            </div>
-          ))}
-        </motion.div>
+              <Bell className="w-16 h-16 text-accent-foreground" />
+            </motion.div>
+          </motion.div>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-2xl font-bold text-foreground text-center mb-4"
+          >
+            Goal Reminder
+          </motion.h1>
+
+          {/* Description - Apple Guideline 5.1.1 Compliant */}
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-muted-foreground text-center max-w-xs leading-relaxed"
+          >
+            We need to send you notifications so that you can receive daily reminders and goal achievements.
+          </motion.p>
+
+          {/* Benefits */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="mt-8 space-y-3 w-full max-w-xs"
+          >
+            {[
+              'Morning motivation',
+              'Midday progress check',
+              'Evening goal reminders',
+            ].map((benefit) => (
+              <div
+                key={benefit}
+                className="flex items-center gap-3 text-sm text-foreground/80"
+              >
+                <div className="w-2 h-2 rounded-full bg-accent" />
+                <span>{benefit}</span>
+              </div>
+            ))}
+          </motion.div>
+        </div>
       </div>
 
-      {/* Continue Button */}
+      {/* Fixed Continue Button - Always Visible */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="px-6 pb-6 safe-area-pb"
+        className="flex-shrink-0 px-6 pt-4 safe-area-pb-cta"
       >
         <Button
           onClick={handleContinue}

@@ -250,9 +250,14 @@
     padding-top: env(safe-area-inset-top, 0px);
   }
 
-  .safe-area-pb {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Bottom padding for CTAs - ensures visibility on Android gesture navigation */
+.safe-area-pb-cta {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 36px);
+}
 
   .safe-area-y {
     padding-top: env(safe-area-inset-top, 0px);

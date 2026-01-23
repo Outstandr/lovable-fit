@@ -93,161 +93,164 @@ export const PersonalInfoStep = forwardRef<HTMLDivElement, PersonalInfoStepProps
     return (
       <div
         ref={ref}
-        className="flex flex-col min-h-screen bg-background text-foreground"
+        className="flex flex-col h-full bg-background text-foreground overflow-hidden"
       >
-        {/* Header */}
-        <div className="px-6 pt-12 pb-6">
+        {/* Scrollable Content */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          {/* Header */}
+          <div className="px-6 pt-8 pb-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+              className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6"
+            >
+              <User className="w-8 h-8 text-primary" />
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+              className="text-2xl font-bold text-center mb-2"
+            >
+              Tell us about yourself
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+              className="text-muted-foreground text-center text-sm"
+            >
+              Your name will appear on the leaderboard
+            </motion.p>
+          </div>
+
+          {/* Form */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
-            className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6"
-          >
-            <User className="w-8 h-8 text-primary" />
-          </motion.div>
-
-          <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className="text-2xl font-bold text-center mb-2"
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className="px-6 space-y-5 pb-6"
           >
-            Tell us about yourself
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
-            className="text-muted-foreground text-center text-sm"
-          >
-            Your name will appear on the leaderboard
-          </motion.p>
-        </div>
-
-        {/* Form */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.5 }}
-          className="flex-1 px-6 space-y-5"
-        >
-          {/* First Name */}
-          <div className="space-y-2">
-            <Label htmlFor="firstName" className="text-sm font-medium">
-              First Name <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="firstName"
-              type="text"
-              placeholder="John"
-              value={firstName}
-              onChange={(e) => {
-                setFirstName(e.target.value);
-                if (errors.firstName) {
-                  setErrors((prev) => ({ ...prev, firstName: '' }));
-                }
-              }}
-              className={errors.firstName ? 'border-destructive' : ''}
-              autoComplete="given-name"
-              maxLength={50}
-            />
-            {errors.firstName && (
-              <p className="text-xs text-destructive">{errors.firstName}</p>
-            )}
-          </div>
-
-          {/* Last Name */}
-          <div className="space-y-2">
-            <Label htmlFor="lastName" className="text-sm font-medium">
-              Last Name <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="lastName"
-              type="text"
-              placeholder="Smith"
-              value={lastName}
-              onChange={(e) => {
-                setLastName(e.target.value);
-                if (errors.lastName) {
-                  setErrors((prev) => ({ ...prev, lastName: '' }));
-                }
-              }}
-              className={errors.lastName ? 'border-destructive' : ''}
-              autoComplete="family-name"
-              maxLength={50}
-            />
-            {errors.lastName && (
-              <p className="text-xs text-destructive">{errors.lastName}</p>
-            )}
-          </div>
-
-          {/* Phone Number */}
-          <div className="space-y-2">
-            <Label htmlFor="phoneNumber" className="text-sm font-medium">
-              Phone Number <span className="text-muted-foreground">(Optional)</span>
-            </Label>
-            <div className="flex gap-2">
-              <select
-                value={countryCode}
-                onChange={(e) => setCountryCode(e.target.value)}
-                className="w-24 h-10 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="+1">+1 🇺🇸</option>
-                <option value="+44">+44 🇬🇧</option>
-                <option value="+61">+61 🇦🇺</option>
-                <option value="+91">+91 🇮🇳</option>
-                <option value="+49">+49 🇩🇪</option>
-                <option value="+33">+33 🇫🇷</option>
-                <option value="+81">+81 🇯🇵</option>
-                <option value="+86">+86 🇨🇳</option>
-                <option value="+55">+55 🇧🇷</option>
-                <option value="+52">+52 🇲🇽</option>
-              </select>
+            {/* First Name */}
+            <div className="space-y-2">
+              <Label htmlFor="firstName" className="text-sm font-medium">
+                First Name <span className="text-destructive">*</span>
+              </Label>
               <Input
-                id="phoneNumber"
-                type="tel"
-                placeholder="555 123 4567"
-                value={phoneNumber}
+                id="firstName"
+                type="text"
+                placeholder="John"
+                value={firstName}
                 onChange={(e) => {
-                  // Only allow digits and spaces
-                  const cleaned = e.target.value.replace(/[^\d\s]/g, '');
-                  setPhoneNumber(cleaned);
-                  if (errors.phoneNumber) {
-                    setErrors((prev) => ({ ...prev, phoneNumber: '' }));
+                  setFirstName(e.target.value);
+                  if (errors.firstName) {
+                    setErrors((prev) => ({ ...prev, firstName: '' }));
                   }
                 }}
-                className={`flex-1 ${errors.phoneNumber ? 'border-destructive' : ''}`}
-                autoComplete="tel-national"
-                maxLength={15}
+                className={errors.firstName ? 'border-destructive' : ''}
+                autoComplete="given-name"
+                maxLength={50}
               />
+              {errors.firstName && (
+                <p className="text-xs text-destructive">{errors.firstName}</p>
+              )}
             </div>
-            {errors.phoneNumber && (
-              <p className="text-xs text-destructive">{errors.phoneNumber}</p>
-            )}
-          </div>
 
-          {/* Privacy Notice */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6, duration: 0.5 }}
-            className="flex items-start gap-3 p-4 rounded-xl bg-muted/50 border border-border"
-          >
-            <Phone className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-muted-foreground">
-              Your phone number is used only for account recovery. We never share your
-              personal information with third parties.
-            </p>
+            {/* Last Name */}
+            <div className="space-y-2">
+              <Label htmlFor="lastName" className="text-sm font-medium">
+                Last Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="lastName"
+                type="text"
+                placeholder="Smith"
+                value={lastName}
+                onChange={(e) => {
+                  setLastName(e.target.value);
+                  if (errors.lastName) {
+                    setErrors((prev) => ({ ...prev, lastName: '' }));
+                  }
+                }}
+                className={errors.lastName ? 'border-destructive' : ''}
+                autoComplete="family-name"
+                maxLength={50}
+              />
+              {errors.lastName && (
+                <p className="text-xs text-destructive">{errors.lastName}</p>
+              )}
+            </div>
+
+            {/* Phone Number */}
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber" className="text-sm font-medium">
+                Phone Number <span className="text-muted-foreground">(Optional)</span>
+              </Label>
+              <div className="flex gap-2">
+                <select
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
+                  className="w-24 h-10 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="+1">+1 🇺🇸</option>
+                  <option value="+44">+44 🇬🇧</option>
+                  <option value="+61">+61 🇦🇺</option>
+                  <option value="+91">+91 🇮🇳</option>
+                  <option value="+49">+49 🇩🇪</option>
+                  <option value="+33">+33 🇫🇷</option>
+                  <option value="+81">+81 🇯🇵</option>
+                  <option value="+86">+86 🇨🇳</option>
+                  <option value="+55">+55 🇧🇷</option>
+                  <option value="+52">+52 🇲🇽</option>
+                </select>
+                <Input
+                  id="phoneNumber"
+                  type="tel"
+                  placeholder="555 123 4567"
+                  value={phoneNumber}
+                  onChange={(e) => {
+                    // Only allow digits and spaces
+                    const cleaned = e.target.value.replace(/[^\d\s]/g, '');
+                    setPhoneNumber(cleaned);
+                    if (errors.phoneNumber) {
+                      setErrors((prev) => ({ ...prev, phoneNumber: '' }));
+                    }
+                  }}
+                  className={`flex-1 ${errors.phoneNumber ? 'border-destructive' : ''}`}
+                  autoComplete="tel-national"
+                  maxLength={15}
+                />
+              </div>
+              {errors.phoneNumber && (
+                <p className="text-xs text-destructive">{errors.phoneNumber}</p>
+              )}
+            </div>
+
+            {/* Privacy Notice */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6, duration: 0.5 }}
+              className="flex items-start gap-3 p-4 rounded-xl bg-muted/50 border border-border"
+            >
+              <Phone className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground">
+                Your phone number is used only for account recovery. We never share your
+                personal information with third parties.
+              </p>
+            </motion.div>
           </motion.div>
-        </motion.div>
+        </div>
 
-        {/* Privacy Badge & CTA */}
+        {/* Fixed Privacy Badge & CTA - Always Visible */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7, duration: 0.5 }}
-          className="px-6 pb-12 pt-6 space-y-4"
+          className="flex-shrink-0 px-6 pt-4 space-y-4 safe-area-pb-cta"
         >
           <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
             <Shield className="w-4 h-4" />

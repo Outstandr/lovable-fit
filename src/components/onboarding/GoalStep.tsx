@@ -90,9 +90,9 @@ export const GoalStep = forwardRef<HTMLDivElement, GoalStepProps>(
       : selectedGoal !== null;
 
     return (
-      <div ref={ref} className="absolute inset-0 flex flex-col bg-background safe-area-y">
+      <div ref={ref} className="flex flex-col h-full bg-background overflow-hidden">
         {/* Header */}
-        <div className="pt-8 px-6 mb-6">
+        <div className="flex-shrink-0 pt-8 px-6 mb-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -110,80 +110,82 @@ export const GoalStep = forwardRef<HTMLDivElement, GoalStepProps>(
           </motion.h1>
         </div>
 
-        {/* Goal Options */}
+        {/* Scrollable Goal Options */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="flex-1 px-6 space-y-4 min-h-0 overflow-y-auto"
+          className="flex-1 min-h-0 overflow-y-auto px-6"
         >
-          {PRESET_GOALS.map((goal, index) => (
+          <div className="space-y-4 pb-6">
+            {PRESET_GOALS.map((goal, index) => (
+              <motion.button
+                key={goal.value}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 + index * 0.1 }}
+                onClick={() => handleSelectGoal(goal.value)}
+                className={`w-full p-5 rounded-2xl border-2 text-left transition-all ${selectedGoal === goal.value
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border bg-secondary/50 hover:border-primary/50'
+                  }`}
+              >
+                <span className="text-lg font-semibold text-foreground">
+                  {goal.label}
+                </span>
+              </motion.button>
+            ))}
+
+            {/* Custom Goal */}
             <motion.button
-              key={goal.value}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 + index * 0.1 }}
-              onClick={() => handleSelectGoal(goal.value)}
-              className={`w-full p-5 rounded-2xl border-2 text-left transition-all ${selectedGoal === goal.value
+              transition={{ delay: 0.5 }}
+              onClick={handleCustomGoal}
+              className={`w-full p-5 rounded-2xl border-2 text-left transition-all flex items-center justify-between ${showCustom
                   ? 'border-primary bg-primary/10'
                   : 'border-border bg-secondary/50 hover:border-primary/50'
                 }`}
             >
               <span className="text-lg font-semibold text-foreground">
-                {goal.label}
+                Custom Goal
               </span>
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </motion.button>
-          ))}
 
-          {/* Custom Goal */}
-          <motion.button
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.5 }}
-            onClick={handleCustomGoal}
-            className={`w-full p-5 rounded-2xl border-2 text-left transition-all flex items-center justify-between ${showCustom
-                ? 'border-primary bg-primary/10'
-                : 'border-border bg-secondary/50 hover:border-primary/50'
-              }`}
-          >
-            <span className="text-lg font-semibold text-foreground">
-              Custom Goal
-            </span>
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
-          </motion.button>
-
-          {/* Custom Input */}
-          {showCustom && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="px-2"
-            >
-              <div className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  placeholder="Enter steps"
-                  value={customGoal}
-                  onChange={(e) => setCustomGoal(e.target.value)}
-                  className="flex-1 h-14 text-lg bg-secondary border-border text-foreground"
-                  min={1000}
-                  max={50000}
-                />
-                <span className="text-muted-foreground">steps</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Enter a goal between 1,000 and 50,000 steps
-              </p>
-            </motion.div>
-          )}
+            {/* Custom Input */}
+            {showCustom && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="px-2"
+              >
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    placeholder="Enter steps"
+                    value={customGoal}
+                    onChange={(e) => setCustomGoal(e.target.value)}
+                    className="flex-1 h-14 text-lg bg-secondary border-border text-foreground"
+                    min={1000}
+                    max={50000}
+                  />
+                  <span className="text-muted-foreground">steps</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Enter a goal between 1,000 and 50,000 steps
+                </p>
+              </motion.div>
+            )}
+          </div>
         </motion.div>
 
-        {/* Continue Button */}
+        {/* Fixed Continue Button - Always Visible */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="px-6 pb-6 safe-area-pb mt-4"
+          className="flex-shrink-0 px-6 pt-4 safe-area-pb-cta"
         >
           <Button
             onClick={handleContinue}
