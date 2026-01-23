@@ -350,11 +350,9 @@ const Dashboard = () => {
           paddingBottom: 'calc(4rem + env(safe-area-inset-bottom, 0px) + 6rem)' 
         }}
       >
-        <div className="px-4 pb-2 relative z-content">
-          {/* Tabs Row */}
-          <div className="flex justify-center mt-3 mb-2">
-            <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
-          </div>
+        {/* Tabs Row */}
+        <div className="flex justify-center px-4 mb-4">
+          <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
 
           {/* Main Content */}
