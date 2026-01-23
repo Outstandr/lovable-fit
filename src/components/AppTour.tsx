@@ -86,7 +86,42 @@ export const AppTour = ({ isOpen, onComplete, onTabChange }: AppTourProps) => {
                 }, 400);
               },
               onNextClick: () => {
-                // Switch back to day view before navigating
+                // Switch to month tab
+                onTabChange?.('month');
+                setTimeout(() => {
+                  driverObj.moveNext();
+                }, 400);
+              }
+            }
+          },
+          {
+            element: '.app-tour-month-tab',
+            popover: {
+              title: 'Monthly Overview',
+              description: 'Switch to Month view for a calendar heatmap showing your entire month at a glance!',
+              onPrevClick: () => {
+                // Go back to week view
+                onTabChange?.('week');
+                setTimeout(() => {
+                  driverObj.movePrevious();
+                }, 400);
+              },
+              onNextClick: () => {
+                // Already on month, move to calendar step
+                driverObj.moveNext();
+              }
+            }
+          },
+          {
+            element: '.app-tour-month-calendar',
+            popover: {
+              title: 'Calendar Heatmap',
+              description: 'Each day shows your steps with color intensity. Green means you hit your goal that day!',
+              onPrevClick: () => {
+                driverObj.movePrevious();
+              },
+              onNextClick: () => {
+                // Switch back to day view before navigating to leaderboard step
                 onTabChange?.('day');
                 setTimeout(() => {
                   driverObj.moveNext();
