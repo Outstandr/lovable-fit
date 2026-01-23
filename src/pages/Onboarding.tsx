@@ -17,6 +17,7 @@ import { NotificationStep } from '@/components/onboarding/NotificationStep';
 import { GoalStep } from '@/components/onboarding/GoalStep';
 import { SetupCompleteStep } from '@/components/onboarding/SetupCompleteStep';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 
 export type OnboardingStep =
   | 'welcome'
@@ -145,6 +146,11 @@ const Onboarding = () => {
 
   return (
     <div className="fixed inset-0 bg-background overflow-hidden">
+      {/* Progress indicator - fixed at top */}
+      <div className="absolute top-0 left-0 right-0 z-10 safe-area-pt">
+        <OnboardingProgress currentStep={currentStep} />
+      </div>
+      
       <AnimatePresence mode="wait">
         <motion.div
           key={currentStep}
