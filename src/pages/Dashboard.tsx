@@ -9,7 +9,7 @@ import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { DayView } from "@/components/dashboard/DayView";
 import { WeekView } from "@/components/dashboard/WeekView";
 import { MonthView } from "@/components/dashboard/MonthView";
-import { AppTour } from "@/components/AppTour";
+import { useAppTour } from "@/contexts/AppTourContext";
 
 import { useSteps } from "@/contexts/StepContext";
 import { useStreak } from "@/hooks/useStreak";
@@ -36,8 +36,9 @@ const Dashboard = () => {
 
   const [activeTab, setActiveTab] = useState<TabType>("day");
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showAppTour, setShowAppTour] = useState(false);
   const [dailyGoal, setDailyGoal] = useState(10000);
+
+  const { openTour, registerDashboardTabSetter } = useAppTour();
 
   // Data states
   const [weeklyTrend, setWeeklyTrend] = useState<{ label: string; value: number }[]>([]);
@@ -308,7 +309,7 @@ const Dashboard = () => {
           // Onboarding done, check if tour needs to show
           if (tourDone !== 'true') {
             // Show tour after a short delay
-            setTimeout(() => setShowAppTour(true), 1500);
+            setTimeout(() => openTour(), 1500);
           }
           return;
         }
@@ -318,30 +319,26 @@ const Dashboard = () => {
           setTimeout(() => setShowOnboarding(true), 2000);
         } else if (tourDone !== 'true') {
           // Profile complete but tour not done
-          setTimeout(() => setShowAppTour(true), 1500);
+          setTimeout(() => openTour(), 1500);
         }
       } catch (error) {
         console.error('[Dashboard] Error checking onboarding:', error);
       }
     };
     checkOnboarding();
-  }, [user]);
-
-  const handleTourComplete = () => {
-    localStorage.setItem('app_tour_completed', 'true');
-    setShowAppTour(false);
-    setActiveTab('day'); // Reset to day view after tour
-  };
+  }, [user, openTour]);
 
   const handleRestartTour = () => {
     haptics.light();
     setActiveTab('day'); // Start tour from day view
-    setShowAppTour(true);
+    openTour();
   };
 
-  const handleTourTabChange = (tab: 'day' | 'week' | 'month') => {
-    setActiveTab(tab);
-  };
+  // Allow the app-level tour to control dashboard tabs while this page is mounted
+  useEffect(() => {
+    registerDashboardTabSetter(setActiveTab);
+    return () => registerDashboardTabSetter(null);
+  }, [registerDashboardTabSetter]);
 
 
   const displayDistance = distance > 0 ? distance : (steps * 0.762) / 1000;
@@ -482,7 +479,7 @@ const Dashboard = () => {
         onSkip={() => localStorage.setItem('onboarding_completed', 'true')}
       />
 
-      <AppTour isOpen={showAppTour} onComplete={handleTourComplete} onTabChange={handleTourTabChange} />
+
     </div>
   );
 };
