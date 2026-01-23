@@ -10,7 +10,7 @@ export const initializeGoogleAuth = async (): Promise<void> => {
   if (Capacitor.isNativePlatform()) {
     try {
       await GoogleAuth.initialize({
-        clientId: import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID || '',
+        clientId: '174629789704-sml35k7l0ht90s3s0l4cro8dts14o7u3.apps.googleusercontent.com',
         scopes: ['profile', 'email'],
         grantOfflineAccess: true,
       });
