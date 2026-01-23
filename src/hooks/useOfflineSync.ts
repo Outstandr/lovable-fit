@@ -94,20 +94,45 @@ export const useOfflineSync = () => {
     }
   }, [isOnline, syncQueue]);
 
-  // Function to queue step data when offline
+  // Function to queue step data when offline - WITH DEDUPLICATION
   const queueStepData = useCallback((date: string, steps: number, distance: number, calories: number) => {
-    const newItem: QueuedStep = {
-      date,
-      steps,
-      distance,
-      calories,
-      timestamp: Date.now()
-    };
-
     setSyncQueue(prev => {
-      const newQueue = [...prev, newItem];
+      // Check if an entry for this date already exists
+      const existingIndex = prev.findIndex(item => item.date === date);
+
+      let newQueue: QueuedStep[];
+
+      if (existingIndex >= 0) {
+        // Update existing entry - keep highest step count
+        const existing = prev[existingIndex];
+
+        if (steps > existing.steps) {
+          newQueue = [...prev];
+          newQueue[existingIndex] = {
+            date,
+            steps,
+            distance,
+            calories,
+            timestamp: Date.now()
+          };
+          console.log('[OfflineSync] Updated queued data:', date, steps, '(was', existing.steps, ')');
+        } else {
+          console.log('[OfflineSync] Skipped lower value:', steps, '<=', existing.steps);
+          return prev; // No change needed
+        }
+      } else {
+        // Add new entry
+        newQueue = [...prev, {
+          date,
+          steps,
+          distance,
+          calories,
+          timestamp: Date.now()
+        }];
+        console.log('[OfflineSync] Queued new offline data:', date, steps);
+      }
+
       localStorage.setItem('offlineStepQueue', JSON.stringify(newQueue));
-      console.log('[OfflineSync] Queued offline data:', date, steps);
       return newQueue;
     });
   }, []);
