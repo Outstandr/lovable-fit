@@ -147,7 +147,7 @@ const App = () => {
           <BrowserRouter>
             <StepProvider>
               <PushNotificationInitializer>
-                <div className="mx-auto max-w-lg">
+                <div className="mx-auto max-w-lg h-[100dvh] overflow-hidden">
                   <AnimatedRoutes />
                 </div>
               </PushNotificationInitializer>

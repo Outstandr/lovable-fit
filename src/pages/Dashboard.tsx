@@ -316,7 +316,7 @@ const Dashboard = () => {
   const today = new Date();
 
   return (
-    <div className="h-[100dvh] flex flex-col page-with-both-fixed relative">
+    <div className="h-[100dvh] flex flex-col relative overflow-hidden">
 
       {/* Fixed Header - Outside scroll container */}
       <StandardHeader
@@ -337,7 +337,13 @@ const Dashboard = () => {
       }} />
 
       {/* Scrollable Content */}
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide pb-72">
+      <div 
+        className="flex-1 min-h-0 overflow-y-auto scrollbar-hide"
+        style={{ 
+          paddingTop: 'calc(4.5rem + env(safe-area-inset-top, 0px))',
+          paddingBottom: 'calc(4rem + env(safe-area-inset-bottom, 0px) + 6rem)' 
+        }}
+      >
         <div className="px-4 pb-2 relative z-content">
           {/* Tabs Row */}
           <div className="flex justify-center mt-3 mb-2">

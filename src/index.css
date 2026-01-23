@@ -118,14 +118,17 @@
     font-family: 'Poppins', system-ui, sans-serif;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: none;
+    height: 100%;
+    height: -webkit-fill-available;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
     background: var(--gradient-void);
-    min-height: 100vh;
-    min-height: 100dvh;
+    min-height: 100%;
+    min-height: -webkit-fill-available;
     overscroll-behavior-y: none;
+    overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
   }
@@ -485,6 +488,8 @@
   @apply w-full max-w-lg mx-auto px-4 flex items-center justify-between;
   padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
   padding-bottom: 0.5rem;
+  min-height: 56px;
+  box-sizing: border-box;
 }
 
   /* Fixed above bottom nav */
