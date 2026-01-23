@@ -6,6 +6,7 @@ import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Keyboard } from '@capacitor/keyboard';
 import { Capacitor } from '@capacitor/core';
+import { initializeGoogleAuth } from './services/googleAuthService';
 
 // Initialize native features after DOM is ready
 const initializeNativeFeatures = async () => {
@@ -23,6 +24,13 @@ const initializeNativeFeatures = async () => {
       await Keyboard.setAccessoryBarVisible({ isVisible: false });
     } catch (e) {
       console.log('Keyboard plugin not available');
+    }
+
+    // Initialize Google Auth for native platforms
+    try {
+      await initializeGoogleAuth();
+    } catch (e) {
+      console.log('GoogleAuth initialization failed:', e);
     }
   }
   
