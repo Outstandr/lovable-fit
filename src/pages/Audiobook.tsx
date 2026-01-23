@@ -1,15 +1,20 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { 
   Play, Pause, SkipBack, SkipForward, 
-  Check, Headphones, Volume2, Bookmark, Trash2
+  Check, Headphones, Volume2, Bookmark, Trash2,
+  Moon, Gauge, Settings2
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
-import { useAudiobook, Bookmark as BookmarkType } from "@/hooks/useAudiobook";
+import { useAudiobookContext } from "@/contexts/AudiobookContext";
 import { haptics } from '@/utils/haptics';
 import { Progress } from "@/components/ui/progress";
 import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
+import AudioProgressBar from "@/components/audiobook/AudioProgressBar";
+import SleepTimerSheet from "@/components/audiobook/SleepTimerSheet";
+import SpeedSelectorSheet from "@/components/audiobook/SpeedSelectorSheet";
+import SkipIntervalSelector from "@/components/audiobook/SkipIntervalSelector";
 
 const Audiobook = () => {
   const {
@@ -21,26 +26,25 @@ const Audiobook = () => {
     playbackSpeed,
     bookmarks,
     chapters,
-    play,
-    pause,
+    sleepTimer,
+    skipBackInterval,
+    skipForwardInterval,
     togglePlay,
     skipForward,
     skipBackward,
-    seekTo,
     loadChapter,
     formatTime,
-    cyclePlaybackSpeed,
     addBookmark,
     removeBookmark,
     seekToBookmark,
     getBookmarksForChapter,
-  } = useAudiobook();
+    getRemainingTime,
+    getOverallProgress,
+  } = useAudiobookContext();
 
-  const handleSeek = (value: number[]) => {
-    if (value[0] !== undefined) {
-      seekTo(value[0]);
-    }
-  };
+  const [showSleepTimer, setShowSleepTimer] = useState(false);
+  const [showSpeedSelector, setShowSpeedSelector] = useState(false);
+  const [showSkipSettings, setShowSkipSettings] = useState(false);
 
   const getChapterProgress = (chapterId: number) => {
     if (currentChapter?.id === chapterId && duration > 0) {
@@ -64,6 +68,9 @@ const Audiobook = () => {
     return getChapterProgress(chapterId) >= 90;
   };
 
+  const remainingTime = getRemainingTime();
+  const overallProgress = getOverallProgress();
+
   return (
     <div className="h-screen flex flex-col page-with-bottom-nav relative bg-background">
       {/* Subtle gradient overlay */}
@@ -71,7 +78,7 @@ const Audiobook = () => {
         background: 'radial-gradient(circle at top center, hsl(186, 100%, 50%, 0.05), transparent 60%)'
       }} />
 
-      {/* Header - Inside scroll area, matching Protocol style */}
+      {/* Header */}
       <motion.header 
         className="px-4 pb-4 header-safe flex-shrink-0"
         initial={{ opacity: 0, y: -20 }}
@@ -81,7 +88,7 @@ const Audiobook = () => {
           Audiobook
         </h1>
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mt-1">
-          The Manual • {chapters.length} Chapters
+          The Manual • {chapters.length} Chapters • {Math.round(overallProgress)}% complete
         </p>
       </motion.header>
 
@@ -94,7 +101,7 @@ const Audiobook = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            {/* Album Art Placeholder */}
+            {/* Album Art */}
             <div className="flex justify-center mb-6">
               <div className="relative">
                 <div className="h-40 w-40 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20">
@@ -111,7 +118,7 @@ const Audiobook = () => {
             </div>
 
             {/* Chapter Info */}
-            <div className="text-center mb-6">
+            <div className="text-center mb-2">
               <h2 className="text-xl font-bold text-foreground">
                 {currentChapter?.title || "Reset Body & Diet"}
               </h2>
@@ -120,81 +127,117 @@ const Audiobook = () => {
               </p>
             </div>
 
-            {/* Progress Bar */}
-            <div className="mb-4">
-              <div className="relative">
-                <Progress 
-                  value={duration > 0 ? (currentTime / duration) * 100 : 0} 
-                  className="h-2 cursor-pointer"
-                  onClick={(e) => {
-                    if (duration > 0) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const x = e.clientX - rect.left;
-                      const percent = x / rect.width;
-                      seekTo(percent * duration);
-                    }
-                  }}
-                />
-              </div>
-              <div className="flex justify-between mt-2 text-xs text-muted-foreground tabular-nums">
+            {/* Chapter Progress Info */}
+            <div className="flex justify-center gap-4 mb-4 text-xs text-muted-foreground">
+              {currentChapter && (
+                <span>Chapter {currentChapter.id} of {chapters.length}</span>
+              )}
+              {remainingTime !== null && remainingTime > 0 && (
+                <span className="tabular-nums">{formatTime(remainingTime)} remaining</span>
+              )}
+            </div>
+
+            {/* Enhanced Progress Bar */}
+            <div className="mb-2">
+              <AudioProgressBar showBookmarks={true} />
+              <div className="flex justify-between mt-1 text-xs text-muted-foreground tabular-nums">
                 <span>{formatTime(currentTime)}</span>
                 <span>{formatTime(duration)}</span>
               </div>
             </div>
 
             {/* Playback Controls */}
-            <div className="flex items-center justify-center gap-6">
+            <div className="flex items-center justify-center gap-4">
+              {/* Skip Back with interval label */}
               <button
                 onClick={() => {
                   haptics.light();
                   skipBackward();
                 }}
-                className="h-12 w-12 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth touch-target"
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setShowSkipSettings(true);
+                }}
+                className="relative h-14 w-14 rounded-full flex flex-col items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth touch-target"
               >
                 <SkipBack className="h-6 w-6" />
+                <span className="text-[10px] font-medium mt-0.5">{skipBackInterval}s</span>
               </button>
 
+              {/* Play/Pause */}
               <button
                 onClick={() => {
                   haptics.medium();
                   togglePlay();
                 }}
                 disabled={isLoading}
-                className="h-16 w-16 rounded-full flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-smooth touch-target shadow-lg"
-                style={{ boxShadow: '0 4px 20px hsl(186, 100%, 50%, 0.4)' }}
+                className="h-18 w-18 rounded-full flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-smooth touch-target shadow-lg"
+                style={{ 
+                  boxShadow: '0 4px 20px hsl(186, 100%, 50%, 0.4)',
+                  height: '72px',
+                  width: '72px'
+                }}
               >
                 {isLoading ? (
-                  <div className="h-6 w-6 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                  <div className="h-7 w-7 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                 ) : isPlaying ? (
-                  <Pause className="h-7 w-7" />
+                  <Pause className="h-8 w-8" />
                 ) : (
-                  <Play className="h-7 w-7 ml-1" />
+                  <Play className="h-8 w-8 ml-1" />
                 )}
               </button>
 
+              {/* Skip Forward with interval label */}
               <button
                 onClick={() => {
                   haptics.light();
                   skipForward();
                 }}
-                className="h-12 w-12 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth touch-target"
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setShowSkipSettings(true);
+                }}
+                className="relative h-14 w-14 rounded-full flex flex-col items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth touch-target"
               >
                 <SkipForward className="h-6 w-6" />
+                <span className="text-[10px] font-medium mt-0.5">{skipForwardInterval}s</span>
               </button>
             </div>
 
-            {/* Speed & Bookmark Controls */}
-            <div className="flex justify-center items-center gap-4 mt-4">
+            {/* Secondary Controls Row */}
+            <div className="flex justify-center items-center gap-3 mt-4">
+              {/* Sleep Timer */}
               <button
                 onClick={() => {
                   haptics.light();
-                  cyclePlaybackSpeed();
+                  setShowSleepTimer(true);
                 }}
-                className="px-4 py-2 rounded-full bg-secondary/50 text-sm font-medium text-muted-foreground hover:text-foreground transition-smooth"
+                className={`relative h-10 w-10 rounded-full flex items-center justify-center transition-smooth ${
+                  sleepTimer 
+                    ? 'bg-primary/20 text-primary' 
+                    : 'bg-secondary/50 text-muted-foreground hover:text-foreground'
+                }`}
+                title="Sleep timer"
               >
-                {playbackSpeed}x Speed
+                <Moon className="h-5 w-5" />
+                {sleepTimer && (
+                  <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary animate-pulse" />
+                )}
+              </button>
+
+              {/* Speed Control */}
+              <button
+                onClick={() => {
+                  haptics.light();
+                  setShowSpeedSelector(true);
+                }}
+                className="px-4 py-2 rounded-full bg-secondary/50 text-sm font-medium text-muted-foreground hover:text-foreground transition-smooth flex items-center gap-2"
+              >
+                <Gauge className="h-4 w-4" />
+                {playbackSpeed}x
               </button>
               
+              {/* Bookmark */}
               <button
                 onClick={() => {
                   haptics.medium();
@@ -205,6 +248,18 @@ const Audiobook = () => {
                 title="Add bookmark at current position"
               >
                 <Bookmark className="h-5 w-5" />
+              </button>
+
+              {/* Skip Settings */}
+              <button
+                onClick={() => {
+                  haptics.light();
+                  setShowSkipSettings(true);
+                }}
+                className="h-10 w-10 rounded-full flex items-center justify-center bg-secondary/50 text-muted-foreground hover:text-foreground transition-smooth"
+                title="Skip interval settings"
+              >
+                <Settings2 className="h-5 w-5" />
               </button>
             </div>
 
@@ -332,6 +387,11 @@ const Audiobook = () => {
       </RubberBandScroll>
 
       <BottomNav />
+
+      {/* Sheets */}
+      <SleepTimerSheet isOpen={showSleepTimer} onClose={() => setShowSleepTimer(false)} />
+      <SpeedSelectorSheet isOpen={showSpeedSelector} onClose={() => setShowSpeedSelector(false)} />
+      <SkipIntervalSelector isOpen={showSkipSettings} onClose={() => setShowSkipSettings(false)} />
     </div>
   );
 };

@@ -12,8 +12,7 @@ import LiveMap from "@/components/LiveMap";
 import MapPlaceholder from "@/components/MapPlaceholder";
 import { DataSourceBadge } from "@/components/DataSourceBadge";
 import { Capacitor } from "@capacitor/core";
-import AudiobookPlayer from "@/components/AudiobookPlayer";
-import { useAudiobook } from "@/hooks/useAudiobook";
+import { useAudiobookContext } from "@/contexts/AudiobookContext";
 import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
 import { NativeSettings, AndroidSettings, IOSSettings } from 'capacitor-native-settings';
 
@@ -40,8 +39,7 @@ const ActiveSession = () => {
   } = useLocationTracking();
 
   // Audiobook state
-  const { isPlaying: isAudioPlaying, getButtonText, togglePlay, allChaptersComplete, stop: stopAudio } = useAudiobook();
-  const [isPlayerOpen, setIsPlayerOpen] = useState(false);
+  const { isPlaying: isAudioPlaying, togglePlay, allChaptersComplete, stop: stopAudio } = useAudiobookContext();
 
   const [duration, setDuration] = useState(0);
   const [isRunning, setIsRunning] = useState(true);
@@ -431,12 +429,12 @@ const ActiveSession = () => {
           <Button
             variant="tactical"
             size="full"
-            onClick={() => isAudioPlaying ? togglePlay() : setIsPlayerOpen(true)}
+            onClick={() => navigate('/audiobook')}
             disabled={allChaptersComplete}
             className="h-12 text-xs font-bold uppercase tracking-widest shadow-glow-sm hover:shadow-glow-md transition-all"
           >
             <Headphones className="mr-2 h-4 w-4" />
-            {getButtonText()}
+            {isAudioPlaying ? "⏸ AUDIOBOOK PLAYING" : "🎧 OPEN AUDIOBOOK"}
           </Button>
         </motion.div>
 
@@ -454,11 +452,6 @@ const ActiveSession = () => {
         </motion.div>
       </div>
 
-      {/* Audiobook Mini Player */}
-      <AudiobookPlayer
-        isOpen={isPlayerOpen}
-        onClose={() => setIsPlayerOpen(false)}
-      />
     </div>
   );
 };
