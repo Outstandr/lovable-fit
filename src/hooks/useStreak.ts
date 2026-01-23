@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { getLocalDateString } from '@/lib/utils';
 
 interface StreakData {
   currentStreak: number;
@@ -63,8 +64,8 @@ export function useStreak(): UseStreakReturn {
   const updateStreakOnTargetHit = useCallback(async () => {
     if (!user) return;
 
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const today = getLocalDateString();
+    const yesterday = getLocalDateString(new Date(Date.now() - 86400000));
 
     try {
       // Get current streak data

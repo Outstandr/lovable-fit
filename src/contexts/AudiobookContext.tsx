@@ -3,6 +3,7 @@ import { audioService } from '@/services/audioService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { getLocalDateString } from '@/lib/utils';
 
 // ============== Types ==============
 
@@ -262,7 +263,7 @@ export const AudiobookProvider = ({ children }: { children: ReactNode }) => {
     
     if (user) {
       try {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateString();
         const { data: existingTask } = await supabase
           .from('protocol_tasks')
           .select('*')

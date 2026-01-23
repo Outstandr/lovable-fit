@@ -8,6 +8,7 @@ import { haptics } from '@/utils/haptics';
 import { useLocation } from 'react-router-dom';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
+import { getLocalDateString } from '@/lib/utils';
 
 const ONBOARDING_KEY = 'device_onboarding_completed';
 const STEPS_PER_CALORIE = 20;
@@ -55,7 +56,7 @@ export function usePedometer() {
 
   // 10K Milestone Celebration
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     if (state.steps >= 10000 && celebrated10K.current !== today) {
       celebrated10K.current = today;
       haptics.success();
@@ -72,7 +73,7 @@ export function usePedometer() {
       }
 
       try {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateString();
         const { data } = await supabase
           .from('daily_steps')
           .select('steps, distance_km, calories')
@@ -232,7 +233,7 @@ export function usePedometer() {
       return;
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const data = {
       user_id: user.id,
       date: today,
@@ -298,7 +299,7 @@ export function usePedometer() {
       appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
         if (!user) return;
 
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateString();
 
         if (!isActive) {
           // App going to BACKGROUND - sync immediately using REFS (always current)
