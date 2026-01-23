@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Settings, Play } from "lucide-react";
+import { Settings, Play, HelpCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
@@ -9,6 +9,7 @@ import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { DayView } from "@/components/dashboard/DayView";
 import { WeekView } from "@/components/dashboard/WeekView";
 import { MonthView } from "@/components/dashboard/MonthView";
+import { AppTour } from "@/components/AppTour";
 
 import { useSteps } from "@/contexts/StepContext";
 import { useStreak } from "@/hooks/useStreak";
@@ -35,6 +36,7 @@ const Dashboard = () => {
 
   const [activeTab, setActiveTab] = useState<TabType>("day");
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showAppTour, setShowAppTour] = useState(false);
   const [dailyGoal, setDailyGoal] = useState(10000);
 
   // Data states
@@ -294,17 +296,29 @@ const Dashboard = () => {
     }
   }, [steps, dailyGoal, updateStreakOnTargetHit]);
 
-  // Check onboarding
+  // Check onboarding and app tour
   useEffect(() => {
     const checkOnboarding = async () => {
       if (!user) return;
       try {
         const onboardingDone = localStorage.getItem('onboarding_completed');
-        if (onboardingDone === 'true') return;
+        const tourDone = localStorage.getItem('app_tour_completed');
+        
+        if (onboardingDone === 'true') {
+          // Onboarding done, check if tour needs to show
+          if (tourDone !== 'true') {
+            // Show tour after a short delay
+            setTimeout(() => setShowAppTour(true), 1500);
+          }
+          return;
+        }
 
         const { data } = await supabase.from('profiles').select('profile_completed').eq('id', user.id).single();
         if (!data?.profile_completed) {
           setTimeout(() => setShowOnboarding(true), 2000);
+        } else if (tourDone !== 'true') {
+          // Profile complete but tour not done
+          setTimeout(() => setShowAppTour(true), 1500);
         }
       } catch (error) {
         console.error('[Dashboard] Error checking onboarding:', error);
@@ -312,6 +326,16 @@ const Dashboard = () => {
     };
     checkOnboarding();
   }, [user]);
+
+  const handleTourComplete = () => {
+    localStorage.setItem('app_tour_completed', 'true');
+    setShowAppTour(false);
+  };
+
+  const handleRestartTour = () => {
+    haptics.light();
+    setShowAppTour(true);
+  };
 
 
   const displayDistance = distance > 0 ? distance : (steps * 0.762) / 1000;
@@ -328,12 +352,21 @@ const Dashboard = () => {
       <StandardHeader
         title="HOTSTEPPER"
         rightAction={
-          <button
-            onClick={() => { haptics.light(); navigate('/settings'); }}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
-          >
-            <Settings className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleRestartTour}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
+              aria-label="Help tour"
+            >
+              <HelpCircle className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => { haptics.light(); navigate('/settings'); }}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-smooth"
+            >
+              <Settings className="h-5 w-5" />
+            </button>
+          </div>
         }
       />
 
@@ -421,7 +454,7 @@ const Dashboard = () => {
             variant="tactical"
             size="full"
             onClick={() => { haptics.medium(); navigate('/active'); }}
-            className="h-14 text-sm font-bold uppercase tracking-widest shadow-glow-lg hover:shadow-glow-lg press-scale relative overflow-hidden group"
+            className="h-14 text-sm font-bold uppercase tracking-widest shadow-glow-lg hover:shadow-glow-lg press-scale relative overflow-hidden group app-tour-start-session"
           >
             {/* Animated background shimmer */}
             <div className="absolute inset-0 bg-gradient-shimmer opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-shimmer" />
@@ -442,6 +475,8 @@ const Dashboard = () => {
         onClose={() => setShowOnboarding(false)}
         onSkip={() => localStorage.setItem('onboarding_completed', 'true')}
       />
+
+      <AppTour isOpen={showAppTour} onComplete={handleTourComplete} />
     </div>
   );
 };

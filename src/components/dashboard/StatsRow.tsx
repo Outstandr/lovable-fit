@@ -41,7 +41,7 @@ export const StatsRow = ({ streak, calories, distance, activeTime, timeUnit = "m
 
   return (
     <motion.div 
-      className="flex justify-between items-center gap-2 px-2 overflow-x-auto scrollbar-hide"
+      className="flex justify-between items-center gap-2 px-2 overflow-x-auto scrollbar-hide app-tour-stats-row"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
