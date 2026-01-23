@@ -17,7 +17,7 @@ import { NotificationStep } from '@/components/onboarding/NotificationStep';
 import { GoalStep } from '@/components/onboarding/GoalStep';
 import { SetupCompleteStep } from '@/components/onboarding/SetupCompleteStep';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
+import { OnboardingProgress, STEP_ORDER } from '@/components/onboarding/OnboardingProgress';
 
 export type OnboardingStep =
   | 'welcome'
@@ -73,6 +73,19 @@ const Onboarding = () => {
 
   const handleNext = (nextStep: OnboardingStep) => {
     setCurrentStep(nextStep);
+  };
+
+  const handleBack = () => {
+    const currentIndex = STEP_ORDER.indexOf(currentStep);
+    if (currentIndex > 0) {
+      // Don't allow going back past personalInfo if user is authenticated
+      // (can't go back to signup/challenge/welcome after signing in)
+      const prevStep = STEP_ORDER[currentIndex - 1];
+      if (user && ['signup', 'challenge', 'welcome'].includes(prevStep)) {
+        return;
+      }
+      setCurrentStep(prevStep);
+    }
   };
 
   const handleComplete = async () => {
@@ -146,9 +159,13 @@ const Onboarding = () => {
 
   return (
     <div className="fixed inset-0 bg-background overflow-hidden">
-      {/* Progress indicator - fixed at top */}
+      {/* Progress indicator with back button - fixed at top */}
       <div className="absolute top-0 left-0 right-0 z-10 safe-area-pt">
-        <OnboardingProgress currentStep={currentStep} />
+        <OnboardingProgress 
+          currentStep={currentStep} 
+          onBack={handleBack}
+          canGoBack={true}
+        />
       </div>
       
       <AnimatePresence mode="wait">
