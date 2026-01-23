@@ -175,7 +175,7 @@ const Onboarding = () => {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -50 }}
           transition={{ duration: 0.3 }}
-          className="absolute inset-0"
+          className="absolute inset-0 pt-20"
         >
           {stepConfig[currentStep]?.component}
         </motion.div>
