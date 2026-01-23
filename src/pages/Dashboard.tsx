@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { haptics } from '@/utils/haptics';
 import { useAudiobookContext } from "@/contexts/AudiobookContext";
+import { getLocalDateString } from "@/lib/utils";
 
 
 type TabType = "day" | "week" | "month";
@@ -94,8 +95,8 @@ const Dashboard = () => {
           .from('daily_steps')
           .select('date, steps, distance_km, calories')
           .eq('user_id', user.id)
-          .gte('date', startDate.toISOString().split('T')[0])
-          .lte('date', today.toISOString().split('T')[0]);
+          .gte('date', getLocalDateString(startDate))
+          .lte('date', getLocalDateString(today));
 
         const weekDataArr: typeof weekData = [];
         const trendArr: typeof weeklyTrend = [];
@@ -103,7 +104,7 @@ const Dashboard = () => {
         for (let i = 0; i < 7; i++) {
           const date = new Date(startDate);
           date.setDate(date.getDate() + i);
-          const dateStr = date.toISOString().split('T')[0];
+          const dateStr = getLocalDateString(date);
           const record = data?.find(d => d.date === dateStr);
           const stepsVal = record?.steps || 0;
 
@@ -190,8 +191,8 @@ const Dashboard = () => {
           .from('daily_steps')
           .select('date, steps, distance_km, calories')
           .eq('user_id', user.id)
-          .gte('date', startOfMonth.toISOString().split('T')[0])
-          .lte('date', today.toISOString().split('T')[0]);
+          .gte('date', getLocalDateString(startOfMonth))
+          .lte('date', getLocalDateString(today));
 
         // Build calendar data
         const calData: typeof calendarData = [];
@@ -199,7 +200,7 @@ const Dashboard = () => {
 
         for (let day = 1; day <= daysInMonth; day++) {
           const date = new Date(year, month, day);
-          const dateStr = date.toISOString().split('T')[0];
+          const dateStr = getLocalDateString(date);
           const record = data?.find(d => d.date === dateStr);
           const stepsVal = record?.steps || 0;
 

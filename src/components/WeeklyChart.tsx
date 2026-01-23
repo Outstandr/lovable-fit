@@ -3,6 +3,7 @@ import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, ReferenceLine } f
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getLocalDateString } from "@/lib/utils";
 
 interface DayData {
   day: string;
@@ -30,7 +31,7 @@ export const WeeklyChart = () => {
       for (let i = 0; i < 7; i++) {
         const date = new Date(startDate);
         date.setDate(date.getDate() + i);
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = getLocalDateString(date);
 
         weekData.push({
           day: days[date.getDay()],
@@ -45,8 +46,8 @@ export const WeeklyChart = () => {
         .from('daily_steps')
         .select('date, steps')
         .eq('user_id', user.id)
-        .gte('date', startDate.toISOString().split('T')[0])
-        .lte('date', today.toISOString().split('T')[0]);
+        .gte('date', getLocalDateString(startDate))
+        .lte('date', getLocalDateString(today));
 
       if (stepsData) {
         stepsData.forEach(record => {
