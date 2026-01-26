@@ -19,7 +19,6 @@ dependencies {
     implementation project(':capawesome-team-capacitor-android-battery-optimization')
     implementation project(':capawesome-team-capacitor-android-foreground-service')
     implementation project(':capgo-capacitor-pedometer')
-    implementation project(':codetrix-studio-capacitor-google-auth')
     implementation project(':capacitor-background-step')
     implementation project(':capacitor-native-settings')
 

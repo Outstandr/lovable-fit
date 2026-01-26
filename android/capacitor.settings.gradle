@@ -32,9 +32,6 @@ project(':capawesome-team-capacitor-android-foreground-service').projectDir = ne
 include ':capgo-capacitor-pedometer'
 project(':capgo-capacitor-pedometer').projectDir = new File('../node_modules/@capgo/capacitor-pedometer/android')
 
-include ':codetrix-studio-capacitor-google-auth'
-project(':codetrix-studio-capacitor-google-auth').projectDir = new File('../node_modules/@codetrix-studio/capacitor-google-auth/android')
-
 include ':capacitor-background-step'
 project(':capacitor-background-step').projectDir = new File('../node_modules/capacitor-background-step/android')
 

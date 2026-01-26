@@ -1,7 +1,6 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { signInWithGoogle as googleAuthSignIn, signOutFromGoogle } from "@/services/googleAuthService";
 
 interface AuthContextType {
   user: User | null;
@@ -9,7 +8,6 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -136,27 +134,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signInWithGoogle = async (): Promise<{ error: string | null }> => {
-    // Use the new platform-aware Google Auth service
-    // This uses native sign-in on iOS/Android, web OAuth on browsers
-    return await googleAuthSignIn();
-  };
-
   const signOut = async () => {
     // Explicitly clear local state immediately to prevent race conditions
     setSession(null);
     setUser(null);
     setLoading(false);
 
-    // Sign out from Google (native platforms only)
-    await signOutFromGoogle();
-
     // Perform Supabase sign out
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

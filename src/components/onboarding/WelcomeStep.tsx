@@ -17,19 +17,6 @@ export const WelcomeStep = forwardRef<HTMLDivElement, WelcomeStepProps>(
       >
         {/* Scrollable Hero Section */}
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center px-6 py-8">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="mb-6"
-          >
-            <img
-              src={lxLogo}
-              alt="Lionel X"
-              className="w-28 h-28 object-contain"
-            />
-          </motion.div>
-
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
