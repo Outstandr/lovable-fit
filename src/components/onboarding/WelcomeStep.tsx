@@ -2,7 +2,7 @@ import { forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { Footprints } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import hotStepperLogo from '@/assets/hotstepper_logo.png';
+import lxLogo from '@/assets/lx_logo.png';
 
 interface WelcomeStepProps {
   onNext: () => void;
@@ -24,8 +24,8 @@ export const WelcomeStep = forwardRef<HTMLDivElement, WelcomeStepProps>(
             className="mb-6"
           >
             <img
-              src={hotStepperLogo}
-              alt="HotStepper"
+              src={lxLogo}
+              alt="Lionel X"
               className="w-28 h-28 object-contain"
             />
           </motion.div>
@@ -38,6 +38,20 @@ export const WelcomeStep = forwardRef<HTMLDivElement, WelcomeStepProps>(
           >
             HOTSTEPPER
           </motion.h1>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25, duration: 0.5 }}
+            className="flex items-center gap-2 mb-2"
+          >
+            <span className="text-sm text-muted-foreground">by</span>
+            <img
+              src={lxLogo}
+              alt="Lionel X"
+              className="w-16 h-16 object-contain"
+            />
+          </motion.div>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
