@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, MapPin, Clock, Gauge, Square, Zap, Footprints, Satellite, RefreshCw, Settings, X, Loader2, Headphones } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Gauge, Square, Zap, Footprints, Satellite, RefreshCw, Settings, X, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useSteps } from "@/contexts/StepContext";
@@ -12,10 +12,9 @@ import LiveMap from "@/components/LiveMap";
 import MapPlaceholder from "@/components/MapPlaceholder";
 import { DataSourceBadge } from "@/components/DataSourceBadge";
 import { Capacitor } from "@capacitor/core";
-import { useAudiobookContext } from "@/contexts/AudiobookContext";
 import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
 import { NativeSettings, AndroidSettings, IOSSettings } from 'capacitor-native-settings';
-import ActiveSessionAudioControls from "@/components/audiobook/ActiveSessionAudioControls";
+import { stepsToDistance, calculatePace as calcPace } from '@/utils/calculations';
 
 const ActiveSession = () => {
   const navigate = useNavigate();
@@ -38,9 +37,6 @@ const ActiveSession = () => {
     stopTracking,
     retryGPS
   } = useLocationTracking();
-
-  // Audiobook state
-  const { isPlaying: isAudioPlaying, togglePlay, allChaptersComplete, stop: stopAudio } = useAudiobookContext();
 
   const [duration, setDuration] = useState(0);
   const [isRunning, setIsRunning] = useState(true);
@@ -100,21 +96,21 @@ const ActiveSession = () => {
 
   // Calculate session stats - prefer GPS distance, fallback to steps
   const sessionSteps = startSteps !== null ? Math.max(0, steps - startSteps) : 0;
-  const stepBasedDistance = (sessionSteps * 0.762) / 1000;
+  const stepBasedDistance = stepsToDistance(sessionSteps);
   const sessionDistance = gpsDistance > 0 ? gpsDistance : stepBasedDistance;
   const usingGps = gpsDistance > 0;
 
-  const calculatePace = () => {
+  const formatPace = () => {
     if (sessionDistance <= 0 || duration <= 0) return "--:--";
-    const paceSeconds = duration / sessionDistance;
-    const paceMinutes = Math.floor(paceSeconds / 60);
-    const paceRemainderSeconds = Math.floor(paceSeconds % 60);
-    return `${paceMinutes}:${paceRemainderSeconds.toString().padStart(2, '0')}`;
+    const paceMinPerKm = calcPace(sessionDistance, duration);
+    const paceMinutes = Math.floor(paceMinPerKm);
+    const paceSeconds = Math.floor((paceMinPerKm - paceMinutes) * 60);
+    return `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}`;
   };
 
   const sessionData = {
     distance: sessionDistance.toFixed(2),
-    pace: calculatePace(),
+    pace: formatPace(),
     steps: sessionSteps,
     speed: currentSpeed.toFixed(1),
   };
@@ -122,7 +118,6 @@ const ActiveSession = () => {
   const handleStop = async () => {
     setIsRunning(false);
     stopTracking();
-    stopAudio(); // Stop audiobook when session ends
 
     if (!user) {
       navigate('/');
@@ -424,10 +419,6 @@ const ActiveSession = () => {
       </motion.div>
 
       {/* Embedded Audio Controls */}
-      <div className="px-4 flex-shrink-0">
-        <ActiveSessionAudioControls />
-      </div>
-
       {/* Bottom Buttons with safe area */}
       <div className="px-4 safe-area-pb space-y-2 pb-3 pt-2 flex-shrink-0">
         {/* Stop Button */}

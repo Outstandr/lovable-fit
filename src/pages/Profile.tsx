@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { User, Settings, Bell, Shield, LogOut, ChevronRight, Zap, Target, Calendar, Heart, TrendingUp, Trash2 } from "lucide-react";
+import { User, Settings, Bell, Shield, LogOut, ChevronRight, Zap, Target, Calendar, Heart, TrendingUp, Trash2, MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +21,7 @@ import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useLocalCache } from "@/hooks/useLocalCache";
 
 const menuItems = [
+  { icon: MapPin, label: "Session History", action: "sessions", color: "text-primary" },
   { icon: Heart, label: "Health Profile", action: "health-profile", color: "text-red-400" },
   { icon: Bell, label: "Notifications", action: "notifications", color: "text-yellow-400" },
   { icon: Target, label: "Goals & Targets", action: "goals", color: "text-primary" },
@@ -288,6 +289,7 @@ const Profile = () => {
               key={item.action}
               onClick={() => {
                 const routes: Record<string, string> = {
+                  'sessions': '/sessions',
                   'health-profile': '/health-profile',
                   'notifications': '/notifications',
                   'goals': '/goals',

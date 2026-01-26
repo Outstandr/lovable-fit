@@ -79,7 +79,7 @@ export function NotificationStep({ onNext }: NotificationStepProps) {
             transition={{ delay: 0.3 }}
             className="text-muted-foreground text-center max-w-xs leading-relaxed"
           >
-            We need to send you notifications so that you can receive daily reminders and goal achievements.
+            Lionel X sends you daily goal reminders and achievement notifications to keep you motivated. You can customize or disable notifications anytime in Settings.
           </motion.p>
 
           {/* Benefits */}

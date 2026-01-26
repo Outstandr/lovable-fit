@@ -18,7 +18,6 @@ export const STEP_ORDER: OnboardingStep[] = [
   'personalInfo',
   'newsletter',
   'activity',
-  'healthkit',
   'location',
   'body',
   'battery',

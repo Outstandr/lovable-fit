@@ -6,11 +6,9 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { AuthProvider } from "@/hooks/useAuth";
 import { StepProvider } from "@/contexts/StepContext";
-import { AudiobookProvider } from "@/contexts/AudiobookContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PushNotificationInitializer } from "@/components/PushNotificationInitializer";
 import { PageTransition } from "@/components/PageTransition";
-import AudioMiniPlayer from "@/components/audiobook/AudioMiniPlayer";
 import { AppTour } from "@/components/AppTour";
 import { AppTourProvider, useAppTour } from "@/contexts/AppTourContext";
 import Index from "./pages/Index";
@@ -19,8 +17,8 @@ import ActiveSession from "./pages/ActiveSession";
 import Leaderboard from "./pages/Leaderboard";
 import Protocol from "./pages/Protocol";
 import Profile from "./pages/Profile";
-import Audiobook from "./pages/Audiobook";
 import HealthProfileSetup from "./pages/HealthProfileSetup";
+import SessionHistory from "./pages/SessionHistory";
 import NotificationSettings from "./pages/NotificationSettings";
 import GoalsSettings from "./pages/GoalsSettings";
 import PrivacySettings from "./pages/PrivacySettings";
@@ -76,17 +74,17 @@ const AnimatedRoutes = () => {
             </PageTransition>
           </ProtectedRoute>
         } />
-        <Route path="/audiobook" element={
-          <ProtectedRoute>
-            <PageTransition>
-              <Audiobook />
-            </PageTransition>
-          </ProtectedRoute>
-        } />
         <Route path="/health-profile" element={
           <ProtectedRoute>
             <PageTransition>
               <HealthProfileSetup />
+            </PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/sessions" element={
+          <ProtectedRoute>
+            <PageTransition>
+              <SessionHistory />
             </PageTransition>
           </ProtectedRoute>
         } />
@@ -139,7 +137,6 @@ const AppChrome = () => {
   return (
     <div className="w-full h-[100dvh] overflow-hidden">
       <AnimatedRoutes />
-      <AudioMiniPlayer />
       {/* Keep tour mounted across route changes so it continues on /leaderboard */}
       <AppTour
         isOpen={isTourOpen}
@@ -159,13 +156,11 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <StepProvider>
-              <AudiobookProvider>
-                <PushNotificationInitializer>
-                  <AppTourProvider>
-                    <AppChrome />
-                  </AppTourProvider>
-                </PushNotificationInitializer>
-              </AudiobookProvider>
+              <PushNotificationInitializer>
+                <AppTourProvider>
+                  <AppChrome />
+                </AppTourProvider>
+              </PushNotificationInitializer>
             </StepProvider>
           </BrowserRouter>
         </TooltipProvider>

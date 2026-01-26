@@ -77,15 +77,7 @@ serve(async (req) => {
     deletionResults.push({ table: 'streaks', count: streaksCount, error: streaksError?.message });
     console.log(`[delete-user-data] Deleted ${streaksCount} streaks records`);
 
-    // 4. Delete audiobook bookmarks
-    const { error: bookmarksError, count: bookmarksCount } = await adminClient
-      .from('audiobook_bookmarks')
-      .delete({ count: 'exact' })
-      .eq('user_id', userId);
-    deletionResults.push({ table: 'audiobook_bookmarks', count: bookmarksCount, error: bookmarksError?.message });
-    console.log(`[delete-user-data] Deleted ${bookmarksCount} audiobook_bookmarks records`);
-
-    // 5. Delete protocol tasks
+    // 4. Delete protocol tasks
     const { error: tasksError, count: tasksCount } = await adminClient
       .from('protocol_tasks')
       .delete({ count: 'exact' })

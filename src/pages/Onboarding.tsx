@@ -9,7 +9,6 @@ import { SignUpStep } from '@/components/onboarding/SignUpStep';
 import { PersonalInfoStep } from '@/components/onboarding/PersonalInfoStep';
 import { NewsletterStep } from '@/components/onboarding/NewsletterStep';
 import { ActivityPermissionStep } from '@/components/onboarding/ActivityPermissionStep';
-import { HealthKitPermissionStep } from '@/components/onboarding/HealthKitPermissionStep';
 import { LocationPermissionStep } from '@/components/onboarding/LocationPermissionStep';
 import { BodyMeasurementsStep } from '@/components/onboarding/BodyMeasurementsStep';
 import { BatteryOptimizationStep } from '@/components/onboarding/BatteryOptimizationStep';
@@ -26,7 +25,6 @@ export type OnboardingStep =
   | 'personalInfo'
   | 'newsletter'
   | 'activity'
-  | 'healthkit'
   | 'location'
   | 'body'
   | 'battery'
@@ -132,10 +130,7 @@ const Onboarding = () => {
       component: <NewsletterStep onNext={() => handleNext('activity')} />,
     },
     activity: {
-      component: <ActivityPermissionStep onNext={() => handleNext('healthkit')} />,
-    },
-    healthkit: {
-      component: <HealthKitPermissionStep onNext={() => handleNext('location')} />,
+      component: <ActivityPermissionStep onNext={() => handleNext('location')} />,
     },
     location: {
       component: <LocationPermissionStep onNext={() => handleNext('body')} />,

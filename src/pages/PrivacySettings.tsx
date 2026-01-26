@@ -93,13 +93,12 @@ const PrivacySettings = () => {
     setIsExporting(true);
     try {
       // Fetch all user data
-      const [profileRes, stepsRes, sessionsRes, streakRes, tasksRes, bookmarksRes] = await Promise.all([
+      const [profileRes, stepsRes, sessionsRes, streakRes, tasksRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", user?.id).single(),
         supabase.from("daily_steps").select("*").eq("user_id", user?.id),
         supabase.from("active_sessions").select("*").eq("user_id", user?.id),
         supabase.from("streaks").select("*").eq("user_id", user?.id).single(),
         supabase.from("protocol_tasks").select("*").eq("user_id", user?.id),
-        supabase.from("audiobook_bookmarks").select("*").eq("user_id", user?.id),
       ]);
 
       const exportData = {
@@ -110,7 +109,6 @@ const PrivacySettings = () => {
         sessions: sessionsRes.data,
         streak: streakRes.data,
         protocolTasks: tasksRes.data,
-        audiobookBookmarks: bookmarksRes.data,
       };
 
       // Download as JSON
@@ -325,7 +323,6 @@ const PrivacySettings = () => {
                       <li>All step history and daily records</li>
                       <li>All walking sessions and routes</li>
                       <li>Your streak data</li>
-                      <li>Audiobook bookmarks</li>
                       <li>Notification preferences</li>
                     </ul>
                   </AlertDialogDescription>

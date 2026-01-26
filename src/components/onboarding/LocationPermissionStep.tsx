@@ -159,7 +159,7 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
           transition={{ delay: 0.3 }}
           className="text-muted-foreground text-center text-sm mb-6 px-4"
         >
-          We need access to your location to track your walking routes with GPS accuracy during workouts.
+          Lionel X uses your location only during active workout sessions to track your walking route on the map and calculate distance. Location tracking stops automatically when you end the workout.
         </motion.p>
 
         {/* Benefits */}
@@ -272,17 +272,17 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
           ) : hasError ? (
             'Try Again'
           ) : (
-            'Enable Location'
+            'Enable Location Access'
           )}
         </Button>
-        {!isGranted && (
+        {/* Apple Guideline 5.1.1: Only show "Continue Anyway" AFTER user denies permission */}
+        {hasError && (
           <Button
             onClick={onNext}
-            disabled={isRequesting}
             variant="ghost"
             className="w-full h-10 text-sm text-muted-foreground hover:text-foreground"
           >
-            {hasError ? 'Continue Without Location' : 'Skip for now'}
+            Continue Anyway
           </Button>
         )}
       </motion.div>

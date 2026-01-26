@@ -56,7 +56,7 @@ export const AppTour = ({ isOpen, onComplete, onTabChange }: AppTourProps) => {
             element: '.app-tour-start-session',
             popover: {
               title: 'Start an Active Session',
-              description: 'Tap here to begin a GPS-tracked walking session with live map and audiobook controls.',
+              description: 'Tap here to begin a GPS-tracked walking session with live map.',
             }
           },
           {
@@ -182,7 +182,7 @@ export const AppTour = ({ isOpen, onComplete, onTabChange }: AppTourProps) => {
             element: '.app-tour-bottom-nav',
             popover: {
               title: 'Explore the App',
-              description: 'Listen to the Audiobook while walking, complete Protocol tasks, and manage your Profile.',
+              description: 'Complete Protocol tasks, view the Leaderboard, and manage your Profile settings.',
               onPrevClick: () => {
                 // Go back to leaderboard
                 navigate('/leaderboard');

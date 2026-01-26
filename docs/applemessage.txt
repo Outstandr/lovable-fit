@@ -1,0 +1,35 @@
+Hello, 
+
+We noticed this is your first app submission and want to congratulate you on joining the Apple Developer Program. We look forward to working together on your submissions.
+
+When App Review identifies an issue with a submission, we’ll contact you with a message in App Store Connect with details about what we found and how to resolve the issue. Learn more about App Review and tips for a smooth review experience. 
+
+See below for additional information about the issues that require your attention for this submission. If you have any questions, we are here to help. Reply to this message in App Store Connect and let us know.
+
+
+Review Environment
+
+Submission ID: 8b280112-ddbc-4008-ae8b-bc8d638bcd26
+Review date: January 23, 2026
+Review Device: iPad
+Version reviewed: 1.0
+
+
+Guideline 5.1.1 - Legal - Privacy - Data Collection and Storage
+
+The app encourages or directs users to allow the app to access the location. Specifically, the app directs the user to grant permission in the following way(s): 
+
+- A custom message appears before the permission request, and the user can close the message and delay the permission request with the "Skip for Now" button. The user should always proceed to the permission request after the message. 
+
+Permission requests give users control of their personal information. It is important to respect their decision about how their data is used.
+
+Next Steps
+
+To resolve this issue, please revise the permission request process in the app to not include an exit button on the message before the permission request.
+
+If necessary, you may provide more information about why you are requesting permission before the request appears. If the user is trying to use a feature in the app that won't function without access to the location, you may include a notification to inform the user and provide a link to the Settings app. 
+
+Resources 
+
+- Learn more about data collection and storage requirements in guideline 5.1.1. 
+- Learn more about designing appropriate permission requests.

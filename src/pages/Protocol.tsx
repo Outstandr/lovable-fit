@@ -1,54 +1,31 @@
 import { motion } from "framer-motion";
-import { CheckCircle2, Circle, Footprints, BookOpen, Wine, Sparkles } from "lucide-react";
+import { CheckCircle2, Circle, Footprints, Wine, Sparkles } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
-import { useState } from "react";
-
-interface Task {
-  id: string;
-  label: string;
-  description: string;
-  icon: typeof Footprints;
-  completed: boolean;
-  autoCheck?: boolean;
-}
+import { useProtocolTasks } from "@/hooks/useProtocolTasks";
 
 const Protocol = () => {
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: "steps",
-      label: "10,000 Steps",
-      description: "Complete your daily step goal",
-      icon: Footprints,
-      completed: false,
-      autoCheck: true,
-    },
-    {
-      id: "read",
-      label: "Read Chapter",
-      description: "Read one chapter of The Manual",
-      icon: BookOpen,
-      completed: false,
-    },
-    {
-      id: "noalcohol",
-      label: "No Alcohol",
-      description: "Stay disciplined - no alcohol today",
-      icon: Wine,
-      completed: true,
-    },
-  ]);
+  const { tasks, loading, toggleTask } = useProtocolTasks();
 
-  const toggleTask = (id: string) => {
-    setTasks(prev => prev.map(task => 
-      task.id === id && !task.autoCheck 
-        ? { ...task, completed: !task.completed }
-        : task
-    ));
+  // Map icon names to components
+  const iconMap = {
+    steps: Footprints,
+    noalcohol: Wine,
   };
 
   const completedCount = tasks.filter(t => t.completed).length;
-  const progress = (completedCount / tasks.length) * 100;
+  const progress = tasks.length > 0 ? (completedCount / tasks.length) * 100 : 0;
+
+  if (loading) {
+    return (
+      <div className="h-screen flex flex-col page-with-bottom-nav">
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-muted-foreground">Loading tasks...</p>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col page-with-bottom-nav">
@@ -106,13 +83,6 @@ const Protocol = () => {
             <div className="flex items-start gap-3">
               <span className="text-xs font-bold text-primary">02</span>
               <div>
-                <span className="text-sm font-semibold text-foreground">MINDSET</span>
-                <p className="text-xs text-muted-foreground">Read 1 Chapter of The Manual daily.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="text-xs font-bold text-primary">03</span>
-              <div>
                 <span className="text-sm font-semibold text-foreground">ACCOUNTABILITY</span>
                 <p className="text-xs text-muted-foreground">Track it live. Face the leaderboard.</p>
               </div>
@@ -126,35 +96,38 @@ const Protocol = () => {
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
           Today's Checklist
         </h2>
-        {tasks.map((task, index) => (
-          <motion.button
-            key={task.id}
-            onClick={() => toggleTask(task.id)}
-            className={`w-full tactical-card flex items-center gap-4 text-left transition-all ${
-              task.completed ? 'border-accent/30' : ''
-            } ${task.autoCheck ? 'cursor-default' : 'cursor-pointer hover:border-primary/50'}`}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 + index * 0.1 }}
-            disabled={task.autoCheck}
-          >
-            {task.completed ? (
-              <CheckCircle2 className="h-6 w-6 text-accent flex-shrink-0" />
-            ) : (
-              <Circle className="h-6 w-6 text-muted-foreground flex-shrink-0" />
-            )}
-            <div className="flex-1">
-              <span className={`text-sm font-semibold ${task.completed ? 'text-accent' : 'text-foreground'}`}>
-                {task.label}
-              </span>
-              <p className="text-xs text-muted-foreground">{task.description}</p>
-              {task.autoCheck && (
-                <span className="text-[10px] uppercase tracking-wider text-primary">Auto-tracked</span>
+        {tasks.map((task, index) => {
+          const Icon = iconMap[task.id as keyof typeof iconMap] || Footprints;
+          return (
+            <motion.button
+              key={task.id}
+              onClick={() => toggleTask(task.id)}
+              className={`w-full tactical-card flex items-center gap-4 text-left transition-all ${
+                task.completed ? 'border-accent/30' : ''
+              } ${task.autoCheck ? 'cursor-default' : 'cursor-pointer hover:border-primary/50'}`}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 + index * 0.1 }}
+              disabled={task.autoCheck}
+            >
+              {task.completed ? (
+                <CheckCircle2 className="h-6 w-6 text-accent flex-shrink-0" />
+              ) : (
+                <Circle className="h-6 w-6 text-muted-foreground flex-shrink-0" />
               )}
-            </div>
-            <task.icon className={`h-5 w-5 ${task.completed ? 'text-accent' : 'text-muted-foreground'}`} />
-          </motion.button>
-        ))}
+              <div className="flex-1">
+                <span className={`text-sm font-semibold ${task.completed ? 'text-accent' : 'text-foreground'}`}>
+                  {task.label}
+                </span>
+                <p className="text-xs text-muted-foreground">{task.description}</p>
+                {task.autoCheck && (
+                  <span className="text-[10px] uppercase tracking-wider text-primary">Auto-tracked</span>
+                )}
+              </div>
+              <Icon className={`h-5 w-5 ${task.completed ? 'text-accent' : 'text-muted-foreground'}`} />
+            </motion.button>
+          );
+        })}
       </div>
 
       {/* Upsell Banner */}

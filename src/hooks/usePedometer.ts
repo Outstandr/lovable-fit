@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { stepTrackingService } from '@/services/stepTrackingService';
-import { healthService } from '@/services/healthService';
 import { useAuth } from '@/hooks/useAuth';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { supabase } from '@/integrations/supabase/client';
 import { haptics } from '@/utils/haptics';
+import { stepsToDistance, stepsToCalories } from '@/utils/calculations';
 import { useLocation } from 'react-router-dom';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
@@ -488,67 +488,33 @@ export function usePedometer() {
           sensorBaseline.current = null;
           previousSessionSteps.current = 0;
           
-          let loadedFromHealth = false;
-          
-          // On iOS, try HealthKit first
-          if (platform === 'ios') {
-            try {
-              console.log('[usePedometer] iOS: Syncing from HealthKit...');
-              const healthData = await healthService.readTodayData();
-              if (healthData && healthData.steps > 0) {
-                if (healthData.steps > baseSteps.current) {
-                  console.log('[usePedometer] iOS: HealthKit has more steps:', healthData.steps, 'vs', baseSteps.current);
-                  baseSteps.current = healthData.steps;
-                  sensorBaseline.current = 0;
-                  backgroundSyncSteps.current = healthData.steps;
-                  backgroundSyncDistance.current = healthData.distance;
-                  backgroundSyncCalories.current = healthData.calories;
-                  
-                  setState(prev => ({
-                    ...prev,
-                    steps: healthData.steps,
-                    distance: healthData.distance,
-                    calories: healthData.calories,
-                    dataSource: 'pedometer'
-                  }));
-                  loadedFromHealth = true;
-                }
-              }
-            } catch (e) {
-              console.error('[usePedometer] iOS HealthKit sync error:', e);
-            }
-          }
-          
-          // If HealthKit unavailable/empty, reload from database as fallback
-          if (platform === 'ios' && !loadedFromHealth) {
-            console.log('[usePedometer] iOS: HealthKit unavailable, reloading from DB');
-            try {
-              const { data } = await supabase
-                .from('daily_steps')
-                .select('steps, distance_km, calories')
-                .eq('user_id', user.id)
-                .eq('date', today)
-                .maybeSingle();
+          // Reload from database on resume
+          try {
+            const { data } = await supabase
+              .from('daily_steps')
+              .select('steps, distance_km, calories')
+              .eq('user_id', user.id)
+              .eq('date', today)
+              .maybeSingle();
+            
+            if (data && data.steps > baseSteps.current) {
+              console.log('[usePedometer] Restored from DB:', data.steps);
+              baseSteps.current = data.steps;
+              lastSyncSteps.current = data.steps;
+              backgroundSyncSteps.current = data.steps;
+              backgroundSyncDistance.current = data.distance_km || 0;
+              backgroundSyncCalories.current = data.calories || 0;
               
-              if (data && data.steps > baseSteps.current) {
-                console.log('[usePedometer] iOS: Restored from DB:', data.steps);
-                baseSteps.current = data.steps;
-                lastSyncSteps.current = data.steps;
-                backgroundSyncSteps.current = data.steps;
-                backgroundSyncDistance.current = data.distance_km || 0;
-                backgroundSyncCalories.current = data.calories || 0;
-                
-                setState(prev => ({
-                  ...prev,
-                  steps: data.steps,
-                  distance: data.distance_km || 0,
-                  calories: data.calories || 0,
-                  dataSource: 'database'
-                }));
-              }
-            } catch (e) {
-              console.error('[usePedometer] DB reload error:', e);
+              setState(prev => ({
+                ...prev,
+                steps: data.steps,
+                distance: data.distance_km || 0,
+                calories: data.calories || 0,
+                dataSource: 'database'
+              }));
             }
+          } catch (e) {
+            console.error('[usePedometer] DB reload error:', e);
           }
         }
       });
@@ -580,9 +546,9 @@ export function usePedometer() {
         ? Math.max(0, data.steps - sensorBaseline.current)
         : 0;
       const totalSteps = Math.min(baseSteps.current + sessionSteps, MAX_DAILY_STEPS);
-      const distanceKm = (data.distance || (sessionSteps * 0.762)) / 1000;
-      const totalDistance = (baseSteps.current * 0.762) / 1000 + distanceKm;
-      const calories = Math.round(totalSteps / STEPS_PER_CALORIE);
+      const distanceKm = data.distance ? data.distance / 1000 : stepsToDistance(sessionSteps);
+      const totalDistance = stepsToDistance(baseSteps.current) + distanceKm;
+      const calories = Math.round(stepsToCalories(totalSteps));
 
       setState(prev => ({
         ...prev,

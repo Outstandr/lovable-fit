@@ -1,4 +1,4 @@
-import { Home, Trophy, Headphones, FileText, User } from "lucide-react";
+import { Home, Trophy, FileText, User } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { haptics } from '@/utils/haptics';
@@ -6,7 +6,6 @@ import { haptics } from '@/utils/haptics';
 const navItems = [
   { icon: Home, label: "Home", path: "/" },
   { icon: Trophy, label: "Board", path: "/leaderboard" },
-  { icon: Headphones, label: "Audio", path: "/audiobook" },
   { icon: FileText, label: "Protocol", path: "/protocol" },
   { icon: User, label: "Profile", path: "/profile" },
 ];

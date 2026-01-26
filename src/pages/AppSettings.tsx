@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Settings, Ruler, Info, RefreshCw, RotateCcw, LogOut, ChevronRight, Heart, CheckCircle2, XCircle } from "lucide-react";
+import { Settings, Ruler, Info, RefreshCw, RotateCcw, LogOut, ChevronRight } from "lucide-react";
 import { StandardHeader } from "@/components/StandardHeader";
 import { RubberBandScroll } from "@/components/ui/RubberBandScroll";
 import {
@@ -20,7 +20,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Capacitor } from "@capacitor/core";
-import { healthService } from "@/services/healthService";
 
 
 const ONBOARDING_KEY = 'device_onboarding_completed';
@@ -31,41 +30,6 @@ const AppSettings = () => {
   const queryClient = useQueryClient();
   const isNative = Capacitor.isNativePlatform();
   const platform = Capacitor.getPlatform();
-  
-  const [healthConnectStatus, setHealthConnectStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown');
-  const [isConnecting, setIsConnecting] = useState(false);
-
-  // Check Health Connect status on mount
-  useEffect(() => {
-    const checkHealthConnect = async () => {
-      if (!isNative || platform !== 'android') {
-        setHealthConnectStatus('disconnected');
-        return;
-      }
-      
-      try {
-        const hasPermission = await healthService.checkPermission();
-        setHealthConnectStatus(hasPermission ? 'connected' : 'disconnected');
-      } catch (error) {
-        console.error('[AppSettings] Health Connect check error:', error);
-        setHealthConnectStatus('disconnected');
-      }
-    };
-    
-    checkHealthConnect();
-  }, [isNative, platform]);
-
-  const handleConnectHealthConnect = async () => {
-    setIsConnecting(true);
-    try {
-      const granted = await healthService.requestPermission();
-      setHealthConnectStatus(granted ? 'connected' : 'disconnected');
-    } catch (error) {
-      console.error('[AppSettings] Health Connect connect error:', error);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
 
   const handleLogout = async () => {
     try {
@@ -170,60 +134,6 @@ const AppSettings = () => {
             </button>
           </div>
         </motion.div>
-
-        {/* Health Connect Card - Android Only */}
-        {isNative && platform === 'android' && (
-          <motion.div
-            className="tactical-card p-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <Heart className="h-5 w-5 text-rose-500" />
-              <div>
-                <p className="text-sm font-semibold text-foreground">Health Connect</p>
-                <p className="text-xs text-muted-foreground">Sync steps from Health Connect</p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {healthConnectStatus === 'connected' ? (
-                  <>
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span className="text-sm text-green-500 font-medium">Connected</span>
-                  </>
-                ) : healthConnectStatus === 'disconnected' ? (
-                  <>
-                    <XCircle className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Not Connected</span>
-                  </>
-                ) : (
-                  <span className="text-sm text-muted-foreground">Checking...</span>
-                )}
-              </div>
-
-              {healthConnectStatus !== 'connected' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleConnectHealthConnect}
-                  disabled={isConnecting}
-                >
-                  {isConnecting ? 'Connecting...' : 'Connect'}
-                </Button>
-              )}
-            </div>
-
-            {healthConnectStatus === 'connected' && (
-              <p className="text-xs text-muted-foreground mt-3">
-                Health Connect data will supplement your step tracking.
-              </p>
-            )}
-          </motion.div>
-        )}
-
 
         {/* Reset Onboarding */}
         <motion.div

@@ -24,7 +24,6 @@
     "@capacitor/status-bar": "^8.0.0",
     "@capawesome-team/capacitor-android-battery-optimization": "^8.0.0",
     "@capawesome-team/capacitor-android-foreground-service": "^8.0.0",
-    "@capgo/capacitor-health": "^8.1.2",
     "@capgo/capacitor-pedometer": "^8.0.10",
     "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",
     "@fontsource/poppins": "^5.2.7",
