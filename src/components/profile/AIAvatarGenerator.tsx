@@ -33,24 +33,73 @@ export const AIAvatarGenerator = ({ onAvatarGenerated, className }: AIAvatarGene
       setIsGenerating(true);
       setLoadingText("Analyzing features...");
 
-      // 2. Invoke Edge Function
-      const { data, error } = await supabase.functions.invoke('generate-avatar', {
-        body: { imageBase64: photo.base64String },
+      const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!API_KEY) throw new Error("Missing VITE_GEMINI_API_KEY. Please add it to your .env file.");
+
+      // 2. Vision Extraction (Gemini 1.5 Flash)
+      const visionPrompt = "You are an expert character artist. Analyze this selfie and describe the person's physical features to be used as a prompt for a 3D Pixar style avatar. Describe their hair style, hair color, eye shape, skin tone, facial hair (if any), and facial structure. Do NOT mention their real identity or age specifically. Just physical traits. Format your response exactly as the start of an image generation prompt, starting with: 'A 3D Pixar style character avatar of a person with...'";
+      const cleanBase64 = photo.base64String.replace(/^data:image\/(png|jpeg|webp);base64,/, "");
+
+      const visionRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: visionPrompt }, { inline_data: { mime_type: "image/jpeg", data: cleanBase64 } }] }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 200 }
+        })
       });
 
-      if (error) {
-        throw new Error(error.message || "Failed to communicate with AI server");
-      }
+      if (!visionRes.ok) throw new Error(`Vision Error: ${visionRes.status}`);
+      const visionData = await visionRes.json();
+      const extractedPrompt = visionData.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!extractedPrompt) throw new Error("Failed to extract prompt from selfie.");
 
-      if (!data?.success) {
-        throw new Error(data?.error || "AI generation failed");
-      }
+      setLoadingText("Generating avatar image...");
 
-      setLoadingText("Finalizing style...");
+      // 3. Image Generation (Imagen 3)
+      const finalPrompt = `${extractedPrompt.trim()}, wearing modern cyberpunk activewear athletic clothing, solid vibrant gradient background, high quality, highly detailed 3D render.`;
       
-      // 3. Complete
+      const generateRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          instances: [{ prompt: finalPrompt }],
+          parameters: { sampleCount: 1, personGeneration: "ALLOW_ADULT" }
+        })
+      });
+
+      if (!generateRes.ok) {
+        const errText = await generateRes.text();
+        throw new Error(`Generation Error: ${generateRes.status} ${errText}`);
+      }
+      
+      const generateData = await generateRes.json();
+      const generatedBase64 = generateData.predictions?.[0]?.bytesBase64Encoded;
+      if (!generatedBase64) throw new Error("Failed to receive image bytes.");
+
+      setLoadingText("Saving avatar...");
+
+      // 4. Upload to Supabase Storage
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const byteString = atob(generatedBase64);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      const blob = new Blob([ab], { type: 'image/jpeg' });
+      const fileName = `${user.id}_avatar_${Date.now()}.jpg`;
+
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
+      if (uploadError) throw new Error(`Upload Error: ${uploadError.message}`);
+
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+
+      // 5. Complete
       toast.success("AI Avatar generated successfully!");
-      onAvatarGenerated(data.avatarUrl);
+      onAvatarGenerated(publicUrl);
 
     } catch (error: any) {
       console.error("[AIAvatarGenerator]", error);
