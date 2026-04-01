@@ -84,7 +84,7 @@ export const EditIdentityDialog = ({ userId, currentUsername, currentAvatarId, c
           <Edit2 className="w-4 h-4" /> Edit Identity
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md bg-background border-border max-w-[90vw] rounded-2xl">
+      <DialogContent className="sm:max-w-md bg-background border-border max-w-[90vw] max-h-[90vh] overflow-y-auto rounded-2xl">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold uppercase tracking-wider">Edit Identity</DialogTitle>
         </DialogHeader>

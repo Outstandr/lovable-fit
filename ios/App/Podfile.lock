@@ -7,6 +7,8 @@ PODS:
     - Capacitor
   - CapacitorBrowser (8.0.0):
     - Capacitor
+  - CapacitorCamera (8.0.0):
+    - Capacitor
   - CapacitorCordova (8.0.0)
   - CapacitorGeolocation (8.0.0):
     - Capacitor
@@ -34,6 +36,7 @@ DEPENDENCIES:
   - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
   - CapacitorBackgroundStep (from `../../node_modules/capacitor-background-step`)
   - "CapacitorBrowser (from `../../node_modules/@capacitor/browser`)"
+  - "CapacitorCamera (from `../../node_modules/@capacitor/camera`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorGeolocation (from `../../node_modules/@capacitor/geolocation`)"
   - "CapacitorKeyboard (from `../../node_modules/@capacitor/keyboard`)"
@@ -58,6 +61,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/capacitor-background-step"
   CapacitorBrowser:
     :path: "../../node_modules/@capacitor/browser"
+  CapacitorCamera:
+    :path: "../../node_modules/@capacitor/camera"
   CapacitorCordova:
     :path: "../../node_modules/@capacitor/ios"
   CapacitorGeolocation:
@@ -84,6 +89,7 @@ SPEC CHECKSUMS:
   CapacitorApp: cfa0120a1f3a6f69d4d37d3041782aa5c5167d0b
   CapacitorBackgroundStep: 0f141a9b751b7cf647575a5d8427f3593356d21b
   CapacitorBrowser: 7452c73a202716d9c9035e5dbe5c5d8d07737f22
+  CapacitorCamera: 05ac5bd4499ed4b8cf5358d1b4a874b385de7b4d
   CapacitorCordova: 5dc3912d25ef770a3fe0f431bb65c9fbfa2e92f9
   CapacitorGeolocation: a8381371f7b460e6be569576557285e70f0c9d6c
   CapacitorKeyboard: 0a2e7c0635ccf3db60abed14bd6f35147ce25942
@@ -96,6 +102,6 @@ SPEC CHECKSUMS:
   CapgoCapacitorPedometer: 20d9ca18d55bdc8ff4fabcf6523af3a4c126e6cf
   IONGeolocationLib: a5e40b54edc2ee9902036eda5aaa41ddf07bb68d
 
-PODFILE CHECKSUM: aed9b1a81d8f129775967920801d4727c5f8d172
+PODFILE CHECKSUM: d88de7fcb054b4cff07e2c6e4b73bf29ad16c601
 
 COCOAPODS: 1.16.2

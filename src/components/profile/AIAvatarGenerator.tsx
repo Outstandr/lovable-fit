@@ -4,6 +4,13 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Sparkles, Loader2, Camera as CameraIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface AIAvatarGeneratorProps {
   onAvatarGenerated: (url: string) => void;
@@ -13,6 +20,7 @@ interface AIAvatarGeneratorProps {
 export const AIAvatarGenerator = ({ onAvatarGenerated, className }: AIAvatarGeneratorProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [loadingText, setLoadingText] = useState('');
+  const [showInstructions, setShowInstructions] = useState(false);
 
   const handleGenerate = async () => {
     try {
@@ -40,7 +48,7 @@ export const AIAvatarGenerator = ({ onAvatarGenerated, className }: AIAvatarGene
       const visionPrompt = "You are an expert character artist. Analyze this selfie and describe the person's physical features to be used as a prompt for a 3D Pixar style avatar. Describe their hair style, hair color, eye shape, skin tone, facial hair (if any), and facial structure. Do NOT mention their real identity or age specifically. Just physical traits. Format your response exactly as the start of an image generation prompt, starting with: 'A 3D Pixar style character avatar of a person with...'";
       const cleanBase64 = photo.base64String.replace(/^data:image\/(png|jpeg|webp);base64,/, "");
 
-      const visionRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+      const visionRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -59,7 +67,7 @@ export const AIAvatarGenerator = ({ onAvatarGenerated, className }: AIAvatarGene
       // 3. Image Generation (Imagen 3)
       const finalPrompt = `${extractedPrompt.trim()}, wearing modern cyberpunk activewear athletic clothing, solid vibrant gradient background, high quality, highly detailed 3D render.`;
       
-      const generateRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${API_KEY}`, {
+      const generateRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -75,6 +83,7 @@ export const AIAvatarGenerator = ({ onAvatarGenerated, className }: AIAvatarGene
       
       const generateData = await generateRes.json();
       const generatedBase64 = generateData.predictions?.[0]?.bytesBase64Encoded;
+      const mimeType = generateData.predictions?.[0]?.mimeType || 'image/jpeg';
       if (!generatedBase64) throw new Error("Failed to receive image bytes.");
 
       setLoadingText("Saving avatar...");
@@ -89,10 +98,11 @@ export const AIAvatarGenerator = ({ onAvatarGenerated, className }: AIAvatarGene
       for (let i = 0; i < byteString.length; i++) {
         ia[i] = byteString.charCodeAt(i);
       }
-      const blob = new Blob([ab], { type: 'image/jpeg' });
-      const fileName = `${user.id}_avatar_${Date.now()}.jpg`;
+      const blob = new Blob([ab], { type: mimeType });
+      const extension = mimeType === 'image/png' ? 'png' : 'jpg';
+      const fileName = `${user.id}_avatar_${Date.now()}.${extension}`;
 
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, blob, { contentType: mimeType, upsert: true });
       if (uploadError) throw new Error(`Upload Error: ${uploadError.message}`);
 
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
@@ -123,7 +133,7 @@ export const AIAvatarGenerator = ({ onAvatarGenerated, className }: AIAvatarGene
       </div>
 
       <Button 
-        onClick={handleGenerate} 
+        onClick={() => setShowInstructions(true)} 
         disabled={isGenerating}
         className="w-full relative overflow-hidden group shadow-glow-sm"
       >
@@ -142,6 +152,57 @@ export const AIAvatarGenerator = ({ onAvatarGenerated, className }: AIAvatarGene
           )}
         </div>
       </Button>
+
+      <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
+        <DialogContent className="sm:max-w-md bg-background border-border">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-center">Perfect Selfie Guide</DialogTitle>
+            <DialogDescription className="text-center pt-2">
+              Follow these instructions to get the best 3D Pixar avatar result!
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-2">
+            <div className="flex items-start gap-3 bg-secondary/30 p-3 rounded-lg border border-border/50">
+              <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 text-primary font-bold">1</div>
+              <div>
+                <h4 className="font-semibold text-foreground text-sm">Face the camera</h4>
+                <p className="text-xs text-muted-foreground mt-0.5">Keep your face centered and look directly into the lens.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 bg-secondary/30 p-3 rounded-lg border border-border/50">
+              <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 text-primary font-bold">2</div>
+              <div>
+                <h4 className="font-semibold text-foreground text-sm">Good lighting</h4>
+                <p className="text-xs text-muted-foreground mt-0.5">Ensure your face is evenly lit. Avoid strong shadows or backlighting.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 bg-secondary/30 p-3 rounded-lg border border-border/50">
+              <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 text-primary font-bold">3</div>
+              <div>
+                <h4 className="font-semibold text-foreground text-sm">Natural expression</h4>
+                <p className="text-xs text-muted-foreground mt-0.5">A slight smile works best. Your glasses and hairstyle will be captured!</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex flex-col gap-2 mt-4">
+            <Button 
+              onClick={() => {
+                setShowInstructions(false);
+                setTimeout(() => handleGenerate(), 100);
+              }}
+              className="w-full h-12 relative overflow-hidden group shadow-glow-sm text-md font-semibold tracking-wide"
+            >
+              <div className="absolute inset-0 bg-gradient-shimmer opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-shimmer" />
+              <span className="relative z-10 flex items-center">
+                <CameraIcon className="w-5 h-5 mr-2" /> Open Camera & Let's Go
+              </span>
+            </Button>
+            <Button variant="ghost" className="w-full text-muted-foreground" onClick={() => setShowInstructions(false)}>Cancel</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
