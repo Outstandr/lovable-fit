@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { localNotificationService } from "@/services/localNotificationService";
 import { supabase } from "@/integrations/supabase/client";
 
 
@@ -88,6 +89,13 @@ const NotificationSettings = () => {
         console.error("Error saving preferences:", error);
         // Revert on error
         setPreferences(preferences);
+      } else {
+        // Sync local native notifications if supported
+        if (newPreferences.daily_reminders) {
+          await localNotificationService.scheduleDailyReminders(newPreferences.morning_reminder_time, newPreferences.evening_reminder_time);
+        } else {
+          await localNotificationService.cancelAllReminders();
+        }
       }
     } catch (error) {
       console.error("Error:", error);
@@ -98,7 +106,11 @@ const NotificationSettings = () => {
   };
 
   const handleEnableNotifications = async () => {
-    await requestPermission();
+    const remoteGranted = await requestPermission();
+    const localGranted = await localNotificationService.requestPermission();
+    if (localGranted && preferences.daily_reminders) {
+      await localNotificationService.scheduleDailyReminders(preferences.morning_reminder_time, preferences.evening_reminder_time);
+    }
   };
 
   const settingsItems = [

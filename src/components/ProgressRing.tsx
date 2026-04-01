@@ -1,4 +1,5 @@
-import { motion } from "framer-motion";
+import { motion, useSpring, useTransform } from "framer-motion";
+import { useEffect } from "react";
 
 interface ProgressRingProps {
   current: number;
@@ -22,6 +23,14 @@ export const ProgressRing = ({
   const progress = Math.min(current / target, 1);
   const offset = circumference - progress * circumference;
   const isComplete = current >= target;
+
+  // Animated Numerical Counter
+  const animatedCurrent = useSpring(0, { bounce: 0, duration: 1500 });
+  const displayCurrent = useTransform(animatedCurrent, (v) => Math.round(v).toLocaleString());
+
+  useEffect(() => {
+    animatedCurrent.set(current);
+  }, [current, animatedCurrent]);
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
@@ -115,15 +124,13 @@ export const ProgressRing = ({
           </motion.span>
         )}
         
-        {/* Main value */}
         <motion.span 
           className={`text-5xl font-bold tracking-tight tabular-nums ${isComplete ? 'text-gradient-accent' : 'text-foreground'}`}
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.5, type: "spring" }}
-          key={current}
         >
-          {current.toLocaleString()}
+          {displayCurrent}
         </motion.span>
         
         {isComplete ? (

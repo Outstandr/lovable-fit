@@ -10,18 +10,43 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useNavigate } from "react-router-dom";
+import { AVATARS } from "@/components/profile/AvatarSelector";
 
 type TabType = 'today' | 'week' | 'month';
 
 interface LeaderboardEntry {
   rank: number;
   name: string;
+  username: string | null;
   steps: number;
-  avatar: string;
+  avatarInitials: string;
+  avatarUrl: string | null;
   userId: string;
   isCurrentUser: boolean;
   streak: number;
 }
+
+const AvatarDisplay = ({ entry, size = "md", style }: { entry: LeaderboardEntry, size?: "sm" | "md" | "lg" | "xl", style?: any }) => {
+  const sizeClasses = {
+    sm: "h-10 w-10 text-sm",
+    md: "h-14 w-14 text-xl",
+    lg: "h-16 w-16 text-lg",
+    xl: "h-20 w-20 text-xl"
+  };
+
+  const isSelected = entry.isCurrentUser;
+  const borderClass = style?.border || "border-border";
+  
+  return (
+    <div className={`relative ${sizeClasses[size]} rounded-full bg-secondary flex items-center justify-center border-2 ${borderClass} overflow-hidden ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}>
+      {entry.avatarUrl ? (
+        <img src={entry.avatarUrl} alt={entry.name} className="absolute inset-0 w-full h-full object-cover" />
+      ) : (
+        <span className={`font-bold ${style?.text || 'text-foreground'}`}>{entry.avatarInitials}</span>
+      )}
+    </div>
+  );
+};
 
 const StreakBadge = ({ streak }: { streak: number }) => {
   if (streak === 0) return null;
@@ -85,15 +110,20 @@ const Leaderboard = () => {
         hiddenUserIds.add(user.id);
       }
 
-      let entries: LeaderboardEntry[] = (data || []).map((row: any) => ({
-        rank: Number(row.rank),
-        name: row.display_name || 'Unknown',
-        steps: tab === 'today' ? (row.steps || 0) : (row.total_steps || 0),
-        avatar: row.avatar_initials || 'NA',
-        userId: row.user_id,
-        isCurrentUser: row.user_id === user?.id,
-        streak: row.current_streak || 0
-      }));
+      let entries: LeaderboardEntry[] = (data || []).map((row: any) => {
+        const avatarAsset = AVATARS.find(a => a.id === row.avatar_id);
+        return {
+          rank: Number(row.rank),
+          name: row.display_name || 'Unknown',
+          username: row.username ? `@${row.username}` : null,
+          steps: tab === 'today' ? (row.steps || 0) : (row.total_steps || 0),
+          avatarInitials: row.avatar_initials || 'NA',
+          avatarUrl: row.avatar_url || (avatarAsset ? avatarAsset.url : null),
+          userId: row.user_id,
+          isCurrentUser: row.user_id === user?.id,
+          streak: row.current_streak || 0
+        };
+      });
 
       const uniqueEntriesMap = new Map();
       entries.forEach(entry => {
@@ -302,15 +332,14 @@ const Leaderboard = () => {
                 transition={{ delay: 0.3, type: "spring" }}
               >
                 <div className="relative">
-                  <div className={`h-16 w-16 rounded-full border-2 border-gray-400/50 bg-secondary flex items-center justify-center shadow-depth ${top3[1].isCurrentUser ? 'ring-2 ring-primary' : ''}`}>
-                    <span className="text-lg font-bold text-gray-300">{top3[1].avatar}</span>
-                  </div>
+                  <AvatarDisplay entry={top3[1]} size="lg" style={getRankStyle(top3[1].rank)} />
                   <Medal className="absolute -bottom-1 -right-1 h-5 w-5 text-gray-300 drop-shadow-lg" />
                 </div>
                 <div className="flex items-center gap-1 mt-2">
                   <span className="text-sm font-semibold text-foreground truncate max-w-[70px]">{top3[1].name}</span>
                   <StreakBadge streak={top3[1].streak} />
                 </div>
+                {top3[1].username && <span className="text-[10px] text-muted-foreground truncate max-w-[70px] -mt-0.5 mb-0.5">{top3[1].username}</span>}
                 <span className="text-xs font-medium text-primary">{top3[1].steps.toLocaleString()}</span>
                 <motion.div
                   className="mt-2 h-16 w-20 rounded-t-lg bg-gray-400/20 border-t border-x border-gray-400/30 shadow-depth"
@@ -332,17 +361,17 @@ const Leaderboard = () => {
                   <motion.div
                     animate={{ y: [-2, 2, -2] }}
                     transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    className="z-10"
                   >
                     <Crown className="absolute -top-7 left-1/2 -translate-x-1/2 h-7 w-7 text-yellow-400 drop-shadow-lg" />
                   </motion.div>
-                  <div className={`h-20 w-20 rounded-full border-2 border-yellow-500/50 bg-secondary flex items-center justify-center shadow-glow-md ${top3[0].isCurrentUser ? 'ring-2 ring-primary' : ''}`}>
-                    <span className="text-xl font-bold text-yellow-400">{top3[0].avatar}</span>
-                  </div>
+                  <AvatarDisplay entry={top3[0]} size="xl" style={getRankStyle(top3[0].rank)} />
                 </div>
                 <div className="flex items-center gap-1 mt-2">
                   <span className="text-sm font-bold text-foreground truncate max-w-[80px]">{top3[0].name}</span>
                   <StreakBadge streak={top3[0].streak} />
                 </div>
+                {top3[0].username && <span className="text-xs text-muted-foreground truncate max-w-[80px] -mt-0.5 mb-1">{top3[0].username}</span>}
                 <span className="text-xs font-bold text-yellow-400">{top3[0].steps.toLocaleString()}</span>
                 <motion.div
                   className="mt-2 h-24 w-24 rounded-t-lg bg-yellow-500/20 border-t border-x border-yellow-500/30 shadow-glow-sm relative overflow-hidden"
@@ -363,15 +392,14 @@ const Leaderboard = () => {
                 transition={{ delay: 0.35, type: "spring" }}
               >
                 <div className="relative">
-                  <div className={`h-16 w-16 rounded-full border-2 border-amber-600/50 bg-secondary flex items-center justify-center shadow-depth ${top3[2].isCurrentUser ? 'ring-2 ring-primary' : ''}`}>
-                    <span className="text-lg font-bold text-amber-500">{top3[2].avatar}</span>
-                  </div>
+                  <AvatarDisplay entry={top3[2]} size="lg" style={getRankStyle(top3[2].rank)} />
                   <Medal className="absolute -bottom-1 -right-1 h-5 w-5 text-amber-500 drop-shadow-lg" />
                 </div>
                 <div className="flex items-center gap-1 mt-2">
                   <span className="text-sm font-semibold text-foreground truncate max-w-[70px]">{top3[2].name}</span>
                   <StreakBadge streak={top3[2].streak} />
                 </div>
+                {top3[2].username && <span className="text-[10px] text-muted-foreground truncate max-w-[70px] -mt-0.5 mb-0.5">{top3[2].username}</span>}
                 <span className="text-xs font-medium text-primary">{top3[2].steps.toLocaleString()}</span>
                 <motion.div
                   className="mt-2 h-12 w-20 rounded-t-lg bg-amber-600/20 border-t border-x border-amber-600/30 shadow-depth"
@@ -401,19 +429,18 @@ const Leaderboard = () => {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className={`h-14 w-14 rounded-full bg-secondary flex items-center justify-center border-2 ${style.border}`}>
-                          <span className={`text-xl font-bold ${style.text}`}>{entry.avatar}</span>
-                        </div>
+                        <AvatarDisplay entry={entry} size="md" style={style} />
                         <div>
                           <div className="flex items-center gap-2">
                             {index === 0 && <Crown className="h-5 w-5 text-yellow-400" />}
                             {index === 1 && <Medal className="h-5 w-5 text-gray-300" />}
                             <span className={`font-bold ${style.text}`}>#{entry.rank}</span>
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 mt-0.5">
                             <span className="text-foreground font-semibold">{entry.name}</span>
                             <StreakBadge streak={entry.streak} />
                           </div>
+                          {entry.username && <p className="text-xs text-muted-foreground leading-none">{entry.username}</p>}
                         </div>
                       </div>
                       <div className="text-right">
@@ -447,14 +474,15 @@ const Leaderboard = () => {
                       <span className={`w-8 text-lg font-bold ${entry.isCurrentUser ? 'text-primary' : style.text}`}>
                         #{entry.rank}
                       </span>
-                      <div className="h-10 w-10 rounded-full bg-secondary border border-border flex items-center justify-center">
-                        <span className="text-sm font-semibold text-foreground">{entry.avatar}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className={`text-sm font-semibold ${entry.isCurrentUser ? 'text-primary' : 'text-foreground'}`}>
-                          {entry.name}
-                        </span>
-                        <StreakBadge streak={entry.streak} />
+                      <AvatarDisplay entry={entry} size="sm" style={style} />
+                      <div className="flex flex-col justify-center">
+                        <div className="flex items-center gap-1">
+                          <span className={`text-sm font-semibold leading-tight ${entry.isCurrentUser ? 'text-primary' : 'text-foreground'}`}>
+                            {entry.name}
+                          </span>
+                          <StreakBadge streak={entry.streak} />
+                        </div>
+                        {entry.username && <p className="text-[10px] text-muted-foreground leading-none">{entry.username}</p>}
                       </div>
                     </div>
                     <span className="text-sm font-bold text-primary">
@@ -481,12 +509,14 @@ const Leaderboard = () => {
               <span className="text-lg font-bold text-primary">
                 #{currentUser.rank}
               </span>
-              <div className="h-10 w-10 rounded-full bg-secondary border border-primary/50 flex items-center justify-center">
-                <span className="text-sm font-semibold text-primary">{currentUser.avatar}</span>
-              </div>
-              <div>
-                <span className="text-sm font-bold text-primary">{currentUser.name}</span>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Your Rank</p>
+              <AvatarDisplay entry={currentUser} size="sm" style={getRankStyle(currentUser.rank)} />
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-primary leading-tight">{currentUser.name}</span>
+                {currentUser.username ? (
+                  <p className="text-[10px] leading-none text-primary/70">{currentUser.username}</p>
+                ) : (
+                  <p className="text-[10px] uppercase tracking-wider text-primary/70">Your Rank</p>
+                )}
               </div>
             </div>
             <span className="text-lg font-bold text-primary">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, MapPin, Clock, Gauge, Square, Zap, Footprints, Satellite, RefreshCw, Settings, X, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -73,12 +73,25 @@ const ActiveSession = () => {
     }
   }, [steps, startSteps]);
 
-  // Timer for duration
+  // Physics-bound Timer with 4-second Pedometer Grace Buffer
+  const lastStepsContext = useRef(steps);
+  const timeSinceLastStep = useRef(0);
+
+  useEffect(() => {
+    lastStepsContext.current = steps;
+    timeSinceLastStep.current = 0; // reset grace period on physical movement
+  }, [steps]);
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isRunning) {
       interval = setInterval(() => {
-        setDuration(prev => prev + 1);
+        timeSinceLastStep.current += 1;
+        // Pedometer batches steps every 1-3 seconds.
+        // We gracefully increment time if a step was taken within the last 4 seconds.
+        if (timeSinceLastStep.current <= 4) {
+          setDuration(prev => prev + 1);
+        }
       }, 1000);
     }
     return () => clearInterval(interval);

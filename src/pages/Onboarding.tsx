@@ -156,13 +156,13 @@ const Onboarding = () => {
     <div className="fixed inset-0 bg-background overflow-hidden">
       {/* Progress indicator with back button - fixed at top */}
       <div className="absolute top-0 left-0 right-0 z-10 safe-area-pt">
-        <OnboardingProgress 
-          currentStep={currentStep} 
+        <OnboardingProgress
+          currentStep={currentStep}
           onBack={handleBack}
           canGoBack={true}
         />
       </div>
-      
+
       <AnimatePresence mode="wait">
         <motion.div
           key={currentStep}
@@ -170,7 +170,7 @@ const Onboarding = () => {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -50 }}
           transition={{ duration: 0.3 }}
-          className="absolute inset-0 pt-20"
+          className="absolute inset-0 pt-28"
         >
           {stepConfig[currentStep]?.component}
         </motion.div>

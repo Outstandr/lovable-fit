@@ -32,11 +32,11 @@ const HIDDEN_STEPS: OnboardingStep[] = ['welcome', 'complete'];
 // Steps where back button should be disabled (can't go back from these)
 const NO_BACK_STEPS: OnboardingStep[] = ['welcome', 'personalInfo', 'complete'];
 
-export const OnboardingProgress = ({ 
-  currentStep, 
+export const OnboardingProgress = ({
+  currentStep,
   onBack,
   canGoBack = true,
-  className 
+  className
 }: OnboardingProgressProps) => {
   // Don't show progress on welcome or complete screens
   if (HIDDEN_STEPS.includes(currentStep)) {
@@ -47,7 +47,7 @@ export const OnboardingProgress = ({
   const totalSteps = STEP_ORDER.length - 2; // Exclude welcome and complete
   const adjustedIndex = currentIndex - 1; // Adjust for hidden welcome step
   const progress = ((adjustedIndex + 1) / totalSteps) * 100;
-  
+
   // Determine if back button should be shown
   const showBackButton = canGoBack && !NO_BACK_STEPS.includes(currentStep) && onBack;
 
@@ -70,25 +70,42 @@ export const OnboardingProgress = ({
             </motion.button>
           )}
         </div>
-        
+
         {/* Step counter */}
         <span className="text-xs text-muted-foreground">
           Step {adjustedIndex + 1} of {totalSteps}
         </span>
-        
+
         {/* Spacer for alignment */}
         <div className="w-10" />
       </div>
-      
-      {/* Progress bar container */}
-      <div className="relative h-1 bg-muted/30 rounded-full overflow-hidden">
-        {/* Animated progress fill */}
-        <motion.div
-          className="absolute inset-y-0 left-0 bg-primary rounded-full"
-          initial={{ width: 0 }}
-          animate={{ width: `${progress}%` }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-        />
+
+      {/* Progress bar container - Segments */}
+      <div className="flex gap-2">
+        {Array.from({ length: totalSteps }).map((_, index) => {
+          const isCompleted = index < adjustedIndex;
+          const isCurrent = index === adjustedIndex;
+
+          return (
+            <div
+              key={index}
+              className="flex-1 h-1.5 rounded-full overflow-hidden bg-muted/30"
+            >
+              <motion.div
+                className="h-full bg-primary"
+                initial={false}
+                animate={{
+                  width: isCompleted || isCurrent ? '100%' : '0%',
+                  opacity: isCurrent ? [0.5, 1, 0.5] : 1
+                }}
+                transition={isCurrent ? {
+                  opacity: { repeat: Infinity, duration: 2 },
+                  width: { duration: 0.4 }
+                } : { duration: 0.4 }}
+              />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

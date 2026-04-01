@@ -35,8 +35,8 @@ export const WelcomeStep = forwardRef<HTMLDivElement, WelcomeStepProps>(
             <span className="text-sm text-muted-foreground">by</span>
             <img
               src={lxLogo}
-              alt="Lionel X"
-              className="w-16 h-16 object-contain"
+              alt="Hotstepper"
+              className="w-32 h-32 object-contain"
             />
           </motion.div>
 

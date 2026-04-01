@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, firstName: string, lastName: string, phoneNumber?: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
@@ -85,7 +85,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     email: string,
     password: string,
     firstName: string,
-    lastName: string
+    lastName: string,
+    phoneNumber?: string
   ): Promise<{ error: string | null }> => {
     try {
       const redirectUrl = `${window.location.origin}/`;
@@ -97,6 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           data: {
             first_name: firstName,
             last_name: lastName,
+            phone_number: phoneNumber,
           },
         },
       });

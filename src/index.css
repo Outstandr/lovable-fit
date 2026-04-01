@@ -1,9 +1,4 @@
-@import url('@fontsource/poppins/400.css');
-@import url('@fontsource/poppins/500.css');
-@import url('@fontsource/poppins/600.css');
-@import url('@fontsource/poppins/700.css');
-
-
+/* Replaced Poppins with Native Apple San Francisco mapping */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -115,7 +110,7 @@
   }
 
   html {
-    font-family: 'Poppins', system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", sans-serif;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: none;
     height: 100%;

@@ -1,0 +1,101 @@
+PODS:
+  - Capacitor (8.0.0):
+    - CapacitorCordova
+  - CapacitorApp (8.0.0):
+    - Capacitor
+  - CapacitorBackgroundStep (0.2.5):
+    - Capacitor
+  - CapacitorBrowser (8.0.0):
+    - Capacitor
+  - CapacitorCordova (8.0.0)
+  - CapacitorGeolocation (8.0.0):
+    - Capacitor
+    - IONGeolocationLib (= 2.0.0)
+  - CapacitorKeyboard (8.0.0):
+    - Capacitor
+  - CapacitorLocalNotifications (8.0.2):
+    - Capacitor
+  - CapacitorNativeSettings (7.0.2):
+    - Capacitor
+  - CapacitorPushNotifications (8.0.0):
+    - Capacitor
+  - CapacitorShare (8.0.0):
+    - Capacitor
+  - CapacitorSplashScreen (8.0.0):
+    - Capacitor
+  - CapacitorStatusBar (8.0.0):
+    - Capacitor
+  - CapgoCapacitorPedometer (8.0.10):
+    - Capacitor
+  - IONGeolocationLib (2.0.0)
+
+DEPENDENCIES:
+  - "Capacitor (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
+  - CapacitorBackgroundStep (from `../../node_modules/capacitor-background-step`)
+  - "CapacitorBrowser (from `../../node_modules/@capacitor/browser`)"
+  - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorGeolocation (from `../../node_modules/@capacitor/geolocation`)"
+  - "CapacitorKeyboard (from `../../node_modules/@capacitor/keyboard`)"
+  - "CapacitorLocalNotifications (from `../../node_modules/@capacitor/local-notifications`)"
+  - CapacitorNativeSettings (from `../../node_modules/capacitor-native-settings`)
+  - "CapacitorPushNotifications (from `../../node_modules/@capacitor/push-notifications`)"
+  - "CapacitorShare (from `../../node_modules/@capacitor/share`)"
+  - "CapacitorSplashScreen (from `../../node_modules/@capacitor/splash-screen`)"
+  - "CapacitorStatusBar (from `../../node_modules/@capacitor/status-bar`)"
+  - "CapgoCapacitorPedometer (from `../../node_modules/@capgo/capacitor-pedometer`)"
+
+SPEC REPOS:
+  trunk:
+    - IONGeolocationLib
+
+EXTERNAL SOURCES:
+  Capacitor:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorApp:
+    :path: "../../node_modules/@capacitor/app"
+  CapacitorBackgroundStep:
+    :path: "../../node_modules/capacitor-background-step"
+  CapacitorBrowser:
+    :path: "../../node_modules/@capacitor/browser"
+  CapacitorCordova:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorGeolocation:
+    :path: "../../node_modules/@capacitor/geolocation"
+  CapacitorKeyboard:
+    :path: "../../node_modules/@capacitor/keyboard"
+  CapacitorLocalNotifications:
+    :path: "../../node_modules/@capacitor/local-notifications"
+  CapacitorNativeSettings:
+    :path: "../../node_modules/capacitor-native-settings"
+  CapacitorPushNotifications:
+    :path: "../../node_modules/@capacitor/push-notifications"
+  CapacitorShare:
+    :path: "../../node_modules/@capacitor/share"
+  CapacitorSplashScreen:
+    :path: "../../node_modules/@capacitor/splash-screen"
+  CapacitorStatusBar:
+    :path: "../../node_modules/@capacitor/status-bar"
+  CapgoCapacitorPedometer:
+    :path: "../../node_modules/@capgo/capacitor-pedometer"
+
+SPEC CHECKSUMS:
+  Capacitor: 79e40e5e76f852965dce30406c65253fa154e24a
+  CapacitorApp: cfa0120a1f3a6f69d4d37d3041782aa5c5167d0b
+  CapacitorBackgroundStep: 0f141a9b751b7cf647575a5d8427f3593356d21b
+  CapacitorBrowser: 7452c73a202716d9c9035e5dbe5c5d8d07737f22
+  CapacitorCordova: 5dc3912d25ef770a3fe0f431bb65c9fbfa2e92f9
+  CapacitorGeolocation: a8381371f7b460e6be569576557285e70f0c9d6c
+  CapacitorKeyboard: 0a2e7c0635ccf3db60abed14bd6f35147ce25942
+  CapacitorLocalNotifications: adb0776e74524387e48b9b683690fdf79f274753
+  CapacitorNativeSettings: f5511eb94cb5700ac4edf54f992d2c0dda1857d6
+  CapacitorPushNotifications: 49cd6c474cb03ee171494636693f6f06209469a0
+  CapacitorShare: 703a2744f755982f1a4950f5120bea9763d6dfea
+  CapacitorSplashScreen: 4b78177a21f0f73ccc1c78dd93b2a94854ac4b83
+  CapacitorStatusBar: c6fa2d404083e41d145ea56698707a6986d4428b
+  CapgoCapacitorPedometer: 20d9ca18d55bdc8ff4fabcf6523af3a4c126e6cf
+  IONGeolocationLib: a5e40b54edc2ee9902036eda5aaa41ddf07bb68d
+
+PODFILE CHECKSUM: aed9b1a81d8f129775967920801d4727c5f8d172
+
+COCOAPODS: 1.16.2

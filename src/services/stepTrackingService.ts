@@ -100,6 +100,19 @@ class StepTrackingService {
   }
 
   /**
+   * Get historical steps from background when app was closed
+   */
+  async getHistoricalSteps(startMs: number, endMs: number): Promise<number> {
+    if (this.platform === 'android') {
+      return backgroundStepService.getHistoricalSteps(startMs, endMs);
+    }
+    if (this.platform === 'ios') {
+      return iosStepService.getHistoricalSteps(startMs, endMs);
+    }
+    return 0;
+  }
+
+  /**
    * Stop step tracking
    */
   async stop(): Promise<void> {

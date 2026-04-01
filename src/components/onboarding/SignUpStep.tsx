@@ -1,11 +1,15 @@
 import { forwardRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Eye, EyeOff, Loader2, AlertCircle, User } from 'lucide-react';
+import { Mail, Eye, EyeOff, Loader2, AlertCircle, User, Phone, ChevronsUpDown, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { z } from 'zod';
+import { countryCodes } from '@/utils/countryCodes';
+import { validatePhoneNumber, formatPhoneE164, cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 interface SignUpStepProps {
   onNext: () => void;
@@ -24,6 +28,7 @@ const signUpSchema = z.object({
     .max(50, 'Last name must be less than 50 characters'),
   email: z.string().trim().email('Please enter a valid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
+  phoneNumber: z.string().optional(),
 });
 
 const signInSchema = z.object({
@@ -40,11 +45,14 @@ export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
     const [generalError, setGeneralError] = useState('');
     const [errors, setErrors] = useState<Record<string, string>>({});
 
+    const [openCountry, setOpenCountry] = useState(false);
+    const [countryCode, setCountryCode] = useState('+1');
     const [formData, setFormData] = useState({
       firstName: '',
       lastName: '',
       email: '',
       password: '',
+      phoneNumber: '',
     });
 
     const handleInputChange = (field: string, value: string) => {
@@ -82,11 +90,22 @@ export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
             onNext();
           }
         } else {
+          let formattedPhone = undefined;
+          if (formData.phoneNumber.trim()) {
+            formattedPhone = formatPhoneE164(formData.phoneNumber, countryCode);
+            if (!validatePhoneNumber(formattedPhone)) {
+              setErrors((prev) => ({ ...prev, phoneNumber: 'Please enter a valid phone number' }));
+              setIsLoading(false);
+              return;
+            }
+          }
+
           const { error } = await signUp(
             formData.email,
             formData.password,
             formData.firstName.trim(),
-            formData.lastName.trim()
+            formData.lastName.trim(),
+            formattedPhone
           );
           if (error) {
             setGeneralError(error);
@@ -136,7 +155,7 @@ export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.5 }}
-            className="px-6 space-y-4 pb-6"
+            className="px-6 space-y-4 pb-48"
           >
             {/* Name Fields - Only for Sign Up */}
             <AnimatePresence mode="wait">
@@ -193,6 +212,73 @@ export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
                         <p className="text-xs text-destructive">{errors.lastName}</p>
                       )}
                     </div>
+                  </div>
+
+                  {/* Phone Number */}
+                  <div className="space-y-2 pb-1">
+                    <Label htmlFor="phoneNumber" className="text-sm">
+                      Phone Number <span className="text-muted-foreground">(Optional)</span>
+                    </Label>
+                    <div className="flex gap-2">
+                      <Popover open={openCountry} onOpenChange={setOpenCountry}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={openCountry}
+                            className="w-24 justify-between px-3"
+                          >
+                            {countryCode}
+                            <ChevronsUpDown className="ml-1 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[200px] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search country..." />
+                            <CommandList>
+                              <CommandEmpty>No country found.</CommandEmpty>
+                              <CommandGroup>
+                                {countryCodes.map((c, index) => (
+                                  <CommandItem
+                                    key={`${c.code}-${c.name}-${index}`}
+                                    value={`${c.name} ${c.code}`}
+                                    onSelect={() => {
+                                      setCountryCode(c.code);
+                                      setOpenCountry(false);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        countryCode === c.code ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    <span className="flex-1 text-sm">{c.name}</span>
+                                    <span className="text-xs text-muted-foreground ml-2">{c.code} {c.flag}</span>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <Input
+                        id="phoneNumber"
+                        type="tel"
+                        placeholder="555 123 4567"
+                        value={formData.phoneNumber}
+                        onChange={(e) => {
+                          const cleaned = e.target.value.replace(/[^\d\s]/g, '');
+                          handleInputChange('phoneNumber', cleaned);
+                        }}
+                        className={`flex-1 ${errors.phoneNumber ? 'border-destructive' : ''}`}
+                        autoComplete="tel-national"
+                        maxLength={15}
+                      />
+                    </div>
+                    {errors.phoneNumber && (
+                      <p className="text-xs text-destructive mt-1">{errors.phoneNumber}</p>
+                    )}
                   </div>
                 </motion.div>
               )}

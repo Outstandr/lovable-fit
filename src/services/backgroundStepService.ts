@@ -352,6 +352,20 @@ class BackgroundStepService {
   }
 
   /**
+   * Get historical steps across a timeframe
+   */
+  async getHistoricalSteps(startMs: number, endMs: number): Promise<number> {
+    if (!this.isNative()) return 0;
+    try {
+      const result = await CapacitorPedometer.getMeasurement({ start: startMs, end: endMs });
+      return result.numberOfSteps || 0;
+    } catch (e) {
+      console.log('[BackgroundStep] Historical query unsupported or failed:', e);
+      return 0;
+    }
+  }
+
+  /**
    * Stop background step tracking
    */
   async stop(): Promise<void> {

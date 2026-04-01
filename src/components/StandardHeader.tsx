@@ -62,9 +62,9 @@ export const StandardHeader = ({
                     {/* Center - Title or Logo */}
                     <div className="flex flex-col items-center justify-center flex-1">
                         {logo ? (
-                            <img 
-                                src={logo} 
-                                alt="Hotstepper" 
+                            <img
+                                src={logo}
+                                alt="Lionel X"
                                 className="h-8 object-contain"
                             />
                         ) : title ? (
@@ -72,9 +72,9 @@ export const StandardHeader = ({
                                 {title}
                             </h1>
                         ) : null}
-                        
+
                         {subtitle && (
-                            <motion.span 
+                            <motion.span
                                 className="text-xs font-medium text-muted-foreground mt-1"
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
@@ -86,7 +86,7 @@ export const StandardHeader = ({
                     </div>
 
                     {/* Right Side - Action Button or Spacer */}
-                    <motion.div 
+                    <motion.div
                         className="w-10 h-10 flex items-center justify-center"
                         initial={{ opacity: 0, scale: 0.8 }}
                         animate={{ opacity: 1, scale: 1 }}

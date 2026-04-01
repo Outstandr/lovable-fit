@@ -19,6 +19,9 @@ import {
 import { SkeletonCard, SkeletonCircle, SkeletonText } from "@/components/ui/SkeletonCard";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useLocalCache } from "@/hooks/useLocalCache";
+import { InviteFriendsCard } from "@/components/InviteFriendsCard";
+import { EditIdentityDialog } from "@/components/profile/EditIdentityDialog";
+import { AVATARS } from "@/components/profile/AvatarSelector";
 
 const menuItems = [
   { icon: MapPin, label: "Session History", action: "sessions", color: "text-primary" },
@@ -57,7 +60,12 @@ const Profile = () => {
         setCachedProfile({
           id: data.id,
           display_name: data.display_name,
+          first_name: data.first_name,
+          last_name: data.last_name,
           avatar_initials: data.avatar_initials,
+          username: data.username,
+          avatar_id: data.avatar_id,
+          avatar_url: data.avatar_url,
           daily_step_goal: data.daily_step_goal || 10000,
           created_at: data.created_at,
         }, user.id);
@@ -134,8 +142,11 @@ const Profile = () => {
     }
   };
 
-  const displayName = profile?.display_name || "HOTSTEPPER";
+  const displayName = (profile?.first_name && profile?.last_name) 
+    ? `${profile.first_name} ${profile.last_name}`
+    : profile?.display_name || "HOTSTEPPER";
   const avatarInitials = profile?.avatar_initials || displayName.slice(0, 2).toUpperCase();
+  const avatarAsset = AVATARS.find(a => a.id === profile?.avatar_id);
 
   return (
     <div className="h-screen flex flex-col page-with-bottom-nav relative overflow-hidden">
@@ -184,8 +195,14 @@ const Profile = () => {
               >
                 <div className="relative h-28 w-28 mx-auto">
                   <motion.div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary via-cyan-400 to-primary p-[3px]">
-                    <div className="h-full w-full rounded-full bg-background flex items-center justify-center shadow-inner-soft">
-                      <span className="text-3xl font-bold text-gradient-cyan">{avatarInitials}</span>
+                    <div className="h-full w-full rounded-full bg-background flex items-center justify-center shadow-inner-soft overflow-hidden">
+                      {profile?.avatar_url ? (
+                        <img src={profile.avatar_url} alt={displayName} className="w-full h-full object-cover" />
+                      ) : avatarAsset ? (
+                        <img src={avatarAsset.url} alt={displayName} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-3xl font-bold text-gradient-cyan">{avatarInitials}</span>
+                      )}
                     </div>
                   </motion.div>
                 </div>
@@ -199,6 +216,25 @@ const Profile = () => {
               >
                 {displayName}
               </motion.h2>
+
+              {profile?.username && (
+                <motion.p
+                  className="text-sm font-semibold text-muted-foreground mt-0.5"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.35 }}
+                >
+                  @{profile.username}
+                </motion.p>
+              )}
+              
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.38 }}
+              >
+                <EditIdentityDialog userId={user?.id!} currentUsername={profile?.username} currentAvatarId={profile?.avatar_id} currentAvatarUrl={profile?.avatar_url} />
+              </motion.div>
               
               <motion.div
                 className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-primary/10 border border-primary/20"
@@ -261,7 +297,7 @@ const Profile = () => {
 
         {/* Total Steps */}
         <motion.div
-          className="px-4 mb-6 relative z-10"
+          className="px-4 mb-4 relative z-10"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.45 }}
@@ -281,6 +317,11 @@ const Profile = () => {
             </motion.div>
           </div>
         </motion.div>
+
+        {/* Invite Friends */}
+        <div className="px-4 mb-6 relative z-10">
+          <InviteFriendsCard />
+        </div>
 
         {/* Menu Items */}
         <div className="px-4 space-y-3 relative z-10">

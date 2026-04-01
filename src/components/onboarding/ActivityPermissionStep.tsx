@@ -18,12 +18,12 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
 
     if (Capacitor.isNativePlatform()) {
       console.log('[Onboarding] Starting step tracking...');
-      
+
       // Use platform-aware step tracking service
       const result = await stepTrackingService.requestPermissionAndStart((data) => {
         console.log('[Onboarding] Step update:', data.steps, 'steps');
       });
-      
+
       if (result.success) {
         console.log('[Onboarding] ✅ Step tracking started!');
       } else {
@@ -120,7 +120,7 @@ export function ActivityPermissionStep({ onNext }: ActivityPermissionStepProps) 
           disabled={isRequesting}
           className="w-full h-14 rounded-full bg-primary text-primary-foreground font-semibold text-base"
         >
-          {isRequesting ? 'Starting...' : 'Enable Step Tracking'}
+          {isRequesting ? 'Starting...' : 'Continue'}
         </Button>
       </motion.div>
     </div>

@@ -1,12 +1,14 @@
 import { forwardRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Phone, Shield, Loader2 } from 'lucide-react';
+import { User, Shield, Loader2, AtSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { validatePhoneNumber, formatPhoneE164 } from '@/lib/utils';
+import { AvatarSelector } from '@/components/profile/AvatarSelector';
+import { AIAvatarGenerator } from '@/components/profile/AIAvatarGenerator';
+
 
 interface PersonalInfoStepProps {
   onNext: () => void;
@@ -15,38 +17,25 @@ interface PersonalInfoStepProps {
 export const PersonalInfoStep = forwardRef<HTMLDivElement, PersonalInfoStepProps>(
   ({ onNext }, ref) => {
     const { user } = useAuth();
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [countryCode, setCountryCode] = useState('+1');
+    const [username, setUsername] = useState('');
+    const [avatarId, setAvatarId] = useState<string | null>(null);
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const validateForm = (): boolean => {
       const newErrors: Record<string, string> = {};
 
-      if (!firstName.trim()) {
-        newErrors.firstName = 'First name is required';
-      } else if (firstName.trim().length < 2) {
-        newErrors.firstName = 'First name must be at least 2 characters';
-      } else if (firstName.trim().length > 50) {
-        newErrors.firstName = 'First name must be less than 50 characters';
+      if (!username.trim()) {
+        newErrors.username = 'Username is required';
+      } else if (username.trim().length < 3) {
+        newErrors.username = 'Username must be at least 3 characters';
+      } else if (!/^[a-zA-Z0-9_]+$/.test(username.trim())) {
+        newErrors.username = 'Username can only contain letters, numbers, and underscores';
       }
 
-      if (!lastName.trim()) {
-        newErrors.lastName = 'Last name is required';
-      } else if (lastName.trim().length < 2) {
-        newErrors.lastName = 'Last name must be at least 2 characters';
-      } else if (lastName.trim().length > 50) {
-        newErrors.lastName = 'Last name must be less than 50 characters';
-      }
-
-      // Phone is optional, but validate format if provided
-      if (phoneNumber.trim()) {
-        const fullPhone = formatPhoneE164(phoneNumber, countryCode);
-        if (!validatePhoneNumber(fullPhone)) {
-          newErrors.phoneNumber = 'Please enter a valid phone number';
-        }
+      if (!avatarId) {
+        newErrors.avatarId = 'Please select an avatar';
       }
 
       setErrors(newErrors);
@@ -60,21 +49,25 @@ export const PersonalInfoStep = forwardRef<HTMLDivElement, PersonalInfoStepProps
 
       try {
         if (user) {
-          const formattedPhone = phoneNumber.trim()
-            ? formatPhoneE164(phoneNumber, countryCode)
-            : null;
+          // Check if username is already taken
+          const { data: existingUser } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('username', username.trim().toLowerCase())
+            .single();
 
-          const displayName = `${firstName.trim().toUpperCase()} ${lastName.trim().charAt(0).toUpperCase()}`;
-          const avatarInitials = `${firstName.trim().charAt(0).toUpperCase()}${lastName.trim().charAt(0).toUpperCase()}`;
+          if (existingUser && existingUser.id !== user.id) {
+            setErrors({ username: 'This username is already taken' });
+            setIsSubmitting(false);
+            return;
+          }
 
           const { error } = await supabase
             .from('profiles')
             .update({
-              first_name: firstName.trim(),
-              last_name: lastName.trim(),
-              phone_number: formattedPhone,
-              display_name: displayName,
-              avatar_initials: avatarInitials,
+              username: username.trim().toLowerCase(),
+              avatar_id: avatarId,
+              avatar_url: avatarUrl,
             })
             .eq('id', user.id);
 
@@ -134,112 +127,89 @@ export const PersonalInfoStep = forwardRef<HTMLDivElement, PersonalInfoStepProps
             transition={{ delay: 0.4, duration: 0.5 }}
             className="px-6 space-y-5 pb-6"
           >
-            {/* First Name */}
+            {/* Username Selection */}
             <div className="space-y-2">
-              <Label htmlFor="firstName" className="text-sm font-medium">
-                First Name <span className="text-destructive">*</span>
+              <Label htmlFor="username" className="text-sm font-medium">
+                Create Username <span className="text-destructive">*</span>
               </Label>
-              <Input
-                id="firstName"
-                type="text"
-                placeholder="John"
-                value={firstName}
-                onChange={(e) => {
-                  setFirstName(e.target.value);
-                  if (errors.firstName) {
-                    setErrors((prev) => ({ ...prev, firstName: '' }));
-                  }
-                }}
-                className={errors.firstName ? 'border-destructive' : ''}
-                autoComplete="given-name"
-                maxLength={50}
-              />
-              {errors.firstName && (
-                <p className="text-xs text-destructive">{errors.firstName}</p>
-              )}
-            </div>
-
-            {/* Last Name */}
-            <div className="space-y-2">
-              <Label htmlFor="lastName" className="text-sm font-medium">
-                Last Name <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="lastName"
-                type="text"
-                placeholder="Smith"
-                value={lastName}
-                onChange={(e) => {
-                  setLastName(e.target.value);
-                  if (errors.lastName) {
-                    setErrors((prev) => ({ ...prev, lastName: '' }));
-                  }
-                }}
-                className={errors.lastName ? 'border-destructive' : ''}
-                autoComplete="family-name"
-                maxLength={50}
-              />
-              {errors.lastName && (
-                <p className="text-xs text-destructive">{errors.lastName}</p>
-              )}
-            </div>
-
-            {/* Phone Number */}
-            <div className="space-y-2">
-              <Label htmlFor="phoneNumber" className="text-sm font-medium">
-                Phone Number <span className="text-muted-foreground">(Optional)</span>
-              </Label>
-              <div className="flex gap-2">
-                <select
-                  value={countryCode}
-                  onChange={(e) => setCountryCode(e.target.value)}
-                  className="w-24 h-10 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="+1">+1 🇺🇸</option>
-                  <option value="+44">+44 🇬🇧</option>
-                  <option value="+61">+61 🇦🇺</option>
-                  <option value="+91">+91 🇮🇳</option>
-                  <option value="+49">+49 🇩🇪</option>
-                  <option value="+33">+33 🇫🇷</option>
-                  <option value="+81">+81 🇯🇵</option>
-                  <option value="+86">+86 🇨🇳</option>
-                  <option value="+55">+55 🇧🇷</option>
-                  <option value="+52">+52 🇲🇽</option>
-                </select>
+              <div className="relative">
+                <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="phoneNumber"
-                  type="tel"
-                  placeholder="555 123 4567"
-                  value={phoneNumber}
+                  id="username"
+                  type="text"
+                  placeholder="hotstepper_king"
+                  value={username}
                   onChange={(e) => {
-                    // Only allow digits and spaces
-                    const cleaned = e.target.value.replace(/[^\d\s]/g, '');
-                    setPhoneNumber(cleaned);
-                    if (errors.phoneNumber) {
-                      setErrors((prev) => ({ ...prev, phoneNumber: '' }));
+                    setUsername(e.target.value.toLowerCase());
+                    if (errors.username) {
+                      setErrors((prev) => ({ ...prev, username: '' }));
                     }
                   }}
-                  className={`flex-1 ${errors.phoneNumber ? 'border-destructive' : ''}`}
-                  autoComplete="tel-national"
-                  maxLength={15}
+                  className={`pl-10 ${errors.username ? 'border-destructive' : ''}`}
+                  autoComplete="off"
+                  maxLength={30}
                 />
               </div>
-              {errors.phoneNumber && (
-                <p className="text-xs text-destructive">{errors.phoneNumber}</p>
+              {errors.username && (
+                <p className="text-xs text-destructive">{errors.username}</p>
               )}
             </div>
 
-            {/* Privacy Notice */}
+            {/* Avatar Selection */}
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">
+                  Choose Avatar <span className="text-destructive">*</span>
+                </Label>
+                {errors.avatarId && (
+                  <span className="text-xs text-destructive animate-pulse">Required</span>
+                )}
+              </div>
+
+              <div className="bg-secondary/20 p-4 rounded-xl border border-border">
+                <AIAvatarGenerator 
+                  onAvatarGenerated={(url) => {
+                    setAvatarUrl(url);
+                    setAvatarId('custom_ai');
+                    if (errors.avatarId) {
+                      setErrors((prev) => ({ ...prev, avatarId: '' }));
+                    }
+                  }} 
+                />
+                
+                {avatarUrl && avatarId === 'custom_ai' && (
+                  <div className="mt-4 flex flex-col items-center">
+                    <div className="text-xs text-muted-foreground mb-2">Current AI Generated Avatar:</div>
+                    <div className="h-24 w-24 rounded-full overflow-hidden border-2 border-primary ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
+                      <img src={avatarUrl} alt="AI Avatar" className="w-full h-full object-cover" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="text-sm font-semibold uppercase tracking-wider text-muted-foreground text-center my-2">-- OR Select Classic Avatar --</div>
+
+              <AvatarSelector 
+                selectedId={avatarId} 
+                onSelect={(id) => {
+                  setAvatarId(id);
+                  if (errors.avatarId) {
+                    setErrors((prev) => ({ ...prev, avatarId: '' }));
+                  }
+                }} 
+              />
+            </div>
+
+            {/* Identity Notice */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.6, duration: 0.5 }}
               className="flex items-start gap-3 p-4 rounded-xl bg-muted/50 border border-border"
             >
-              <Phone className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+              <Shield className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
-                Your phone number is used only for account recovery. We never share your
-                personal information with third parties.
+                Your username and avatar will be public on the leaderboard. Protect your privacy by choosing a creative identity.
               </p>
             </motion.div>
           </motion.div>

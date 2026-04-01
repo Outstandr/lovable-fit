@@ -161,7 +161,9 @@ export type Database = {
       profiles: {
         Row: {
           age: number | null
+          avatar_id: string | null
           avatar_initials: string | null
+          avatar_url: string | null
           created_at: string
           daily_step_goal: number | null
           data_source: string | null
@@ -179,11 +181,14 @@ export type Database = {
           show_on_leaderboard: boolean | null
           unit_preference: string | null
           updated_at: string
+          username: string | null
           weight_kg: number | null
         }
         Insert: {
           age?: number | null
+          avatar_id?: string | null
           avatar_initials?: string | null
+          avatar_url?: string | null
           created_at?: string
           daily_step_goal?: number | null
           data_source?: string | null
@@ -201,11 +206,14 @@ export type Database = {
           show_on_leaderboard?: boolean | null
           unit_preference?: string | null
           updated_at?: string
+          username?: string | null
           weight_kg?: number | null
         }
         Update: {
           age?: number | null
+          avatar_id?: string | null
           avatar_initials?: string | null
+          avatar_url?: string | null
           created_at?: string
           daily_step_goal?: number | null
           data_source?: string | null
@@ -223,6 +231,7 @@ export type Database = {
           show_on_leaderboard?: boolean | null
           unit_preference?: string | null
           updated_at?: string
+          username?: string | null
           weight_kg?: number | null
         }
         Relationships: []
@@ -382,17 +391,20 @@ export type Database = {
       get_monthly_leaderboard: {
         Args: never
         Returns: {
+          avatar_id: string | null
           avatar_initials: string
           current_streak: number
           display_name: string
           rank: number
           total_steps: number
           user_id: string
+          username: string | null
         }[]
       }
       get_today_leaderboard: {
         Args: never
         Returns: {
+          avatar_id: string | null
           avatar_initials: string
           calories: number
           current_streak: number
@@ -401,17 +413,20 @@ export type Database = {
           rank: number
           steps: number
           user_id: string
+          username: string | null
         }[]
       }
       get_weekly_leaderboard: {
         Args: never
         Returns: {
+          avatar_id: string | null
           avatar_initials: string
           current_streak: number
           display_name: string
           rank: number
           total_steps: number
           user_id: string
+          username: string | null
         }[]
       }
       has_role: {

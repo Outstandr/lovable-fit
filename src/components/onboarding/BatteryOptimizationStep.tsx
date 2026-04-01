@@ -123,7 +123,7 @@ export function BatteryOptimizationStep({ onNext }: BatteryOptimizationStepProps
           disabled={isRequesting}
           className="w-full h-14 rounded-full bg-primary text-primary-foreground font-semibold text-base"
         >
-          {isRequesting ? 'Requesting...' : 'Enable Background Activity'}
+          {isRequesting ? 'Requesting...' : 'Continue'}
         </Button>
         <Button
           variant="ghost"

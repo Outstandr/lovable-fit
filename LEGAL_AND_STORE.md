@@ -14,11 +14,11 @@
 ## Privacy Policy
 
 **Effective Date:** January 2026  
-**Last Updated:** January 2026
+**Last Updated:** January 27, 2026
 
 ### 1. Introduction
 
-LEADERS PERFORMANCE MANAGEMENT CONSULTANCIES L.L.C ("we," "our," or "us") operates the Hotstepper mobile application (the "App"). This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our App.
+LEADERS PERFORMANCE MANAGEMENT CONSULTANCIES L.L.C ("we," "our," or "us") operates the Lionel X mobile application (the "App"). This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our App.
 
 ### 2. Organization Entity
 
@@ -164,7 +164,7 @@ The military-grade discipline audit. Track steps, routes, and rank globally.
 
 ### Google Play Full Description
 ```
-HOTSTEPPER - THE DISCIPLINE PROTOCOL
+LIONEL X - THE DISCIPLINE PROTOCOL
 
 Transform your daily walk into a military-grade accountability system.
 
@@ -205,7 +205,7 @@ Download now and join the Protocol.
 
 ### Apple App Store Full Description
 ```
-HOTSTEPPER - THE DISCIPLINE PROTOCOL
+LIONEL X - THE DISCIPLINE PROTOCOL
 
 Transform your daily walk into a military-grade accountability system.
 

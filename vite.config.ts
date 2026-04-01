@@ -11,14 +11,14 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
   },
   plugins: [
-    react(), 
+    react(),
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'robots.txt'],
       manifest: {
-        name: 'Hotstepper - 10K Steps Tracker',
-        short_name: 'Hotstepper',
+        name: 'Lionel X - 10K Steps Tracker',
+        short_name: 'Lionel X',
         description: 'Track your daily steps and compete on global leaderboards',
         theme_color: '#0a0a0a',
         background_color: '#0a0a0a',

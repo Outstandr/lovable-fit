@@ -12,7 +12,7 @@ import { getLocalDateString } from '@/lib/utils';
 
 const ONBOARDING_KEY = 'device_onboarding_completed';
 const STEPS_PER_CALORIE = 20;
-const SYNC_THRESHOLD = 50; // Sync to database every 50 steps
+const SYNC_THRESHOLD = 20; // Sync to database every 20 steps
 
 // Step validation constants
 const MAX_STEPS_PER_UPDATE = 5000; // ~50 min of walking in one update is max realistic
@@ -60,6 +60,11 @@ export function usePedometer() {
   const backgroundSyncSteps = useRef<number>(0);
   const backgroundSyncDistance = useRef<number>(0);
   const backgroundSyncCalories = useRef<number>(0);
+  
+  // Track last active sync time to know exactly when to start querying historical steps
+  const lastActiveTimestamp = useRef<number>(
+    parseInt(localStorage.getItem('pedometer_last_sync_time') || Date.now().toString())
+  );
 
   // Midnight rollover tracking
   const lastTrackedDate = useRef<string>(
@@ -268,6 +273,10 @@ export function usePedometer() {
         dbBaseSteps: baseSteps.current,
         totalSteps
       });
+      
+      const now = Date.now();
+      lastActiveTimestamp.current = now;
+      localStorage.setItem('pedometer_last_sync_time', now.toString());
 
       if (isMounted) {
         setState(prev => ({
@@ -292,6 +301,27 @@ export function usePedometer() {
         await handleMidnightRollover(lastTrackedDate.current, currentDate);
       }
 
+      // COLD START HISTORICAL HARVESTING
+      // If the app was forcefully swiped away and killed, bridging the gap here before sensor resets
+      const currentInitTime = Date.now();
+      try {
+        const historicalSteps = await stepTrackingService.getHistoricalSteps(lastActiveTimestamp.current, currentInitTime);
+        if (historicalSteps > 0) {
+          console.log(`[usePedometer] 📥 Harvested ${historicalSteps} offline steps during cold boot!`);
+          backgroundSyncSteps.current += historicalSteps;
+        }
+      } catch (e) {
+        console.log('[usePedometer] Cold start historical sync error:', e);
+      }
+      lastActiveTimestamp.current = currentInitTime;
+      localStorage.setItem('pedometer_last_sync_time', currentInitTime.toString());
+
+      // PRESERVE locally accumulated steps before resetting baseline
+      // This fixes the bug where navigating (changing location.pathname) resets steps < SYNC_THRESHOLD
+      if (backgroundSyncSteps.current > baseSteps.current) {
+        baseSteps.current = backgroundSyncSteps.current;
+      }
+
       // Reset sensor baseline for new session
       sensorBaseline.current = null;
 
@@ -301,6 +331,10 @@ export function usePedometer() {
           const { backgroundStepService } = await import('@/services/backgroundStepService');
           backgroundStepService.setRebootCallback((lostSensorValue) => {
             console.log('[usePedometer] ⚠️ Device reboot detected - preserving steps');
+            // PRESERVE steps before resetting baseline
+            if (backgroundSyncSteps.current > baseSteps.current) {
+              baseSteps.current = backgroundSyncSteps.current;
+            }
             // Reset the sensor baseline so new readings start from 0
             sensorBaseline.current = null;
             previousSessionSteps.current = 0;
@@ -457,6 +491,9 @@ export function usePedometer() {
           const caloriesToSync = backgroundSyncCalories.current;
           
           console.log('[usePedometer] App going to background - syncing steps:', stepsToSync);
+          const bgTime = Date.now();
+          lastActiveTimestamp.current = bgTime;
+          localStorage.setItem('pedometer_last_sync_time', bgTime.toString());
           
           if (stepsToSync > 0) {
             try {
@@ -480,13 +517,9 @@ export function usePedometer() {
               queueStepData(today, stepsToSync, distanceToSync, caloriesToSync, targetHit);
             }
           }
-        } else {
-          // App RESUMED - sync from health source OR reload from database
-          console.log('[usePedometer] App resumed - syncing');
-          
-          // Reset baseline to capture background steps
-          sensorBaseline.current = null;
-          previousSessionSteps.current = 0;
+          // The Pedometer inherently preserves cumulative steps since device boot in its hardware buffer. 
+          // Re-opening the app will naturally capture the background delta without resetting the baseline.
+          console.log('[usePedometer] Inheriting pedometer baseline sequence.');
           
           // Reload from database on resume
           try {

@@ -130,7 +130,7 @@ We aim to respond within 48 hours.`
             animate={{ opacity: 1, y: 0 }}
             className="text-muted-foreground text-sm"
           >
-            Last updated: January 2026
+            Last updated: January 27, 2026
           </motion.p>
 
           <motion.div
@@ -142,7 +142,7 @@ We aim to respond within 48 hours.`
             <p className="text-foreground text-sm leading-relaxed">
               LEADERS PERFORMANCE MANAGEMENT CONSULTANCIES L.L.C ("we", "our", or "us") is committed to protecting your privacy.
               This policy explains how we collect, use, and safeguard your information when
-              you use our Hotstepper mobile application.
+              you use our Lionel X mobile application.
             </p>
           </motion.div>
 
@@ -173,7 +173,7 @@ We aim to respond within 48 hours.`
             className="pt-4 border-t border-border"
           >
             <p className="text-xs text-muted-foreground text-center">
-              By using Hotstepper, you agree to this privacy policy. Hotstepper is developed by LEADERS PERFORMANCE MANAGEMENT CONSULTANCIES L.L.C.
+              By using Lionel X, you agree to this privacy policy. Lionel X is developed by LEADERS PERFORMANCE MANAGEMENT CONSULTANCIES L.L.C.
             </p>
           </motion.div>
         </div>

@@ -147,6 +147,21 @@ class IosStepService {
   }
 
   /**
+   * Get historical steps across a timeframe
+   */
+  async getHistoricalSteps(startMs: number, endMs: number): Promise<number> {
+    if (!this.isNative()) return 0;
+    try {
+      const result = await CapacitorPedometer.getMeasurement({ start: startMs, end: endMs });
+      console.log(`[IosStepService] 🕰️ Harvested steps between ${new Date(startMs).toLocaleTimeString()} and ${new Date(endMs).toLocaleTimeString()}: ${result.numberOfSteps} steps`);
+      return result.numberOfSteps || 0;
+    } catch (e) {
+      console.log('[IosStepService] Historical query failed:', e);
+      return 0;
+    }
+  }
+
+  /**
    * Stop iOS step tracking
    */
   async stop(): Promise<void> {

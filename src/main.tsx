@@ -7,6 +7,10 @@ import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Keyboard } from '@capacitor/keyboard';
 import { Capacitor } from '@capacitor/core';
+import { defineCustomElements } from '@ionic/pwa-elements/loader';
+
+// Initialize PWA Elements for Camera UI
+defineCustomElements(window);
 
 // Initialize native features after DOM is ready
 const initializeNativeFeatures = async () => {

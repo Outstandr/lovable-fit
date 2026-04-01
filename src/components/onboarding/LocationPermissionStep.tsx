@@ -50,7 +50,7 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
 
         if (currentStatus.location === 'granted' || currentStatus.coarseLocation === 'granted') {
           console.log('[Onboarding] Location permission already granted');
-          
+
           // Test if location services are actually working
           try {
             await Geolocation.getCurrentPosition({ timeout: 5000 });
@@ -75,7 +75,7 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
         console.log('[Onboarding] Requesting location permission...');
         const result = await Geolocation.requestPermissions({ permissions: ['location'] });
         console.log('[Onboarding] Location permission result:', result);
-        
+
         // Re-check permissions after request (some devices update state only after returning)
         const postRequestStatus = await Geolocation.checkPermissions();
         console.log('[Onboarding] Post-request status:', postRequestStatus);
@@ -149,7 +149,7 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
           transition={{ delay: 0.2 }}
           className="text-xl font-bold text-foreground text-center mb-2"
         >
-          Enable Location Access
+          Location Access
         </motion.h1>
 
         {/* Description - Apple Guideline 5.1.1 Compliant */}
@@ -159,7 +159,7 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
           transition={{ delay: 0.3 }}
           className="text-muted-foreground text-center text-sm mb-6 px-4"
         >
-          Lionel X uses your location only during active workout sessions to track your walking route on the map and calculate distance. Location tracking stops automatically when you end the workout.
+          Hotstepper uses your location only during active workout sessions to track your walking route on the map and calculate distance. Location tracking stops automatically when you end the workout.
         </motion.p>
 
         {/* Benefits */}
@@ -272,7 +272,7 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
           ) : hasError ? (
             'Try Again'
           ) : (
-            'Enable Location Access'
+            'Continue'
           )}
         </Button>
         {/* Apple Guideline 5.1.1: Only show "Continue Anyway" AFTER user denies permission */}

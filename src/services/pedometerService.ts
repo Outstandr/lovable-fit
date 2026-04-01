@@ -242,6 +242,22 @@ class PedometerService {
     this.callback = null;
     this.isStarted = false;
   }
+
+  /**
+   * Retrieves steps taken in the background between two timestamps
+   */
+  async getHistoricalSteps(startMs: number, endMs: number): Promise<number> {
+    if (!this.isNative()) return 0;
+    try {
+      // getMeasurement requires exact epoch timestamps
+      const result = await CapacitorPedometer.getMeasurement({ start: startMs, end: endMs });
+      console.log(`[Pedometer] 🕰️ Historical query from ${new Date(startMs).toLocaleTimeString()} to ${new Date(endMs).toLocaleTimeString()}: ${result.numberOfSteps} steps`);
+      return result.numberOfSteps || 0;
+    } catch (error) {
+      console.log('[Pedometer] Historical query failed - likely unsupported or no permission:', error);
+      return 0;
+    }
+  }
 }
 
 export const pedometerService = new PedometerService();

@@ -12,10 +12,15 @@ const CACHE_KEYS = {
 
 interface CachedProfile {
   id: string;
-  display_name: string;
+  display_name: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
   avatar_initials: string | null;
   daily_step_goal: number;
   created_at: string;
+  username?: string | null;
+  avatar_id?: string | null;
+  avatar_url?: string | null;
 }
 
 interface CachedStreak {
