@@ -113,10 +113,25 @@ export const EditIdentityDialog = ({ userId, currentUsername, currentAvatarId, c
             {/* Custom AI Avatar generator block */}
             <div className="bg-secondary/20 p-4 rounded-xl border border-border">
               <AIAvatarGenerator 
-                onAvatarGenerated={(url) => {
+                onAvatarGenerated={async (url) => {
                   setAvatarUrl(url);
                   setAvatarId('custom_ai'); // Special marker for custom URLs
                   setError('');
+                  
+                  // Auto-save the AI avatar to the database instantly
+                  if (userId) {
+                    setIsSubmitting(true);
+                    try {
+                      await supabase.from('profiles').update({ avatar_url: url, avatar_id: 'custom_ai' }).eq('id', userId);
+                      queryClient.invalidateQueries({ queryKey: ["profile", userId] });
+                      toast.success('AI Avatar instantly saved to your profile!');
+                      setTimeout(() => setOpen(false), 800);
+                    } catch(e) {
+                      console.error(e);
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  }
                 }} 
               />
               

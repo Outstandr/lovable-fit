@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Camera, CameraResultType, CameraSource, CameraDirection } from '@capacitor/camera';
 import { Sparkles, Loader2, Camera as CameraIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -27,9 +27,10 @@ export const AIAvatarGenerator = ({ onAvatarGenerated, className }: AIAvatarGene
       // 1. Capture Selfie
       const photo = await Camera.getPhoto({
         quality: 80,
-        allowEditing: false,
+        allowEditing: true,
         resultType: CameraResultType.Base64,
         source: CameraSource.Camera,
+        direction: CameraDirection.Front,
         promptLabelHeader: 'Capture Selfie',
         promptLabelPhoto: 'From Photo Library',
       });
@@ -45,7 +46,7 @@ export const AIAvatarGenerator = ({ onAvatarGenerated, className }: AIAvatarGene
       if (!API_KEY) throw new Error("Missing VITE_GEMINI_API_KEY. Please add it to your .env file.");
 
       // 2. Vision Extraction (Gemini 1.5 Flash)
-      const visionPrompt = "You are an expert character artist. Analyze this selfie and describe the person's physical features to be used as a prompt for a 3D Pixar style avatar. Describe their hair style, hair color, eye shape, skin tone, facial hair (if any), and facial structure. Do NOT mention their real identity or age specifically. Just physical traits. Format your response exactly as the start of an image generation prompt, starting with: 'A 3D Pixar style character avatar of a person with...'";
+      const visionPrompt = "Analyze this portrait selfie carefully. Describe the person's precise facial features, skin tone, hair style (length and texture), hair color, eye color, and any accessories like glasses or facial hair. Do NOT mention identity. Create a highly accurate, concise physical description to be used for character creation.";
       const cleanBase64 = photo.base64String.replace(/^data:image\/(png|jpeg|webp);base64,/, "");
 
       const visionRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${API_KEY}`, {
@@ -53,7 +54,7 @@ export const AIAvatarGenerator = ({ onAvatarGenerated, className }: AIAvatarGene
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: visionPrompt }, { inline_data: { mime_type: "image/jpeg", data: cleanBase64 } }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 200 }
+          generationConfig: { temperature: 0.1, maxOutputTokens: 150 }
         })
       });
 
@@ -64,8 +65,8 @@ export const AIAvatarGenerator = ({ onAvatarGenerated, className }: AIAvatarGene
 
       setLoadingText("Generating avatar image...");
 
-      // 3. Image Generation (Imagen 3)
-      const finalPrompt = `${extractedPrompt.trim()}, wearing modern cyberpunk activewear athletic clothing, solid vibrant gradient background, high quality, highly detailed 3D render.`;
+      // 3. Image Generation (Imagen 4)
+      const finalPrompt = `A close-up waist-up 3D cartoon portrait bust of a friendly person with: ${extractedPrompt.trim()}. They are looking directly forward at the camera. They are wearing a simple, clean, solid-colored casual fitted t-shirt. The background MUST be a simple, solid flat light-teal color. 3D Pixar animation style, big expressive friendly eyes, bright soft studio lighting, cute, simple, and highly detailed.`;
       
       const generateRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${API_KEY}`, {
         method: 'POST',
@@ -84,7 +85,10 @@ export const AIAvatarGenerator = ({ onAvatarGenerated, className }: AIAvatarGene
       const generateData = await generateRes.json();
       const generatedBase64 = generateData.predictions?.[0]?.bytesBase64Encoded;
       const mimeType = generateData.predictions?.[0]?.mimeType || 'image/jpeg';
-      if (!generatedBase64) throw new Error("Failed to receive image bytes.");
+      if (!generatedBase64) {
+        console.error("Full Imagen Response:", generateData);
+        throw new Error(`Google AI failed to generate image. Response: ${JSON.stringify(generateData).substring(0, 150)}...`);
+      }
 
       setLoadingText("Saving avatar...");
 
