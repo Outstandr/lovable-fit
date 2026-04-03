@@ -224,42 +224,51 @@ export function usePedometer() {
         return; // Skip this update, next one will use fresh counters
       }
 
-      // Handle TYPE_STEP_COUNTER which returns cumulative steps since boot
-      // Set baseline on first reading to calculate session steps correctly
-      if (sensorBaseline.current === null && data.steps > 0) {
-        sensorBaseline.current = data.steps;
-        console.log('[usePedometer] 📍 Sensor baseline set:', sensorBaseline.current);
-      }
+      let totalSteps = 0;
+      let sessionSteps = 0;
 
-      // Calculate session steps as delta from baseline
-      const sessionSteps = sensorBaseline.current !== null
-        ? Math.max(0, data.steps - sensorBaseline.current)
-        : 0;
+      if (Capacitor.getPlatform() === 'ios') {
+        // iOS provides the absolute exact step count directly via native getMeasurement
+        totalSteps = Math.min(data.steps, MAX_DAILY_STEPS);
+        sessionSteps = Math.max(0, totalSteps - baseSteps.current);
+      } else {
+        // Handle TYPE_STEP_COUNTER which returns cumulative steps since boot (Android)
+        // Set baseline on first reading to calculate session steps correctly
+        if (sensorBaseline.current === null && data.steps > 0) {
+          sensorBaseline.current = data.steps;
+          console.log('[usePedometer] 📍 Sensor baseline set:', sensorBaseline.current);
+        }
 
-      // STEP VALIDATION - Reject anomalous increments
-      const stepIncrement = sessionSteps - previousSessionSteps.current;
-      
-      if (stepIncrement > MAX_STEPS_PER_UPDATE) {
-        console.warn('[usePedometer] ⚠️ Anomaly: Step increment too large', {
-          increment: stepIncrement,
-          threshold: MAX_STEPS_PER_UPDATE,
-          previousSession: previousSessionSteps.current,
-          currentSession: sessionSteps
-        });
-        // Skip this update - likely sensor glitch
-        return;
-      }
+        // Calculate session steps as delta from baseline
+        sessionSteps = sensorBaseline.current !== null
+          ? Math.max(0, data.steps - sensorBaseline.current)
+          : 0;
 
-      // Update previous session steps for next comparison
-      previousSessionSteps.current = sessionSteps;
+        // STEP VALIDATION - Reject anomalous increments
+        const stepIncrement = sessionSteps - previousSessionSteps.current;
+        
+        if (stepIncrement > MAX_STEPS_PER_UPDATE) {
+          console.warn('[usePedometer] ⚠️ Anomaly: Step increment too large', {
+            increment: stepIncrement,
+            threshold: MAX_STEPS_PER_UPDATE,
+            previousSession: previousSessionSteps.current,
+            currentSession: sessionSteps
+          });
+          // Skip this update - likely sensor glitch
+          return;
+        }
 
-      // Calculate total steps
-      let totalSteps = baseSteps.current + sessionSteps;
+        // Update previous session steps for next comparison
+        previousSessionSteps.current = sessionSteps;
 
-      // Cap at maximum daily steps
-      if (totalSteps > MAX_DAILY_STEPS) {
-        console.warn('[usePedometer] ⚠️ Capping steps at maximum:', MAX_DAILY_STEPS);
-        totalSteps = MAX_DAILY_STEPS;
+        // Calculate total steps
+        totalSteps = baseSteps.current + sessionSteps;
+
+        // Cap at maximum daily steps
+        if (totalSteps > MAX_DAILY_STEPS) {
+          console.warn('[usePedometer] ⚠️ Capping steps at maximum:', MAX_DAILY_STEPS);
+          totalSteps = MAX_DAILY_STEPS;
+        }
       }
 
       const distanceKm = (data.distance || (sessionSteps * 0.762)) / 1000;
@@ -302,16 +311,18 @@ export function usePedometer() {
       }
 
       // COLD START HISTORICAL HARVESTING
-      // If the app was forcefully swiped away and killed, bridging the gap here before sensor resets
+      // On iOS, the native API now pulls from exact midnight automatically, so we disable harvesting here to prevent overlap bugs
       const currentInitTime = Date.now();
-      try {
-        const historicalSteps = await stepTrackingService.getHistoricalSteps(lastActiveTimestamp.current, currentInitTime);
-        if (historicalSteps > 0) {
-          console.log(`[usePedometer] 📥 Harvested ${historicalSteps} offline steps during cold boot!`);
-          backgroundSyncSteps.current += historicalSteps;
+      if (Capacitor.getPlatform() !== 'ios') {
+        try {
+          const historicalSteps = await stepTrackingService.getHistoricalSteps(lastActiveTimestamp.current, currentInitTime);
+          if (historicalSteps > 0) {
+            console.log(`[usePedometer] 📥 Harvested ${historicalSteps} offline steps during cold boot!`);
+            backgroundSyncSteps.current += historicalSteps;
+          }
+        } catch (e) {
+          console.log('[usePedometer] Cold start historical sync error:', e);
         }
-      } catch (e) {
-        console.log('[usePedometer] Cold start historical sync error:', e);
       }
       lastActiveTimestamp.current = currentInitTime;
       localStorage.setItem('pedometer_last_sync_time', currentInitTime.toString());

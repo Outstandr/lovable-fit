@@ -95,25 +95,44 @@ class IosStepService {
       }
       console.log('[IosStepService] ✓ Permission granted');
 
-      // Step 4: Add measurement listener
-      console.log('[IosStepService] Starting pedometer...');
-      this.listener = await CapacitorPedometer.addListener('measurement', (data: any) => {
-        const steps = data.numberOfSteps || 0;
-        const distance = data.distance || 0;
-        
-        console.log('[IosStepService] 📊 Steps:', steps);
-        this.lastSteps = steps;
-
-        if (this.stepCallback) {
-          this.stepCallback({ steps, distance });
-        }
-      });
-
-      // Step 5: Start measurement updates (now safe to call)
+      // Step 4: Start measurement updates (required to activate the pedometer hardware)
       await CapacitorPedometer.startMeasurementUpdates();
 
+      // Step 5: Add listener that polls EXACT midnight-to-now natively whenever movement occurs
+      console.log('[IosStepService] Starting pedometer...');
+      
+      const fetchExactDailySteps = async () => {
+        try {
+          const now = new Date();
+          const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+          const result = await CapacitorPedometer.getMeasurement({
+            start: startOfDay.getTime(),
+            end: now.getTime()
+          });
+          
+          const steps = result.numberOfSteps || 0;
+          const distance = result.distance || 0;
+          
+          this.lastSteps = steps;
+
+          if (this.stepCallback) {
+            this.stepCallback({ steps, distance });
+          }
+        } catch (err) {
+          console.error('[IosStepService] Failed to query absolute steps', err);
+        }
+      };
+
+      this.listener = await CapacitorPedometer.addListener('measurement', () => {
+        // We ignore the delta data and grab the absolute truth to prevent ANY inflation
+        fetchExactDailySteps();
+      });
+
+      // Instantly fetch the exact current correct steps so UI doesn't say 0 while sitting still
+      await fetchExactDailySteps();
+
       this.serviceRunning = true;
-      console.log('[IosStepService] ✅ iOS step tracking started!');
+      console.log('[IosStepService] ✅ iOS exact daily step tracking started!');
       return { success: true };
 
     } catch (e: any) {
