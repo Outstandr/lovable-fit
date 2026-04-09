@@ -27,7 +27,7 @@ const signUpSchema = z.object({
     .min(2, 'Last name must be at least 2 characters')
     .max(50, 'Last name must be less than 50 characters'),
   email: z.string().trim().email('Please enter a valid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string().min(4, 'Password must be at least 4 characters'),
   phoneNumber: z.string().optional(),
 });
 
@@ -38,12 +38,16 @@ const signInSchema = z.object({
 
 export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
   ({ onNext }, ref) => {
-    const { signUp, signIn } = useAuth();
+    const { signUp, signIn, resetPassword } = useAuth();
     const [isSignIn, setIsSignIn] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [generalError, setGeneralError] = useState('');
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
+    const [forgotEmail, setForgotEmail] = useState('');
+    const [resetSent, setResetSent] = useState(false);
+    const [resetLoading, setResetLoading] = useState(false);
 
     const [openCountry, setOpenCountry] = useState(false);
     const [countryCode, setCountryCode] = useState('+1');
@@ -118,6 +122,22 @@ export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
       }
 
       setIsLoading(false);
+    };
+
+    const handleForgotPassword = async () => {
+      if (!forgotEmail.trim()) {
+        setGeneralError('Please enter your email address');
+        return;
+      }
+      setResetLoading(true);
+      setGeneralError('');
+      const { error } = await resetPassword(forgotEmail.trim());
+      if (error) {
+        setGeneralError(error);
+      } else {
+        setResetSent(true);
+      }
+      setResetLoading(false);
     };
 
     return (
@@ -315,7 +335,7 @@ export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder={isSignIn ? '••••••••' : 'Min 8 characters'}
+                  placeholder={isSignIn ? '••••••••' : 'Min 4 characters'}
                   value={formData.password}
                   onChange={(e) => handleInputChange('password', e.target.value)}
                   className={`pr-10 ${errors.password ? 'border-destructive' : ''}`}
@@ -335,6 +355,15 @@ export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
               </div>
               {errors.password && (
                 <p className="text-xs text-destructive">{errors.password}</p>
+              )}
+              {isSignIn && (
+                <button
+                  type="button"
+                  onClick={() => { setShowForgotPassword(true); setForgotEmail(formData.email); setResetSent(false); setGeneralError(''); }}
+                  className="text-xs text-primary hover:underline mt-1"
+                >
+                  Forgot password?
+                </button>
               )}
             </div>
 
@@ -388,6 +417,8 @@ export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
                 setIsSignIn(!isSignIn);
                 setErrors({});
                 setGeneralError('');
+                setShowForgotPassword(false);
+                setResetSent(false);
               }}
               className="text-primary font-medium hover:underline"
             >
@@ -395,6 +426,64 @@ export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
             </button>
           </p>
         </motion.div>
+
+        {/* Forgot Password Dialog */}
+        {showForgotPassword && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full max-w-sm bg-background border border-border rounded-2xl p-6 shadow-xl"
+            >
+              {resetSent ? (
+                <div className="text-center">
+                  <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
+                    <Mail className="h-7 w-7 text-green-400" />
+                  </div>
+                  <h3 className="text-lg font-bold mb-1">Check Your Email</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    We've sent a password reset link to <strong>{forgotEmail}</strong>
+                  </p>
+                  <Button onClick={() => { setShowForgotPassword(false); setResetSent(false); }} className="w-full">
+                    Back to Sign In
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <h3 className="text-lg font-bold mb-1 text-center">Reset Password</h3>
+                  <p className="text-sm text-muted-foreground mb-4 text-center">
+                    Enter your email and we'll send you a reset link
+                  </p>
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="email"
+                        placeholder="you@example.com"
+                        value={forgotEmail}
+                        onChange={(e) => { setForgotEmail(e.target.value); setGeneralError(''); }}
+                        className="pl-10"
+                        autoFocus
+                      />
+                    </div>
+                    {generalError && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" /> {generalError}
+                      </p>
+                    )}
+                    <Button onClick={handleForgotPassword} disabled={resetLoading} className="w-full">
+                      {resetLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      Send Reset Link
+                    </Button>
+                    <Button variant="ghost" className="w-full text-muted-foreground" onClick={() => { setShowForgotPassword(false); setGeneralError(''); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </div>
+        )}
       </div>
     );
   }

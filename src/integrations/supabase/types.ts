@@ -158,12 +158,64 @@ export type Database = {
         }
         Relationships: []
       }
+      friend_groups: {
+        Row: {
+          id: string
+          name: string
+          emoji: string | null
+          join_code: string
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          emoji?: string | null
+          join_code: string
+          created_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          emoji?: string | null
+          join_code?: string
+          created_by?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      friend_group_members: {
+        Row: {
+          id: string
+          group_id: string
+          user_id: string
+          role: string
+          joined_at: string
+        }
+        Insert: {
+          id?: string
+          group_id: string
+          user_id: string
+          role?: string
+          joined_at?: string
+        }
+        Update: {
+          id?: string
+          group_id?: string
+          user_id?: string
+          role?: string
+          joined_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           age: number | null
           avatar_id: string | null
           avatar_initials: string | null
           avatar_url: string | null
+          country: string | null
           created_at: string
           daily_step_goal: number | null
           data_source: string | null
@@ -189,6 +241,7 @@ export type Database = {
           avatar_id?: string | null
           avatar_initials?: string | null
           avatar_url?: string | null
+          country?: string | null
           created_at?: string
           daily_step_goal?: number | null
           data_source?: string | null
@@ -214,6 +267,7 @@ export type Database = {
           avatar_id?: string | null
           avatar_initials?: string | null
           avatar_url?: string | null
+          country?: string | null
           created_at?: string
           daily_step_goal?: number | null
           data_source?: string | null
@@ -435,6 +489,49 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      get_group_leaderboard: {
+        Args: {
+          target_group_id: string
+        }
+        Returns: {
+          user_id: string
+          display_name: string
+          username: string | null
+          avatar_id: string | null
+          avatar_initials: string | null
+          avatar_url: string | null
+          steps: number
+          current_streak: number
+          rank: number
+        }[]
+      }
+      get_country_leaderboard: {
+        Args: {
+          target_country: string
+        }
+        Returns: {
+          user_id: string
+          display_name: string
+          username: string | null
+          avatar_id: string | null
+          avatar_initials: string | null
+          avatar_url: string | null
+          steps: number
+          current_streak: number
+          rank: number
+        }[]
+      }
+      lookup_group_by_code: {
+        Args: {
+          code: string
+        }
+        Returns: {
+          group_id: string
+          group_name: string
+          group_emoji: string
+          member_count: number
+        }[]
       }
     }
     Enums: {

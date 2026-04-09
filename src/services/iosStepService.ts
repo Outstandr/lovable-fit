@@ -22,11 +22,20 @@ export interface StepServiceResult {
  * while app is open. For background steps, we sync from HealthKit
  * when the app resumes.
  */
+// Minimum step increment to prevent sleep micro-movements from registering
+// Apple's CMPedometer picks up tiny bed movements - ignore increments below this threshold
+const MIN_MEANINGFUL_STEP_INCREMENT = 10;
+
+// Debounce delay: batch rapid CMPedometer callbacks to reduce jitter
+const PEDOMETER_DEBOUNCE_MS = 3000;
+
 class IosStepService {
   private serviceRunning = false;
   private stepCallback: ((data: StepData) => void) | null = null;
   private listener: { remove: () => void } | null = null;
   private lastSteps = 0;
+  private lastReportedSteps = 0; // tracks what was last emitted to callback
+  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Check if running on iOS
@@ -112,8 +121,19 @@ class IosStepService {
           
           const steps = result.numberOfSteps || 0;
           const distance = result.distance || 0;
-          
+
+          // SLEEP MICRO-MOVEMENT FILTER:
+          // CMPedometer registers tiny bed movements, phone placements, and vibrations as steps.
+          // Only emit an update if the increment is meaningful (>= 10 steps).
+          // This prevents phantom steps jumping from 0 to small numbers while lying in bed.
+          const increment = steps - this.lastReportedSteps;
+          if (increment > 0 && increment < MIN_MEANINGFUL_STEP_INCREMENT && this.lastReportedSteps > 0) {
+            console.log(`[IosStepService] 🔇 Ignoring micro-movement increment: ${increment} steps (below threshold)`);
+            return;
+          }
+
           this.lastSteps = steps;
+          this.lastReportedSteps = steps;
 
           if (this.stepCallback) {
             this.stepCallback({ steps, distance });
@@ -123,12 +143,25 @@ class IosStepService {
         }
       };
 
+      // Debounced wrapper: batches rapid CMPedometer callbacks into one call
+      // Prevents jittery updates when the sensor fires multiple times in quick succession
+      const debouncedFetch = () => {
+        if (this.debounceTimer) {
+          clearTimeout(this.debounceTimer);
+        }
+        this.debounceTimer = setTimeout(() => {
+          fetchExactDailySteps();
+        }, PEDOMETER_DEBOUNCE_MS);
+      };
+
       this.listener = await CapacitorPedometer.addListener('measurement', () => {
-        // We ignore the delta data and grab the absolute truth to prevent ANY inflation
-        fetchExactDailySteps();
+        // Debounce the fetch to batch rapid micro-movements into a single update
+        debouncedFetch();
       });
 
-      // Instantly fetch the exact current correct steps so UI doesn't say 0 while sitting still
+      // Instantly fetch the exact current correct steps so UI doesn't say 0 while sitting still.
+      // Reset lastReportedSteps so the initial load always shows the correct count (no filter on first load).
+      this.lastReportedSteps = 0;
       await fetchExactDailySteps();
 
       this.serviceRunning = true;
@@ -166,6 +199,15 @@ class IosStepService {
   }
 
   /**
+   * Reset the reported steps baseline — called at midnight rollover so the
+   * micro-movement filter doesn't suppress the first real steps of the new day.
+   */
+  resetReportedSteps(): void {
+    this.lastReportedSteps = 0;
+    console.log('[IosStepService] 🌅 Reported steps baseline reset for new day');
+  }
+
+  /**
    * Get historical steps across a timeframe
    */
   async getHistoricalSteps(startMs: number, endMs: number): Promise<number> {
@@ -185,6 +227,10 @@ class IosStepService {
    */
   async stop(): Promise<void> {
     try {
+      if (this.debounceTimer) {
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = null;
+      }
       if (this.listener) {
         this.listener.remove();
         this.listener = null;
@@ -193,6 +239,7 @@ class IosStepService {
 
       this.serviceRunning = false;
       this.stepCallback = null;
+      this.lastReportedSteps = 0;
       console.log('[IosStepService] Stopped');
     } catch (e) {
       console.error('[IosStepService] Stop error:', e);

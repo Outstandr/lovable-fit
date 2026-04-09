@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Crown, Medal, Loader2, WifiOff, Footprints, Flame } from "lucide-react";
+import { Crown, Medal, Loader2, WifiOff, Footprints, Flame, Globe, Users, MapPin } from "lucide-react";
 import { SkeletonCard, SkeletonCircle, SkeletonText } from "@/components/ui/SkeletonCard";
 import { BottomNav } from "@/components/BottomNav";
 import { PullToRefresh } from "@/components/PullToRefresh";
@@ -11,7 +11,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useNavigate } from "react-router-dom";
 import { AVATARS } from "@/components/profile/AvatarSelector";
+import { FriendsLeaderboard } from "@/components/leaderboard/FriendsLeaderboard";
+import { LocalLeaderboard } from "@/components/leaderboard/LocalLeaderboard";
 
+type ScopeType = 'global' | 'friends' | 'local';
 type TabType = 'today' | 'week' | 'month';
 
 interface LeaderboardEntry {
@@ -76,6 +79,7 @@ const Leaderboard = () => {
   const { isOnline } = useOfflineSync();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('today');
+  const [activeScope, setActiveScope] = useState<ScopeType>('global');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
@@ -269,9 +273,45 @@ const Leaderboard = () => {
         </p>
       </motion.header>
 
+      {/* Scope Tabs: Global / Friends / Local */}
+      <div className="px-4 pb-3 flex-shrink-0">
+        <div className="flex rounded-xl bg-secondary/40 backdrop-blur-sm p-1 gap-1 border border-border/40">
+          {[
+            { key: 'global' as ScopeType, label: 'Global', icon: Globe },
+            { key: 'friends' as ScopeType, label: 'Friends', icon: Users },
+            { key: 'local' as ScopeType, label: 'Local', icon: MapPin },
+          ].map((scope) => {
+            const Icon = scope.icon;
+            return (
+              <button
+                key={scope.key}
+                onClick={() => setActiveScope(scope.key)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 ${
+                  activeScope === scope.key
+                    ? 'bg-gradient-to-r from-primary to-cyan-500 text-white shadow-[0_0_15px_rgba(0,200,255,0.2)]'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {scope.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <RubberBandScroll className="flex-1 overflow-y-auto">
         <PullToRefresh onRefresh={handleRefresh} className="h-full">
-          {/* Tab Switcher */}
+          {/* Friends Tab */}
+          {activeScope === 'friends' && <FriendsLeaderboard />}
+
+          {/* Local Tab */}
+          {activeScope === 'local' && <LocalLeaderboard />}
+
+          {/* Global Tab */}
+          {activeScope === 'global' && (
+          <>
+          {/* Time Tab Switcher - only for Global */}
           <div className="px-4 pb-4 app-tour-leaderboard-tabs">
             <div className="flex rounded-lg bg-secondary p-1 gap-1">
               {TAB_CONFIG.map((tab) => (
@@ -492,6 +532,8 @@ const Leaderboard = () => {
                 );
               })}
             </div>
+          )}
+          </>
           )}
         </PullToRefresh>
       </RubberBandScroll>

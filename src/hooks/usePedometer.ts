@@ -185,6 +185,17 @@ export function usePedometer() {
     previousSessionSteps.current = 0;
     celebrated10K.current = null;
 
+    // Reset the iOS service's micro-movement filter baseline so the first real
+    // steps of the new day are not blocked by the threshold check
+    if (Capacitor.getPlatform() === 'ios') {
+      try {
+        const { iosStepService } = await import('@/services/iosStepService');
+        iosStepService.resetReportedSteps();
+      } catch (e) {
+        console.log('[usePedometer] Could not reset iOS baseline on rollover:', e);
+      }
+    }
+
     // Update tracked date
     lastTrackedDate.current = currentDate;
     localStorage.setItem(LAST_TRACKED_DATE_KEY, currentDate);

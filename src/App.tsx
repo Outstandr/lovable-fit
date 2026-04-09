@@ -24,6 +24,7 @@ import GoalsSettings from "./pages/GoalsSettings";
 import PrivacySettings from "./pages/PrivacySettings";
 import AppSettings from "./pages/AppSettings";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -119,6 +120,11 @@ const AnimatedRoutes = () => {
         <Route path="/privacy-policy" element={
           <PageTransition>
             <PrivacyPolicy />
+          </PageTransition>
+        } />
+        <Route path="/reset-password" element={
+          <PageTransition>
+            <ResetPassword />
           </PageTransition>
         } />
         <Route path="*" element={

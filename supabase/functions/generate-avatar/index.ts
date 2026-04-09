@@ -38,85 +38,66 @@ serve(async (req) => {
       throw new Error("Missing GEMINI_API_KEY in environment variables")
     }
 
-    // Step 1: Vision Extraction using Gemini 1.5 Flash
-    const visionPrompt = "You are an expert character artist. Analyze this selfie and describe the person's physical features to be used as a prompt for a 3D Pixar style avatar. Describe their hair style, hair color, eye shape, skin tone, facial hair (if any), and facial structure. Do NOT mention their real identity or age specifically. Just physical traits. Format your response exactly as the start of an image generation prompt, starting with: 'A 3D Pixar style character avatar of a person with...'"
-    
-    // remove data:image/jpeg;base64, prefix if present
+    // SINGLE-STEP: Pass the selfie DIRECTLY to Gemini's native image generation.
+    // The model sees the actual face and reproduces it accurately in 3D Pixar style.
     const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|webp);base64,/, "");
 
-    const visionPayload = {
-      contents: [{
-        parts: [
-          { text: visionPrompt },
-          { inline_data: { mime_type: "image/jpeg", data: cleanBase64 } }
-        ]
-      }],
-      generationConfig: {
-        temperature: 0.4,
-        maxOutputTokens: 200,
-      }
-    };
+    const stylePrompt = `Transform this person into a highly detailed 3D Pixar-style character avatar. CRITICAL RULES:
+1. The character's face MUST match this exact person - same gender, same skin tone, same facial features, same hair style and color, same facial hair if present, same glasses if wearing any.
+2. Show from the waist up in a confident athletic pose (hands on hips or arms crossed).
+3. Dress them in stylish athletic sportswear - a fitted track jacket or athletic tank top with bold accent colors (navy blue with orange trim, or black with red trim).
+4. Use a solid flat teal-turquoise background color.
+5. 3D Pixar/Disney animation quality with big expressive eyes, smooth skin texture, bright soft studio lighting.
+6. The face is the PRIMARY focus - it must be immediately recognizable as the same person from the photo.
+Generate ONLY the image, no text.`
 
-    console.log("Calling Gemini 1.5 Flash Vision API...")
-    const visionRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    console.log("Calling Gemini native image generation...")
+    const generateRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(visionPayload)
-    });
-
-    if (!visionRes.ok) {
-        const errText = await visionRes.text();
-        console.error("Vision API Error:", errText);
-        throw new Error(`Gemini Vision Error: ${visionRes.status} ${visionRes.statusText}`);
-    }
-
-    const visionData = await visionRes.json();
-    const extractedPrompt = visionData.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!extractedPrompt) {
-        throw new Error("Failed to extract prompt from selfie.");
-    }
-    
-    console.log("Extracted Prompt:", extractedPrompt);
-
-    // Step 2: Generate the Avatar using Imagen 3
-    const finalPrompt = `${extractedPrompt.trim()}, wearing modern cyberpunk activewear athletic clothing, solid vibrant gradient background, high quality, highly detailed 3D render.`
-
-    console.log("Calling Imagen 3 API...")
-    const imagenPayload = {
-      instances: [
-        {
-          prompt: finalPrompt
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: stylePrompt },
+            { inline_data: { mime_type: "image/jpeg", data: cleanBase64 } }
+          ]
+        }],
+        generationConfig: {
+          responseModalities: ["TEXT", "IMAGE"],
+          temperature: 1.0,
         }
-      ],
-      parameters: {
-        sampleCount: 1,
-        // Optional override to avoid filtering
-        personGeneration: "ALLOW_ADULT"
-      }
-    };
-
-    const generateRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(imagenPayload)
+      })
     });
 
     if (!generateRes.ok) {
       const errText = await generateRes.text();
-      console.error("Imagen API Error:", errText);
-      throw new Error(`Imagen Generation Error: ${generateRes.status} ${errText}`);
+      console.error("Gemini API Error:", errText);
+      throw new Error(`Gemini Generation Error: ${generateRes.status} ${errText}`);
     }
 
     const generateData = await generateRes.json();
-    const generatedBase64 = generateData.predictions?.[0]?.bytesBase64Encoded;
-
-    if (!generatedBase64) {
-      throw new Error("Failed to receive image bytes from Imagen 3.");
+    
+    // Gemini native image generation returns parts that can be text or inline_data
+    const parts = generateData.candidates?.[0]?.content?.parts || [];
+    let generatedBase64 = '';
+    let generatedMimeType = 'image/png';
+    
+    for (const part of parts) {
+      if (part.inlineData) {
+        generatedBase64 = part.inlineData.data;
+        generatedMimeType = part.inlineData.mimeType || 'image/png';
+        break;
+      }
     }
 
-    // Step 3: Upload to Supabase Storage
-    const fileName = `${user.id}_avatar_${Date.now()}.jpg`;
+    if (!generatedBase64) {
+      console.error("Full Gemini Response:", JSON.stringify(generateData).substring(0, 500));
+      throw new Error("Failed to receive image from Gemini.");
+    }
+
+    // Upload to Supabase Storage
+    const ext = generatedMimeType === 'image/png' ? 'png' : 'jpg';
+    const fileName = `${user.id}_avatar_${Date.now()}.${ext}`;
     const imageBytes = Uint8Array.from(atob(generatedBase64), c => c.charCodeAt(0));
 
     // Service role admin for upload strictly to avoid user RLS blocking from within Edge Function
@@ -129,7 +110,7 @@ serve(async (req) => {
     const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
       .from('avatars')
       .upload(fileName, imageBytes.buffer, {
-        contentType: 'image/jpeg',
+        contentType: generatedMimeType,
         upsert: true
       });
 
@@ -143,7 +124,7 @@ serve(async (req) => {
       .getPublicUrl(fileName);
 
     return new Response(
-      JSON.stringify({ success: true, avatarUrl: publicUrl, promptUsed: finalPrompt }),
+      JSON.stringify({ success: true, avatarUrl: publicUrl, promptUsed: stylePrompt }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
 
