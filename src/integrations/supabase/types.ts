@@ -158,56 +158,79 @@ export type Database = {
         }
         Relationships: []
       }
-      friend_groups: {
-        Row: {
-          id: string
-          name: string
-          emoji: string | null
-          join_code: string
-          created_by: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          emoji?: string | null
-          join_code: string
-          created_by: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          emoji?: string | null
-          join_code?: string
-          created_by?: string
-          created_at?: string
-        }
-        Relationships: []
-      }
       friend_group_members: {
         Row: {
-          id: string
           group_id: string
+          id: string
+          joined_at: string | null
+          role: string | null
           user_id: string
-          role: string
-          joined_at: string
         }
         Insert: {
-          id?: string
           group_id: string
+          id?: string
+          joined_at?: string | null
+          role?: string | null
           user_id: string
-          role?: string
-          joined_at?: string
         }
         Update: {
-          id?: string
           group_id?: string
+          id?: string
+          joined_at?: string | null
+          role?: string | null
           user_id?: string
-          role?: string
-          joined_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "friend_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "friend_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "friend_group_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      friend_groups: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          emoji: string | null
+          id: string
+          join_code: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          emoji?: string | null
+          id?: string
+          join_code: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          emoji?: string | null
+          id?: string
+          join_code?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friend_groups_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -442,24 +465,54 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_country_leaderboard: {
+        Args: { target_country: string }
+        Returns: {
+          avatar_id: string
+          avatar_initials: string
+          avatar_url: string
+          current_streak: number
+          display_name: string
+          rank: number
+          steps: number
+          user_id: string
+          username: string
+        }[]
+      }
+      get_group_leaderboard: {
+        Args: { target_group_id: string }
+        Returns: {
+          avatar_id: string
+          avatar_initials: string
+          avatar_url: string
+          current_streak: number
+          display_name: string
+          rank: number
+          steps: number
+          user_id: string
+          username: string
+        }[]
+      }
       get_monthly_leaderboard: {
         Args: never
         Returns: {
-          avatar_id: string | null
+          avatar_id: string
           avatar_initials: string
+          avatar_url: string
           current_streak: number
           display_name: string
           rank: number
           total_steps: number
           user_id: string
-          username: string | null
+          username: string
         }[]
       }
       get_today_leaderboard: {
         Args: never
         Returns: {
-          avatar_id: string | null
+          avatar_id: string
           avatar_initials: string
+          avatar_url: string
           calories: number
           current_streak: number
           display_name: string
@@ -467,22 +520,24 @@ export type Database = {
           rank: number
           steps: number
           user_id: string
-          username: string | null
+          username: string
         }[]
       }
       get_weekly_leaderboard: {
         Args: never
         Returns: {
-          avatar_id: string | null
+          avatar_id: string
           avatar_initials: string
+          avatar_url: string
           current_streak: number
           display_name: string
           rank: number
           total_steps: number
           user_id: string
-          username: string | null
+          username: string
         }[]
       }
+      group_exists_by_id: { Args: { gid: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -490,46 +545,13 @@ export type Database = {
         }
         Returns: boolean
       }
-      get_group_leaderboard: {
-        Args: {
-          target_group_id: string
-        }
-        Returns: {
-          user_id: string
-          display_name: string
-          username: string | null
-          avatar_id: string | null
-          avatar_initials: string | null
-          avatar_url: string | null
-          steps: number
-          current_streak: number
-          rank: number
-        }[]
-      }
-      get_country_leaderboard: {
-        Args: {
-          target_country: string
-        }
-        Returns: {
-          user_id: string
-          display_name: string
-          username: string | null
-          avatar_id: string | null
-          avatar_initials: string | null
-          avatar_url: string | null
-          steps: number
-          current_streak: number
-          rank: number
-        }[]
-      }
+      is_group_member: { Args: { gid: string }; Returns: boolean }
       lookup_group_by_code: {
-        Args: {
-          code: string
-        }
+        Args: { code: string }
         Returns: {
+          group_emoji: string
           group_id: string
           group_name: string
-          group_emoji: string
           member_count: number
         }[]
       }
