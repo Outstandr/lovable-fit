@@ -23,7 +23,7 @@ const SessionCard = ({ session, onClick }: SessionCardProps) => {
       <div className="flex items-start justify-between mb-3">
         <div>
           <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">
-            {session.session_type === 'walking' ? 'Walking' : 'Running'} Session
+            Walking Session
           </h3>
           <p className="text-xs text-muted-foreground">
             {format(new Date(session.created_at), 'MMM d, yyyy • h:mm a')}
