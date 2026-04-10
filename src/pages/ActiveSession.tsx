@@ -83,7 +83,7 @@ const ActiveSession = () => {
   }, [steps]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (isRunning) {
       interval = setInterval(() => {
         timeSinceLastStep.current += 1;

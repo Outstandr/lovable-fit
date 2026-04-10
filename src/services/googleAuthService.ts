@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+// @ts-ignore - native plugin, types may not be available in web builds
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { supabase } from '@/integrations/supabase/client';
 
