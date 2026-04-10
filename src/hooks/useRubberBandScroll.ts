@@ -13,7 +13,7 @@ export const useRubberBandScroll = (options: UseRubberBandScrollOptions = {}) =>
   const isDragging = useRef(false);
   const pullDirection = useRef<'top' | 'bottom' | null>(null);
   const wheelAccumulator = useRef(0);
-  const wheelTimeout = useRef<NodeJS.Timeout | null>(null);
+  const wheelTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const rubberBand = useCallback((distance: number): number => {
     const sign = distance < 0 ? -1 : 1;
