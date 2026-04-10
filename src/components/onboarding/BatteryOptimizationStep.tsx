@@ -55,7 +55,7 @@ export function BatteryOptimizationStep({ onNext }: BatteryOptimizationStepProps
   };
 
   return (
-    <div className="flex flex-col h-full bg-background overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Scrollable Content */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="flex flex-col items-center justify-center px-6 py-8 min-h-full">

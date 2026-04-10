@@ -90,7 +90,7 @@ export const GoalStep = forwardRef<HTMLDivElement, GoalStepProps>(
       : selectedGoal !== null;
 
     return (
-      <div ref={ref} className="flex flex-col h-full bg-background overflow-hidden">
+      <div ref={ref} className="flex flex-col h-full overflow-hidden">
         {/* Header */}
         <div className="flex-shrink-0 pt-8 px-6 mb-6">
           <motion.div

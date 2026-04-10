@@ -13,7 +13,7 @@ export const WelcomeStep = forwardRef<HTMLDivElement, WelcomeStepProps>(
     return (
       <div
         ref={ref}
-        className="flex flex-col h-full bg-background text-foreground overflow-hidden"
+        className="flex flex-col h-full text-foreground overflow-hidden"
       >
         {/* Scrollable Hero Section */}
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center px-6 py-8">

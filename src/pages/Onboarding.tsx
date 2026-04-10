@@ -153,7 +153,7 @@ const Onboarding = () => {
   };
 
   return (
-    <div className="fixed inset-0 bg-background overflow-hidden">
+    <div className="fixed inset-0 overflow-hidden">
       {/* Progress indicator with back button - fixed at top */}
       <div className="absolute top-0 left-0 right-0 z-10 safe-area-pt">
         <OnboardingProgress

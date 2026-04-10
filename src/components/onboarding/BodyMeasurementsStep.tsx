@@ -151,7 +151,7 @@ export function BodyMeasurementsStep({ onNext }: BodyMeasurementsStepProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-background overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="flex-shrink-0 px-6 pt-8 pb-4">
         <div className="flex items-center justify-center mb-4">

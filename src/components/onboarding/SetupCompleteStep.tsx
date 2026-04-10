@@ -10,7 +10,7 @@ interface SetupCompleteStepProps {
 export const SetupCompleteStep = forwardRef<HTMLDivElement, SetupCompleteStepProps>(
   ({ onComplete }, ref) => {
     return (
-      <div ref={ref} className="flex flex-col h-full bg-background overflow-hidden">
+      <div ref={ref} className="flex flex-col h-full overflow-hidden">
         {/* Content */}
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center px-6">
           <motion.div

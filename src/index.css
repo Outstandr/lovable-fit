@@ -471,8 +471,8 @@
   /* Bottom Navigation */
   .bottom-nav {
     @apply fixed bottom-0 left-0 right-0 z-50;
-    background: linear-gradient(180deg, hsl(220 50% 15% / 0.95) 0%, hsl(220 55% 12% / 0.98) 100%);
-    border-top: 1px solid hsl(var(--border) / 0.6);
+    background: linear-gradient(180deg, hsl(220 50% 15% / 0.4) 0%, hsl(220 55% 12% / 0.5) 100%);
+    border-top: 1px solid hsl(var(--border) / 0.3);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
   }
@@ -494,8 +494,8 @@
   .top-header {
     @apply fixed top-0 left-0 right-0;
     z-index: 50;
-    background: linear-gradient(180deg, hsl(220 50% 15% / 0.95) 0%, hsl(220 55% 12% / 0.98) 100%);
-    border-bottom: 1px solid hsl(var(--border) / 0.6);
+    background: linear-gradient(180deg, hsl(220 50% 15% / 0.4) 0%, hsl(220 55% 12% / 0.5) 100%);
+    border-bottom: 1px solid hsl(var(--border) / 0.3);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
   }

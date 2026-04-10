@@ -130,7 +130,7 @@ export const LocationPermissionStep = ({ onNext }: LocationPermissionStepProps) 
   const hasError = isDenied || isLocationOff;
 
   return (
-    <div className="absolute inset-0 flex flex-col bg-background safe-area-y">
+    <div className="absolute inset-0 flex flex-col safe-area-y">
       <div className="flex-1 flex flex-col items-center justify-center px-6 min-h-0">
         {/* Icon */}
         <motion.div
