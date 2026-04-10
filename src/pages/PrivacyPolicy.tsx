@@ -116,7 +116,7 @@ We aim to respond within 48 hours.`
   ];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen flex flex-col">
       <StandardHeader
         title="Privacy Policy"
         showBack={true}

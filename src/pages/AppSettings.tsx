@@ -89,7 +89,7 @@ const AppSettings = () => {
   const currentUnit = profile?.unit_preference || "metric";
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen flex flex-col">
       {/* Standard Header */}
       <StandardHeader
         title="App Settings"
@@ -242,11 +242,11 @@ const AppSettings = () => {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Version</span>
-              <span className="text-foreground font-medium">1.0.0</span>
+              <span className="text-foreground font-medium">1.0.1</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Build</span>
-              <span className="text-foreground font-medium">2025.12.24</span>
+              <span className="text-foreground font-medium">2026.04.10</span>
             </div>
           </div>
         </motion.div>
@@ -263,7 +263,7 @@ const AppSettings = () => {
             <span className="text-lg font-bold text-primary tracking-wider">HOTSTEPPER</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            © 2025 Outstandr. All rights reserved.
+            © 2026 Leaders Performance. All rights reserved.
           </p>
         </motion.div>
       </RubberBandScroll>

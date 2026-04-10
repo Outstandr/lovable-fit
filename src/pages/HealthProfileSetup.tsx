@@ -243,7 +243,7 @@ export default function HealthProfileSetup() {
   }
 
   return (
-    <div className="min-h-screen-safe bg-background safe-area-pb">
+    <div className="min-h-screen-safe safe-area-pb">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border/30 header-safe">
         <div className="flex items-center justify-between px-4 py-3">

@@ -154,7 +154,7 @@ const PrivacySettings = () => {
   };
 
   return (
-    <div className="h-[100dvh] bg-background flex flex-col">
+    <div className="h-[100dvh] flex flex-col">
       <StandardHeader
         title="Privacy & Security"
         showBack={true}
