@@ -1,28 +1,23 @@
 project_id = "kptrzskoktsveztkbhhc"
 
-[functions.generate-access-code]
-verify_jwt = false
-
-[functions.register-access-code]
-verify_jwt = false
-
-[functions.send-notification]
-verify_jwt = false
-
-[functions.send-daily-reminders]
-verify_jwt = false
-
-[functions.create-test-users]
-verify_jwt = false
-
-[functions.delete-user-data]
-verify_jwt = true
-
-[functions.public-config]
-verify_jwt = false
-
-[functions.cleanup-old-location-data]
-verify_jwt = false
-
-[functions.process-email-queue]
-verify_jwt = true
+[functions]
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.cleanup-old-location-data]
+    verify_jwt = false
+  [functions.create-test-users]
+    verify_jwt = false
+  [functions.delete-user-data]
+    verify_jwt = true
+  [functions.generate-access-code]
+    verify_jwt = false
+  [functions.process-email-queue]
+    verify_jwt = true
+  [functions.public-config]
+    verify_jwt = false
+  [functions.register-access-code]
+    verify_jwt = false
+  [functions.send-daily-reminders]
+    verify_jwt = false
+  [functions.send-notification]
+    verify_jwt = false
