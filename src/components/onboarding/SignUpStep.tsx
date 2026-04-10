@@ -135,12 +135,20 @@ export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
       }
       setResetLoading(true);
       setGeneralError('');
-      const { error } = await resetPassword(forgotEmail.trim());
-      if (error) {
-        setGeneralError(error);
-      } else {
-        setResetSent(true);
-        setResetStep('code'); // move to code entry
+      try {
+        // Use signInWithOtp — sends a 6-digit code by default, no template config needed
+        const { error } = await supabase.auth.signInWithOtp({
+          email: forgotEmail.trim(),
+          options: { shouldCreateUser: false },
+        });
+        if (error) {
+          setGeneralError(error.message);
+        } else {
+          setResetSent(true);
+          setResetStep('code');
+        }
+      } catch {
+        setGeneralError('Failed to send code');
       }
       setResetLoading(false);
     };
@@ -156,11 +164,12 @@ export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
         const { error } = await supabase.auth.verifyOtp({
           email: forgotEmail.trim(),
           token: resetCode.trim(),
-          type: 'recovery',
+          type: 'email',
         });
         if (error) {
           setGeneralError(error.message);
         } else {
+          // User is now authenticated — move to new password step
           setResetStep('newpass');
         }
       } catch {
@@ -181,6 +190,8 @@ export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
         if (error) {
           setGeneralError(error.message);
         } else {
+          // Sign out so they re-login with the new password
+          await supabase.auth.signOut();
           setResetStep('done');
         }
       } catch {
