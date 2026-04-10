@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 import { countryCodes } from '@/utils/countryCodes';
 import { validatePhoneNumber, formatPhoneE164, cn } from '@/lib/utils';
@@ -48,6 +49,9 @@ export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
     const [forgotEmail, setForgotEmail] = useState('');
     const [resetSent, setResetSent] = useState(false);
     const [resetLoading, setResetLoading] = useState(false);
+    const [resetStep, setResetStep] = useState<'email' | 'code' | 'newpass' | 'done'>('email');
+    const [resetCode, setResetCode] = useState('');
+    const [newPassword, setNewPassword] = useState('');
 
     const [openCountry, setOpenCountry] = useState(false);
     const [countryCode, setCountryCode] = useState('+1');
@@ -136,6 +140,51 @@ export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
         setGeneralError(error);
       } else {
         setResetSent(true);
+        setResetStep('code'); // move to code entry
+      }
+      setResetLoading(false);
+    };
+
+    const handleVerifyCode = async () => {
+      if (!resetCode.trim() || resetCode.length < 6) {
+        setGeneralError('Please enter the 6-digit code from your email');
+        return;
+      }
+      setResetLoading(true);
+      setGeneralError('');
+      try {
+        const { error } = await supabase.auth.verifyOtp({
+          email: forgotEmail.trim(),
+          token: resetCode.trim(),
+          type: 'recovery',
+        });
+        if (error) {
+          setGeneralError(error.message);
+        } else {
+          setResetStep('newpass');
+        }
+      } catch {
+        setGeneralError('Invalid or expired code');
+      }
+      setResetLoading(false);
+    };
+
+    const handleSetNewPassword = async () => {
+      if (newPassword.length < 4) {
+        setGeneralError('Password must be at least 4 characters');
+        return;
+      }
+      setResetLoading(true);
+      setGeneralError('');
+      try {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) {
+          setGeneralError(error.message);
+        } else {
+          setResetStep('done');
+        }
+      } catch {
+        setGeneralError('Failed to update password');
       }
       setResetLoading(false);
     };
@@ -427,7 +476,7 @@ export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
           </p>
         </motion.div>
 
-        {/* Forgot Password Dialog */}
+        {/* Forgot Password Dialog — OTP Code Flow */}
         {showForgotPassword && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-6">
             <motion.div
@@ -435,24 +484,12 @@ export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
               animate={{ opacity: 1, scale: 1 }}
               className="w-full max-w-sm bg-background border border-border rounded-2xl p-6 shadow-xl"
             >
-              {resetSent ? (
-                <div className="text-center">
-                  <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
-                    <Mail className="h-7 w-7 text-green-400" />
-                  </div>
-                  <h3 className="text-lg font-bold mb-1">Check Your Email</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    We've sent a password reset link to <strong>{forgotEmail}</strong>
-                  </p>
-                  <Button onClick={() => { setShowForgotPassword(false); setResetSent(false); }} className="w-full">
-                    Back to Sign In
-                  </Button>
-                </div>
-              ) : (
+              {/* Step 1: Enter Email */}
+              {resetStep === 'email' && (
                 <>
                   <h3 className="text-lg font-bold mb-1 text-center">Reset Password</h3>
                   <p className="text-sm text-muted-foreground mb-4 text-center">
-                    Enter your email and we'll send you a reset link
+                    We'll send a 6-digit code to your email
                   </p>
                   <div className="space-y-3">
                     <div className="relative">
@@ -473,13 +510,93 @@ export const SignUpStep = forwardRef<HTMLDivElement, SignUpStepProps>(
                     )}
                     <Button onClick={handleForgotPassword} disabled={resetLoading} className="w-full">
                       {resetLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                      Send Reset Link
+                      Send Code
                     </Button>
-                    <Button variant="ghost" className="w-full text-muted-foreground" onClick={() => { setShowForgotPassword(false); setGeneralError(''); }}>
+                    <Button variant="ghost" className="w-full text-muted-foreground" onClick={() => { setShowForgotPassword(false); setGeneralError(''); setResetStep('email'); }}>
                       Cancel
                     </Button>
                   </div>
                 </>
+              )}
+
+              {/* Step 2: Enter Code */}
+              {resetStep === 'code' && (
+                <>
+                  <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
+                    <Mail className="h-7 w-7 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-bold mb-1 text-center">Enter Code</h3>
+                  <p className="text-sm text-muted-foreground mb-4 text-center">
+                    Check <strong>{forgotEmail}</strong> for a 6-digit code
+                  </p>
+                  <div className="space-y-3">
+                    <Input
+                      type="text"
+                      placeholder="000000"
+                      value={resetCode}
+                      onChange={(e) => { setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setGeneralError(''); }}
+                      className="text-center text-2xl tracking-[0.5em] font-mono"
+                      maxLength={6}
+                      autoFocus
+                    />
+                    {generalError && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" /> {generalError}
+                      </p>
+                    )}
+                    <Button onClick={handleVerifyCode} disabled={resetLoading || resetCode.length < 6} className="w-full">
+                      {resetLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      Verify Code
+                    </Button>
+                    <Button variant="ghost" className="w-full text-muted-foreground text-xs" onClick={() => { setResetStep('email'); setResetCode(''); setGeneralError(''); }}>
+                      Didn't get it? Try again
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 3: New Password */}
+              {resetStep === 'newpass' && (
+                <>
+                  <h3 className="text-lg font-bold mb-1 text-center">New Password</h3>
+                  <p className="text-sm text-muted-foreground mb-4 text-center">
+                    Choose your new password
+                  </p>
+                  <div className="space-y-3">
+                    <Input
+                      type="password"
+                      placeholder="Enter new password (min 4 chars)"
+                      value={newPassword}
+                      onChange={(e) => { setNewPassword(e.target.value); setGeneralError(''); }}
+                      autoFocus
+                    />
+                    {generalError && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" /> {generalError}
+                      </p>
+                    )}
+                    <Button onClick={handleSetNewPassword} disabled={resetLoading || newPassword.length < 4} className="w-full">
+                      {resetLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      Update Password
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 4: Done */}
+              {resetStep === 'done' && (
+                <div className="text-center">
+                  <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
+                    <Check className="h-7 w-7 text-green-400" />
+                  </div>
+                  <h3 className="text-lg font-bold mb-1">Password Updated!</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    You can now sign in with your new password
+                  </p>
+                  <Button onClick={() => { setShowForgotPassword(false); setResetStep('email'); setResetCode(''); setNewPassword(''); setResetSent(false); }} className="w-full">
+                    Back to Sign In
+                  </Button>
+                </div>
               )}
             </motion.div>
           </div>
