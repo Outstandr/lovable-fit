@@ -89,17 +89,17 @@ export const DayView = ({
     try {
       const { data } = await supabase
         .from('daily_steps')
-        .select('steps, calories, distance_km, active_minutes')
+        .select('steps, calories, distance_km')
         .eq('user_id', user.id)
         .eq('date', dateStr)
-        .single();
+        .maybeSingle();
 
       const dayData: DayData = {
         date,
         steps: data?.steps || 0,
         calories: data?.calories || 0,
         distance: data?.distance_km || 0,
-        activeMinutes: data?.active_minutes || Math.floor((data?.steps || 0) / 120),
+        activeMinutes: Math.floor((data?.steps || 0) / 120),
         label: formatDayLabel(date, false),
         dateLabel: formatDateLabel(date),
       };
