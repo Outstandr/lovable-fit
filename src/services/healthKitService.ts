@@ -41,43 +41,45 @@ class HealthKitService {
    * Initialize the plugin (lazy load)
    */
   private async ensurePlugin(): Promise<boolean> {
-    if (!this.isSupported()) return false;
+    if (!this.isSupported()) {
+      console.log('[HealthKit] Not on iOS platform');
+      return false;
+    }
     
     if (!Health) {
       try {
         const mod = await import('@capgo/capacitor-health');
         Health = mod.Health;
+        console.log('[HealthKit] Plugin imported successfully');
       } catch (e) {
         console.error('[HealthKit] Failed to import plugin:', e);
         return false;
       }
     }
 
-    if (!this.initialized) {
-      try {
-        const result = await Health.isAvailable();
-        this.available = result.available;
-        this.initialized = true;
-        console.log('[HealthKit] Available:', this.available);
-      } catch (e) {
-        console.error('[HealthKit] Availability check failed:', e);
-        this.available = false;
-      }
-    }
-
-    return this.available;
+    return true;
   }
 
   /**
    * Request Apple Health authorization for step reading
    */
   async requestAuthorization(): Promise<{ success: boolean; error?: string }> {
-    const available = await this.ensurePlugin();
-    if (!available) {
-      return { success: false, error: 'Apple Health is not available on this device' };
+    const pluginReady = await this.ensurePlugin();
+    if (!pluginReady) {
+      return { success: false, error: 'Apple Health plugin could not be loaded' };
     }
 
     try {
+      // Check availability first (but don't block on it — some configs return false incorrectly)
+      try {
+        const avail = await Health.isAvailable();
+        console.log('[HealthKit] Availability check:', JSON.stringify(avail));
+      } catch (e) {
+        console.log('[HealthKit] Availability check threw (proceeding anyway):', e);
+      }
+
+      // Request authorization — this is what actually triggers the HealthKit permission dialog
+      console.log('[HealthKit] Requesting authorization...');
       const status = await Health.requestAuthorization({
         read: ['steps', 'distance', 'flightsClimbed'],
       });
@@ -86,11 +88,11 @@ class HealthKitService {
       // We assume success after the prompt
       this.authorized = true;
       localStorage.setItem(HK_CONNECTED_KEY, 'true');
-      console.log('[HealthKit] ✅ Authorization granted, status:', status);
+      console.log('[HealthKit] ✅ Authorization completed, status:', JSON.stringify(status));
       return { success: true };
     } catch (e: any) {
       console.error('[HealthKit] Authorization failed:', e);
-      return { success: false, error: e.message || 'Authorization failed' };
+      return { success: false, error: e.message || 'Failed to connect to Apple Health' };
     }
   }
 

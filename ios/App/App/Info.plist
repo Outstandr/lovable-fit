@@ -32,7 +32,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>23</string>
+	<string>24</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
@@ -40,9 +40,9 @@
 	<key>NSCameraUsageDescription</key>
 	<string>We need access to your camera so you can take a selfie to generate your unique AI 3D Avatar.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Hotstepper reads your step count, distance walked, and flights climbed from Apple Health to display your daily activity on the leaderboard. This includes steps from your Apple Watch, Garmin, WHOOP, and other connected devices.</string>
+	<string> Lionel x flights climbed from Apple Health to display your daily activity on the leaderboard. This includes steps from your Apple Watch, Garmin, WHOOP, and other connected devices.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>Hotstepper saves your walking session data to Apple Health so you can view your activity alongside other health metrics.</string>
+	<string>Lionel x saves your walking session data to Apple Health so you can view your activity alongside other health metrics.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>We need your location to track your walks and runs even when the app is in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
