@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AvatarSelector } from '@/components/profile/AvatarSelector';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, AtSign, Edit2 } from 'lucide-react';
+import { Loader2, AtSign, Edit2, Camera, ImagePlus } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { Camera as CapCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 
 import { AIAvatarGenerator } from '@/components/profile/AIAvatarGenerator';
 
@@ -25,6 +26,7 @@ export const EditIdentityDialog = ({ userId, currentUsername, currentAvatarId, c
   const [avatarUrl, setAvatarUrl] = useState(currentAvatarUrl || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [uploading, setUploading] = useState(false);
   const queryClient = useQueryClient();
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -34,6 +36,67 @@ export const EditIdentityDialog = ({ userId, currentUsername, currentAvatarId, c
       setAvatarId(currentAvatarId || '');
       setAvatarUrl(currentAvatarUrl || '');
       setError('');
+    }
+  };
+
+  const handlePhotoUpload = async (source: CameraSource) => {
+    try {
+      setUploading(true);
+      setError('');
+
+      const photo = await CapCamera.getPhoto({
+        quality: 80,
+        allowEditing: true,
+        resultType: CameraResultType.Base64,
+        source: source,
+        width: 512,
+        height: 512,
+      });
+
+      if (!photo.base64String) throw new Error('No photo data');
+
+      // Convert base64 to blob
+      const byteString = atob(photo.base64String);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+
+      const mimeType = photo.format === 'png' ? 'image/png' : 'image/jpeg';
+      const blob = new Blob([ab], { type: mimeType });
+      const extension = photo.format === 'png' ? 'png' : 'jpg';
+      const fileName = `${userId}_photo_${Date.now()}.${extension}`;
+
+      // Upload to Supabase storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, blob, { contentType: mimeType, upsert: true });
+
+      if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+
+      // Auto-save to profile
+      await supabase.from('profiles').update({
+        avatar_url: publicUrl,
+        avatar_id: 'custom_photo',
+      }).eq('id', userId);
+
+      setAvatarUrl(publicUrl);
+      setAvatarId('custom_photo');
+      queryClient.invalidateQueries({ queryKey: ["profile", userId] });
+      toast.success('Photo saved as your avatar!');
+      setTimeout(() => setOpen(false), 800);
+    } catch (err: any) {
+      if (err.message?.includes('cancelled') || err.message?.includes('User cancelled')) {
+        // User cancelled - no error needed
+      } else {
+        console.error('[PhotoUpload]', err);
+        setError(err.message || 'Failed to upload photo');
+      }
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -109,6 +172,45 @@ export const EditIdentityDialog = ({ userId, currentUsername, currentAvatarId, c
 
           <div className="space-y-4">
             <Label className="text-sm font-medium">Avatar</Label>
+
+            {/* Photo Upload Section */}
+            <div className="bg-secondary/20 p-4 rounded-xl border border-border">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">📸 Upload Photo</p>
+              
+              {/* Show current photo avatar if set */}
+              {avatarUrl && (avatarId === 'custom_photo') && (
+                <div className="flex justify-center mb-3">
+                  <div className="h-20 w-20 rounded-full overflow-hidden border-2 border-primary ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
+                    <img src={avatarUrl} alt="Your photo" className="w-full h-full object-cover" />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploading}
+                  onClick={() => handlePhotoUpload(CameraSource.Camera)}
+                  className="flex-1 gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                >
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                  Take Photo
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploading}
+                  onClick={() => handlePhotoUpload(CameraSource.Photos)}
+                  className="flex-1 gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                >
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                  Gallery
+                </Button>
+              </div>
+            </div>
             
             {/* Custom AI Avatar generator block */}
             <div className="bg-secondary/20 p-4 rounded-xl border border-border">
@@ -150,7 +252,7 @@ export const EditIdentityDialog = ({ userId, currentUsername, currentAvatarId, c
             <div className="max-h-[40vh] overflow-y-auto pr-2 pb-2">
               <AvatarSelector selectedId={avatarId} onSelect={(id) => { 
                 setAvatarId(id); 
-                if (id !== 'custom_ai') setAvatarUrl(''); 
+                if (id !== 'custom_ai' && id !== 'custom_photo') setAvatarUrl(''); 
                 setError(''); 
               }} />
             </div>
