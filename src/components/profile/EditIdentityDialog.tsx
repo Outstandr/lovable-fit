@@ -1,14 +1,15 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AvatarSelector } from '@/components/profile/AvatarSelector';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, AtSign, Edit2, Camera, ImagePlus } from 'lucide-react';
+import { Loader2, AtSign, Edit2, Camera, ImagePlus, Check, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Camera as CapCamera, CameraResultType, CameraSource } from '@capacitor/camera';
+import Cropper from 'react-easy-crop';
 
 import { AIAvatarGenerator } from '@/components/profile/AIAvatarGenerator';
 
@@ -17,6 +18,36 @@ interface Props {
   currentUsername?: string | null;
   currentAvatarId?: string | null;
   currentAvatarUrl?: string | null;
+}
+
+// Creates a canvas-cropped image from the source
+async function getCroppedImg(imageSrc: string, pixelCrop: { x: number; y: number; width: number; height: number }): Promise<Blob> {
+  const image = new Image();
+  image.crossOrigin = 'anonymous';
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = reject;
+    image.src = imageSrc;
+  });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.drawImage(
+    image,
+    pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height,
+    0, 0, 512, 512
+  );
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => blob ? resolve(blob) : reject(new Error('Canvas crop failed')),
+      'image/jpeg',
+      0.9
+    );
+  });
 }
 
 export const EditIdentityDialog = ({ userId, currentUsername, currentAvatarId, currentAvatarUrl }: Props) => {
@@ -29,6 +60,12 @@ export const EditIdentityDialog = ({ userId, currentUsername, currentAvatarId, c
   const [uploading, setUploading] = useState(false);
   const queryClient = useQueryClient();
 
+  // Crop state
+  const [cropImage, setCropImage] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedArea, setCroppedArea] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen);
     if (newOpen) {
@@ -36,42 +73,58 @@ export const EditIdentityDialog = ({ userId, currentUsername, currentAvatarId, c
       setAvatarId(currentAvatarId || '');
       setAvatarUrl(currentAvatarUrl || '');
       setError('');
+      setCropImage(null);
     }
   };
 
-  const handlePhotoUpload = async (source: CameraSource) => {
+  const onCropComplete = useCallback((_: any, croppedAreaPixels: { x: number; y: number; width: number; height: number }) => {
+    setCroppedArea(croppedAreaPixels);
+  }, []);
+
+  const handlePickPhoto = async (source: CameraSource) => {
+    try {
+      setError('');
+      const photo = await CapCamera.getPhoto({
+        quality: 95,
+        allowEditing: false, // We handle cropping in-app
+        resultType: CameraResultType.DataUrl,
+        source: source,
+        width: 1024,
+        height: 1024,
+      });
+
+      if (!photo.dataUrl) throw new Error('No photo data');
+
+      // Show the cropper
+      setCropImage(photo.dataUrl);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+    } catch (err: any) {
+      if (err.message?.includes('cancelled') || err.message?.includes('User cancelled')) {
+        // User cancelled
+      } else {
+        console.error('[PhotoPick]', err);
+        setError(err.message || 'Failed to pick photo');
+      }
+    }
+  };
+
+  const handleCropConfirm = async () => {
+    if (!cropImage || !croppedArea) return;
+
     try {
       setUploading(true);
       setError('');
 
-      const photo = await CapCamera.getPhoto({
-        quality: 80,
-        allowEditing: true,
-        resultType: CameraResultType.Base64,
-        source: source,
-        width: 512,
-        height: 512,
-      });
+      // Crop the image to 512x512
+      const croppedBlob = await getCroppedImg(cropImage, croppedArea);
 
-      if (!photo.base64String) throw new Error('No photo data');
-
-      // Convert base64 to blob
-      const byteString = atob(photo.base64String);
-      const ab = new ArrayBuffer(byteString.length);
-      const ia = new Uint8Array(ab);
-      for (let i = 0; i < byteString.length; i++) {
-        ia[i] = byteString.charCodeAt(i);
-      }
-
-      const mimeType = photo.format === 'png' ? 'image/png' : 'image/jpeg';
-      const blob = new Blob([ab], { type: mimeType });
-      const extension = photo.format === 'png' ? 'png' : 'jpg';
-      const fileName = `${userId}_photo_${Date.now()}.${extension}`;
+      const fileName = `${userId}_photo_${Date.now()}.jpg`;
 
       // Upload to Supabase storage
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(fileName, blob, { contentType: mimeType, upsert: true });
+        .upload(fileName, croppedBlob, { contentType: 'image/jpeg', upsert: true });
 
       if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
@@ -85,16 +138,13 @@ export const EditIdentityDialog = ({ userId, currentUsername, currentAvatarId, c
 
       setAvatarUrl(publicUrl);
       setAvatarId('custom_photo');
+      setCropImage(null);
       queryClient.invalidateQueries({ queryKey: ["profile", userId] });
       toast.success('Photo saved as your avatar!');
       setTimeout(() => setOpen(false), 800);
     } catch (err: any) {
-      if (err.message?.includes('cancelled') || err.message?.includes('User cancelled')) {
-        // User cancelled - no error needed
-      } else {
-        console.error('[PhotoUpload]', err);
-        setError(err.message || 'Failed to upload photo');
-      }
+      console.error('[PhotoUpload]', err);
+      setError(err.message || 'Failed to upload photo');
     } finally {
       setUploading(false);
     }
@@ -140,6 +190,73 @@ export const EditIdentityDialog = ({ userId, currentUsername, currentAvatarId, c
     }
   };
 
+  // ============================
+  // CROP VIEW (full-screen overlay inside dialog)
+  // ============================
+  if (cropImage) {
+    return (
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="sm:max-w-md bg-background border-border max-w-[95vw] max-h-[95vh] overflow-hidden rounded-2xl p-0">
+          <div className="flex flex-col h-[80vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <button onClick={() => setCropImage(null)} className="p-2 rounded-full hover:bg-secondary/50">
+                <X className="h-5 w-5 text-muted-foreground" />
+              </button>
+              <span className="text-sm font-bold uppercase tracking-wider">Crop Photo</span>
+              <Button
+                size="sm"
+                disabled={uploading}
+                onClick={handleCropConfirm}
+                className="bg-gradient-to-r from-primary to-cyan-500 gap-1"
+              >
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                Save
+              </Button>
+            </div>
+
+            {/* Cropper */}
+            <div className="relative flex-1 bg-black">
+              <Cropper
+                image={cropImage}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+              />
+            </div>
+
+            {/* Zoom slider */}
+            <div className="px-6 py-4 bg-background border-t border-border">
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">Zoom</span>
+                <input
+                  type="range"
+                  min={1}
+                  max={3}
+                  step={0.05}
+                  value={zoom}
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  className="flex-1 accent-primary h-1"
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground text-center mt-2">
+                Pinch or drag to position • 512×512 output
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // ============================
+  // MAIN EDIT VIEW
+  // ============================
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -178,7 +295,7 @@ export const EditIdentityDialog = ({ userId, currentUsername, currentAvatarId, c
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">📸 Upload Photo</p>
               
               {/* Show current photo avatar if set */}
-              {avatarUrl && (avatarId === 'custom_photo') && (
+              {avatarUrl && avatarId === 'custom_photo' && (
                 <div className="flex justify-center mb-3">
                   <div className="h-20 w-20 rounded-full overflow-hidden border-2 border-primary ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
                     <img src={avatarUrl} alt="Your photo" className="w-full h-full object-cover" />
@@ -192,10 +309,10 @@ export const EditIdentityDialog = ({ userId, currentUsername, currentAvatarId, c
                   variant="outline"
                   size="sm"
                   disabled={uploading}
-                  onClick={() => handlePhotoUpload(CameraSource.Camera)}
+                  onClick={() => handlePickPhoto(CameraSource.Camera)}
                   className="flex-1 gap-2 border-primary/30 text-primary hover:bg-primary/10"
                 >
-                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                  <Camera className="h-4 w-4" />
                   Take Photo
                 </Button>
                 <Button
@@ -203,10 +320,10 @@ export const EditIdentityDialog = ({ userId, currentUsername, currentAvatarId, c
                   variant="outline"
                   size="sm"
                   disabled={uploading}
-                  onClick={() => handlePhotoUpload(CameraSource.Photos)}
+                  onClick={() => handlePickPhoto(CameraSource.Photos)}
                   className="flex-1 gap-2 border-primary/30 text-primary hover:bg-primary/10"
                 >
-                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                  <ImagePlus className="h-4 w-4" />
                   Gallery
                 </Button>
               </div>
@@ -217,10 +334,9 @@ export const EditIdentityDialog = ({ userId, currentUsername, currentAvatarId, c
               <AIAvatarGenerator 
                 onAvatarGenerated={async (url) => {
                   setAvatarUrl(url);
-                  setAvatarId('custom_ai'); // Special marker for custom URLs
+                  setAvatarId('custom_ai');
                   setError('');
                   
-                  // Auto-save the AI avatar to the database instantly
                   if (userId) {
                     setIsSubmitting(true);
                     try {
