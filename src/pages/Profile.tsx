@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
-import { User, Settings, Bell, Shield, LogOut, ChevronRight, Zap, Target, Calendar, Heart, TrendingUp, Trash2, MapPin } from "lucide-react";
+import { User, Settings, Bell, Shield, LogOut, ChevronRight, Zap, Target, Calendar, Heart, TrendingUp, Trash2, MapPin, Watch, CheckCircle2, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +23,9 @@ import { useLocalCache } from "@/hooks/useLocalCache";
 import { InviteFriendsCard } from "@/components/InviteFriendsCard";
 import { EditIdentityDialog } from "@/components/profile/EditIdentityDialog";
 import { AVATARS } from "@/components/profile/AvatarSelector";
+import { healthKitService } from "@/services/healthKitService";
+import { Capacitor } from "@capacitor/core";
+import { toast } from "sonner";
 
 const menuItems = [
   { icon: MapPin, label: "Session History", action: "sessions", color: "text-primary" },
@@ -37,6 +41,15 @@ const Profile = () => {
   const { user, signOut } = useAuth();
   const { isOnline } = useOfflineSync();
   const { getCachedProfile, setCachedProfile, getCachedStreak, setCachedStreak } = useLocalCache();
+  const [hkConnected, setHkConnected] = useState(false);
+  const [hkConnecting, setHkConnecting] = useState(false);
+  const isIOS = Capacitor.getPlatform() === 'ios';
+
+  useEffect(() => {
+    if (isIOS) {
+      setHkConnected(healthKitService.isConnected());
+    }
+  }, []);
 
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["profile", user?.id],
@@ -319,9 +332,99 @@ const Profile = () => {
         </motion.div>
 
         {/* Invite Friends */}
-        <div className="px-4 mb-6 relative z-10">
+        <div className="px-4 mb-4 relative z-10">
           <InviteFriendsCard />
         </div>
+
+        {/* Apple Health Card (iOS only) */}
+        {isIOS && (
+          <motion.div
+            className="px-4 mb-6 relative z-10"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <div className={`tactical-card-interactive p-4 relative overflow-hidden ${
+              hkConnected 
+                ? 'border-green-500/30 bg-gradient-to-r from-green-500/5 to-emerald-500/5' 
+                : 'border-red-500/20 bg-gradient-to-r from-red-500/5 to-pink-500/5'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${
+                    hkConnected 
+                      ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/15' 
+                      : 'bg-gradient-to-br from-red-500/20 to-pink-500/15'
+                  }`}>
+                    <Heart className={`h-6 w-6 ${hkConnected ? 'text-green-400' : 'text-red-400'}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Apple Health</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {hkConnected 
+                        ? '✅ Connected — syncing Watch, Garmin, WHOOP' 
+                        : 'Sync steps from Apple Watch & wearables'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  disabled={hkConnecting}
+                  onClick={async () => {
+                    if (hkConnected) {
+                      healthKitService.disconnect();
+                      setHkConnected(false);
+                      toast.success('Apple Health disconnected');
+                    } else {
+                      setHkConnecting(true);
+                      try {
+                        const result = await healthKitService.requestAuthorization();
+                        if (result.success) {
+                          setHkConnected(true);
+                          toast.success('Apple Health connected! 🏥');
+                        } else {
+                          toast.error(result.error || 'Failed to connect');
+                        }
+                      } catch (e: any) {
+                        toast.error(e.message || 'Connection failed');
+                      } finally {
+                        setHkConnecting(false);
+                      }
+                    }
+                  }}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
+                    hkConnected
+                      ? 'bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-red-500/15 hover:text-red-400 hover:border-red-500/30'
+                      : 'bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]'
+                  }`}
+                >
+                  {hkConnecting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : hkConnected ? (
+                    'Disconnect'
+                  ) : (
+                    'Connect'
+                  )}
+                </button>
+              </div>
+              {hkConnected && (
+                <div className="flex items-center gap-4 mt-3 pt-3 border-t border-green-500/10">
+                  <div className="flex items-center gap-1.5">
+                    <Watch className="h-3.5 w-3.5 text-green-400/70" />
+                    <span className="text-[10px] text-muted-foreground">Apple Watch</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-400/70" />
+                    <span className="text-[10px] text-muted-foreground">Garmin</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-400/70" />
+                    <span className="text-[10px] text-muted-foreground">WHOOP</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
 
         {/* Menu Items */}
         <div className="px-4 space-y-3 relative z-10">

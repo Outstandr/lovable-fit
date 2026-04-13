@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
+import { healthKitService } from './healthKitService';
 
 export interface StepData {
   steps: number;
@@ -119,8 +120,23 @@ class IosStepService {
             end: now.getTime()
           });
           
-          const steps = result.numberOfSteps || 0;
+          let steps = result.numberOfSteps || 0;
           const distance = result.distance || 0;
+
+          // MERGE WITH HEALTHKIT:
+          // HealthKit aggregates steps from Apple Watch, Garmin, WHOOP, etc.
+          // Use the higher of CMPedometer vs HealthKit to ensure Watch steps count.
+          if (healthKitService.isConnected()) {
+            try {
+              const hkSteps = await healthKitService.getTodaySteps();
+              if (hkSteps > steps) {
+                console.log(`[IosStepService] 🏥 HealthKit steps (${hkSteps}) > CMPedometer (${steps}), using HealthKit`);
+                steps = hkSteps;
+              }
+            } catch (e) {
+              console.log('[IosStepService] HealthKit query skipped:', e);
+            }
+          }
 
           // SLEEP MICRO-MOVEMENT FILTER:
           // CMPedometer registers tiny bed movements, phone placements, and vibrations as steps.
