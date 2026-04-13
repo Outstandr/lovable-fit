@@ -305,9 +305,10 @@ export const FriendsLeaderboard = () => {
   };
 
   const handleShareCode = async (code: string, groupName: string) => {
-    const text = `Join my step challenge "${groupName}" on Hotstepper! 🏃‍♂️\n\nUse code: ${code}\n\nOpen in app: lionelx://join/${code}\n\nDownload: ${APP_STORE_URL}`;
+    const joinUrl = `https://outstandr.github.io/lionelx-legal/join.html?code=${code}`;
+    const text = `Join my step challenge "${groupName}" on Hotstepper! 🏃‍♂️\n\nTap to join: ${joinUrl}`;
     try {
-      await Share.share({ title: `Join "${groupName}" on Hotstepper!`, text, dialogTitle: 'Share Group Invite' });
+      await Share.share({ title: `Join "${groupName}" on Hotstepper!`, text, url: joinUrl, dialogTitle: 'Share Group Invite' });
     } catch {
       await navigator.clipboard.writeText(text);
       setCopiedCode(true);
