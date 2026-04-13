@@ -187,25 +187,48 @@ export const FriendsLeaderboard = () => {
     init();
   }, [user]);
 
-  // Handle ?join=CODE from deep link
+  // Handle ?join=CODE from deep link — auto-join and show leaderboard
   useEffect(() => {
     const joinParam = searchParams.get('join');
-    if (joinParam) {
-      setJoinCode(joinParam.toUpperCase());
-      setShowJoinDialog(true);
-      // Auto-lookup
-      (async () => {
-        try {
-          const { data, error } = await supabase.rpc('lookup_group_by_code', { code: joinParam.toUpperCase() });
-          if (error) throw error;
-          if (data && data.length > 0) setJoinPreview(data[0]);
-          else toast.error('No group found with that code');
-        } catch { toast.error('Invalid code'); }
-      })();
-      // Clear the param
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchParams]);
+    if (!joinParam || !user) return;
+
+    const code = joinParam.toUpperCase();
+    setSearchParams({}, { replace: true }); // Clear param immediately
+
+    (async () => {
+      try {
+        // 1. Lookup the group
+        const { data: lookupData, error: lookupErr } = await supabase.rpc('lookup_group_by_code', { code });
+        if (lookupErr) throw lookupErr;
+        if (!lookupData || lookupData.length === 0) {
+          toast.error('No group found with that code');
+          return;
+        }
+        const groupInfo = lookupData[0];
+
+        // 2. Auto-join (ignore duplicate error if already a member)
+        const { error: joinErr } = await supabase
+          .from('friend_group_members')
+          .insert({ group_id: groupInfo.group_id, user_id: user.id, role: 'member' });
+
+        if (joinErr && joinErr.code !== '23505') throw joinErr;
+
+        if (!joinErr) {
+          toast.success(`Joined "${groupInfo.group_name}"! 🎉`);
+        }
+
+        // 3. Refresh groups and show this group's leaderboard
+        const loaded = await fetchGroups();
+        if (loaded) {
+          const joined = loaded.find(g => g.id === groupInfo.group_id);
+          if (joined) fetchGroupLeaderboard(joined);
+        }
+      } catch (err: any) {
+        console.error('[DeepLink] Auto-join error:', err);
+        toast.error(err.message || 'Failed to join group');
+      }
+    })();
+  }, [searchParams, user]);
 
   // ==========================
   // ACTIONS
