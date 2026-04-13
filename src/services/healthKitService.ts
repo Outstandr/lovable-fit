@@ -1,25 +1,17 @@
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
+import { Health } from '@capgo/capacitor-health';
 
 /**
  * Apple Health / HealthKit Service
  * 
- * Uses a custom native Swift plugin (HealthKitPlugin.swift) that directly
- * reads from Apple's HKHealthStore. This aggregates step data from:
+ * Uses @capgo/capacitor-health which wraps Apple's HKHealthStore.
+ * Reads step count aggregated from ALL sources:
  * - iPhone's CMPedometer
  * - Apple Watch
  * - Garmin Connect (if user has Apple Health sync enabled)
  * - WHOOP (if user has Apple Health sync enabled)
  * - Any other HealthKit-connected source
  */
-
-interface HealthKitPluginAPI {
-  isAvailable(): Promise<{ available: boolean }>;
-  requestAuthorization(): Promise<{ success: boolean }>;
-  queryTodaySteps(): Promise<{ steps: number }>;
-  queryStepsForRange(options: { startMs: number; endMs: number }): Promise<{ steps: number }>;
-}
-
-const HealthKitPlugin = registerPlugin<HealthKitPluginAPI>('HealthKitPlugin');
 
 const HK_CONNECTED_KEY = 'healthkit_connected';
 
@@ -48,19 +40,17 @@ class HealthKitService {
 
     try {
       // Check availability
-      const { available } = await HealthKitPlugin.isAvailable();
-      console.log('[HealthKit] Available:', available);
+      const avail = await Health.isAvailable();
+      console.log('[HealthKit] Available:', JSON.stringify(avail));
 
-      if (!available) {
-        return { success: false, error: 'Apple Health is not available on this device' };
-      }
-
-      // Request authorization
+      // Request authorization — triggers HealthKit permission dialog
       console.log('[HealthKit] Requesting authorization...');
-      const result = await HealthKitPlugin.requestAuthorization();
-      
+      const status = await Health.requestAuthorization({
+        read: ['steps', 'distance', 'flightsClimbed'],
+      });
+
       localStorage.setItem(HK_CONNECTED_KEY, 'true');
-      console.log('[HealthKit] ✅ Authorization completed:', result);
+      console.log('[HealthKit] ✅ Authorization completed:', JSON.stringify(status));
       return { success: true };
     } catch (e: any) {
       console.error('[HealthKit] Authorization failed:', e);
@@ -83,9 +73,20 @@ class HealthKitService {
     if (!this.isSupported() || !this.isConnected()) return 0;
 
     try {
-      const { steps } = await HealthKitPlugin.queryTodaySteps();
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+
+      const result = await Health.queryAggregated({
+        dataType: 'steps',
+        startDate: startOfDay.toISOString(),
+        endDate: now.toISOString(),
+        bucket: 'day',
+        aggregation: 'sum',
+      });
+
+      const steps = result?.samples?.[0]?.value || 0;
       console.log(`[HealthKit] Today's steps (all sources): ${steps}`);
-      return steps;
+      return Math.round(steps);
     } catch (e) {
       console.error('[HealthKit] Failed to read today steps:', e);
       return 0;
@@ -99,8 +100,16 @@ class HealthKitService {
     if (!this.isSupported() || !this.isConnected()) return 0;
 
     try {
-      const { steps } = await HealthKitPlugin.queryStepsForRange({ startMs, endMs });
-      return steps;
+      const result = await Health.queryAggregated({
+        dataType: 'steps',
+        startDate: new Date(startMs).toISOString(),
+        endDate: new Date(endMs).toISOString(),
+        bucket: 'day',
+        aggregation: 'sum',
+      });
+
+      const total = (result?.samples || []).reduce((sum: number, s: any) => sum + (s.value || 0), 0);
+      return Math.round(total);
     } catch (e) {
       console.error('[HealthKit] Range query failed:', e);
       return 0;
