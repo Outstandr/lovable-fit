@@ -351,12 +351,18 @@ const Profile = () => {
             }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${
-                    hkConnected 
-                      ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/15' 
-                      : 'bg-gradient-to-br from-red-500/20 to-pink-500/15'
-                  }`}>
-                    <Heart className={`h-6 w-6 ${hkConnected ? 'text-green-400' : 'text-red-400'}`} />
+                  <div className="h-12 w-12 rounded-xl overflow-hidden flex-shrink-0 shadow-md">
+                    {/* Apple Health App Icon */}
+                    <svg viewBox="0 0 120 120" className="w-full h-full">
+                      <defs>
+                        <linearGradient id="healthGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#FF6B8A" />
+                          <stop offset="100%" stopColor="#FF2D55" />
+                        </linearGradient>
+                      </defs>
+                      <rect width="120" height="120" rx="28" fill="url(#healthGrad)" />
+                      <path d="M60 92C60 92 30 72 30 52C30 42 38 34 48 34C53 34 57.5 36.5 60 40C62.5 36.5 67 34 72 34C82 34 90 42 90 52C90 72 60 92 60 92Z" fill="white" />
+                    </svg>
                   </div>
                   <div>
                     <p className="text-sm font-bold text-foreground">Apple Health</p>
