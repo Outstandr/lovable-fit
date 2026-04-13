@@ -85,21 +85,21 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capgo/capacitor-pedometer"
 
 SPEC CHECKSUMS:
-  Capacitor: 79e40e5e76f852965dce30406c65253fa154e24a
-  CapacitorApp: cfa0120a1f3a6f69d4d37d3041782aa5c5167d0b
-  CapacitorBackgroundStep: 0f141a9b751b7cf647575a5d8427f3593356d21b
-  CapacitorBrowser: 7452c73a202716d9c9035e5dbe5c5d8d07737f22
-  CapacitorCamera: 05ac5bd4499ed4b8cf5358d1b4a874b385de7b4d
+  Capacitor: 341ff7cf652ec695d1a8ebf604db448ac7b6d635
+  CapacitorApp: 3963a84197280757b84f126afd1520a85ae3b092
+  CapacitorBackgroundStep: ea3df8cf764c1b9eb1f518d1c93f0c5bf28ab13c
+  CapacitorBrowser: b7d7f05f840fe042e46f6528bb8db853e3058fb2
+  CapacitorCamera: 592acb7ab9fb748e2d8571eb03af30ec4e1ace12
   CapacitorCordova: 5dc3912d25ef770a3fe0f431bb65c9fbfa2e92f9
-  CapacitorGeolocation: a8381371f7b460e6be569576557285e70f0c9d6c
-  CapacitorKeyboard: 0a2e7c0635ccf3db60abed14bd6f35147ce25942
-  CapacitorLocalNotifications: adb0776e74524387e48b9b683690fdf79f274753
-  CapacitorNativeSettings: f5511eb94cb5700ac4edf54f992d2c0dda1857d6
-  CapacitorPushNotifications: 49cd6c474cb03ee171494636693f6f06209469a0
-  CapacitorShare: 703a2744f755982f1a4950f5120bea9763d6dfea
-  CapacitorSplashScreen: 4b78177a21f0f73ccc1c78dd93b2a94854ac4b83
-  CapacitorStatusBar: c6fa2d404083e41d145ea56698707a6986d4428b
-  CapgoCapacitorPedometer: 20d9ca18d55bdc8ff4fabcf6523af3a4c126e6cf
+  CapacitorGeolocation: 8a405e707de9aff6ac9eca7f408966a370f7ca33
+  CapacitorKeyboard: d7868c079a4d5277a3deca27a10a488fcbbb8b69
+  CapacitorLocalNotifications: 4db83a7f6bdd2f30dcedf5c6f92c415065467a24
+  CapacitorNativeSettings: 3cd2e2ef431fe471674f381609cfb29154ddfcfa
+  CapacitorPushNotifications: 722c1528eabbefd355f47e373a4c6235d01e85e9
+  CapacitorShare: 12f1d192170cbcf9f108fd675ac8e343761a4638
+  CapacitorSplashScreen: 422880d7117605c30699eb4b21644b62db42e86c
+  CapacitorStatusBar: 312e2e67928dfe9514c4a8916a1fd610552f5f35
+  CapgoCapacitorPedometer: af59371f994f904759a27f19fc75a8684f5dd6ba
   IONGeolocationLib: a5e40b54edc2ee9902036eda5aaa41ddf07bb68d
 
 PODFILE CHECKSUM: d88de7fcb054b4cff07e2c6e4b73bf29ad16c601
