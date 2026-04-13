@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Crown, Medal, Loader2, WifiOff, Footprints, Flame, Globe, Users, MapPin } from "lucide-react";
+import { Crown, Medal, Loader2, WifiOff, Footprints, Flame, Globe, Users, MapPin, Bell, UserPlus } from "lucide-react";
 import { SkeletonCard, SkeletonCircle, SkeletonText } from "@/components/ui/SkeletonCard";
 import { BottomNav } from "@/components/BottomNav";
 import { PullToRefresh } from "@/components/PullToRefresh";
@@ -13,8 +13,10 @@ import { useNavigate } from "react-router-dom";
 import { AVATARS } from "@/components/profile/AvatarSelector";
 import { FriendsLeaderboard } from "@/components/leaderboard/FriendsLeaderboard";
 import { LocalLeaderboard } from "@/components/leaderboard/LocalLeaderboard";
+import { PendingInvitationsSheet } from "@/components/leaderboard/PendingInvitationsSheet";
+import { InviteToGroupModal } from "@/components/leaderboard/InviteToGroupModal";
 
-type ScopeType = 'global' | 'friends' | 'local';
+type ScopeType = 'friends' | 'global' | 'local';
 type TabType = 'today' | 'week' | 'month';
 
 interface LeaderboardEntry {
@@ -30,16 +32,9 @@ interface LeaderboardEntry {
 }
 
 const AvatarDisplay = ({ entry, size = "md", style }: { entry: LeaderboardEntry, size?: "sm" | "md" | "lg" | "xl", style?: any }) => {
-  const sizeClasses = {
-    sm: "h-10 w-10 text-sm",
-    md: "h-14 w-14 text-xl",
-    lg: "h-16 w-16 text-lg",
-    xl: "h-20 w-20 text-xl"
-  };
-
+  const sizeClasses = { sm: "h-10 w-10 text-sm", md: "h-14 w-14 text-xl", lg: "h-16 w-16 text-lg", xl: "h-20 w-20 text-xl" };
   const isSelected = entry.isCurrentUser;
   const borderClass = style?.border || "border-border";
-  
   return (
     <div className={`relative ${sizeClasses[size]} rounded-full bg-secondary flex items-center justify-center border-2 ${borderClass} overflow-hidden ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}>
       {entry.avatarUrl ? (
@@ -55,8 +50,7 @@ const StreakBadge = ({ streak }: { streak: number }) => {
   if (streak === 0) return null;
   return (
     <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 text-[10px] font-bold">
-      <Flame className="h-3 w-3" />
-      {streak}
+      <Flame className="h-3 w-3" />{streak}
     </span>
   );
 };
@@ -79,16 +73,49 @@ const Leaderboard = () => {
   const { isOnline } = useOfflineSync();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('today');
-  const [activeScope, setActiveScope] = useState<ScopeType>('global');
+  const [activeScope, setActiveScope] = useState<ScopeType>('friends');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
+  // Invitation state
+  const [showInvitations, setShowInvitations] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [showInviteUser, setShowInviteUser] = useState(false);
+  const [inviteTarget, setInviteTarget] = useState<{ userId: string; name: string; avatarUrl: string | null } | null>(null);
+  const [userGroups, setUserGroups] = useState<{ id: string; name: string; emoji: string }[]>([]);
+
+  // Fetch pending invitation count
+  useEffect(() => {
+    if (!user) return;
+    const fetchCount = async () => {
+      try {
+        const { data } = await supabase.rpc('get_pending_invitations', { target_user_id: user.id });
+        setPendingCount((data || []).length);
+      } catch {}
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Fetch user groups for invite modal
+  useEffect(() => {
+    if (!user) return;
+    const fetchGroups = async () => {
+      try {
+        const { data: memberships } = await supabase.from('friend_group_members').select('group_id').eq('user_id', user.id);
+        if (!memberships?.length) return;
+        const { data: groups } = await supabase.from('friend_groups').select('id, name, emoji').in('id', memberships.map(m => m.group_id));
+        setUserGroups((groups || []).map(g => ({ id: g.id, name: g.name, emoji: g.emoji || '🏆' })));
+      } catch {}
+    };
+    fetchGroups();
+  }, [user]);
+
   const fetchLeaderboard = useCallback(async (tab: TabType = activeTab) => {
-    console.log('[Leaderboard] Fetching - Version: Fix Duplicates + Privacy V2');
     try {
       setLoading(true);
-
       const [leaderboardResult, hiddenUsersResult, currentUserProfileResult] = await Promise.all([
         (async () => {
           if (tab === 'today') return supabase.rpc('get_today_leaderboard');
@@ -103,16 +130,10 @@ const Leaderboard = () => {
       const { data: hiddenUsers } = hiddenUsersResult;
       const { data: currentUserProfile } = currentUserProfileResult;
 
-      if (error) {
-        console.error('[Leaderboard] Error fetching data:', error);
-        return;
-      }
+      if (error) return;
 
       const hiddenUserIds = new Set((hiddenUsers || []).map(u => u.id));
-
-      if (user?.id && currentUserProfile?.show_on_leaderboard === false) {
-        hiddenUserIds.add(user.id);
-      }
+      if (user?.id && currentUserProfile?.show_on_leaderboard === false) hiddenUserIds.add(user.id);
 
       let entries: LeaderboardEntry[] = (data || []).map((row: any) => {
         const avatarAsset = AVATARS.find(a => a.id === row.avatar_id);
@@ -129,20 +150,11 @@ const Leaderboard = () => {
         };
       });
 
-      const uniqueEntriesMap = new Map();
-      entries.forEach(entry => {
-        if (!uniqueEntriesMap.has(entry.userId)) {
-          uniqueEntriesMap.set(entry.userId, entry);
-        }
-      });
-      entries = Array.from(uniqueEntriesMap.values());
-
-      entries = entries.filter((entry: LeaderboardEntry) => !hiddenUserIds.has(entry.userId));
-
-      entries = entries.map((entry, index) => ({
-        ...entry,
-        rank: index + 1
-      }));
+      const uniqueMap = new Map();
+      entries.forEach(e => { if (!uniqueMap.has(e.userId)) uniqueMap.set(e.userId, e); });
+      entries = Array.from(uniqueMap.values());
+      entries = entries.filter(e => !hiddenUserIds.has(e.userId));
+      entries = entries.map((e, i) => ({ ...e, rank: i + 1 }));
 
       setLeaderboard(entries);
       setLastUpdate(new Date());
@@ -155,12 +167,7 @@ const Leaderboard = () => {
 
   useEffect(() => {
     if (loading) {
-      const timer = setTimeout(() => {
-        if (loading) {
-          console.warn('[Leaderboard] Force stopping loading after timeout');
-          setLoading(false);
-        }
-      }, 5000);
+      const timer = setTimeout(() => { if (loading) setLoading(false); }, 5000);
       return () => clearTimeout(timer);
     }
   }, [loading]);
@@ -170,80 +177,31 @@ const Leaderboard = () => {
     fetchLeaderboard(tab);
   };
 
-  const handleRefresh = useCallback(async () => {
-    await fetchLeaderboard();
-  }, [fetchLeaderboard]);
+  const handleRefresh = useCallback(async () => { await fetchLeaderboard(); }, [fetchLeaderboard]);
 
   useEffect(() => {
-    fetchLeaderboard();
-
-    const channel = supabase
-      .channel('leaderboard-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'daily_steps'
-        },
-        (payload) => {
-          fetchLeaderboard();
-        }
-      )
-      .subscribe((status) => {});
-
-    const refreshInterval = setInterval(() => fetchLeaderboard(), 30000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(refreshInterval);
-    };
-  }, [user, fetchLeaderboard]);
-
-  useEffect(() => {
-    if (isOnline) {
+    if (activeScope === 'global') {
       fetchLeaderboard();
+      const channel = supabase.channel('leaderboard-realtime').on('postgres_changes', { event: '*', schema: 'public', table: 'daily_steps' }, () => fetchLeaderboard()).subscribe();
+      const interval = setInterval(() => fetchLeaderboard(), 30000);
+      return () => { supabase.removeChannel(channel); clearInterval(interval); };
     }
-  }, [isOnline, fetchLeaderboard]);
+  }, [user, fetchLeaderboard, activeScope]);
+
+  useEffect(() => { if (isOnline && activeScope === 'global') fetchLeaderboard(); }, [isOnline, fetchLeaderboard, activeScope]);
+
+  const handleTapUser = (entry: LeaderboardEntry) => {
+    if (entry.isCurrentUser || userGroups.length === 0) return;
+    setInviteTarget({ userId: entry.userId, name: entry.name, avatarUrl: entry.avatarUrl });
+    setShowInviteUser(true);
+  };
 
   const currentUser = leaderboard.find(e => e.isCurrentUser);
   const top3 = leaderboard.slice(0, 3);
   const rest = leaderboard.slice(3);
   const activeTabConfig = TAB_CONFIG.find(t => t.key === activeTab)!;
 
-  if (loading && leaderboard.length === 0) {
-    return (
-      <div className="min-h-screen-safe flex flex-col p-4 animate-in fade-in duration-500">
-        <div className="flex items-center gap-2 mb-2">
-          <SkeletonCircle size="h-6 w-6" />
-          <SkeletonText width="w-40" className="h-6" />
-        </div>
-        <SkeletonText width="w-60" className="h-4 mb-6" />
-        <div className="flex items-end justify-center gap-2 mb-8 mt-4">
-          <div className="flex flex-col items-center gap-2">
-            <SkeletonCircle size="h-16 w-16" />
-            <SkeletonText width="w-16" className="h-4" />
-            <div className="h-16 w-20 rounded-t-lg bg-secondary/50 skeleton-shimmer" />
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <SkeletonCircle size="h-20 w-20" />
-            <SkeletonText width="w-20" className="h-4" />
-            <div className="h-24 w-24 rounded-t-lg bg-secondary/50 skeleton-shimmer" />
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <SkeletonCircle size="h-16 w-16" />
-            <SkeletonText width="w-16" className="h-4" />
-            <div className="h-12 w-20 rounded-t-lg bg-secondary/50 skeleton-shimmer" />
-          </div>
-        </div>
-        <div className="space-y-3">
-          {[...Array(6)].map((_, i) => (
-            <SkeletonCard key={i} variant="list" />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const scopeLabel = activeScope === 'friends' ? 'Friends' : activeScope === 'global' ? 'Global' : 'Local';
 
   return (
     <div className="h-screen flex flex-col page-with-bottom-nav relative">
@@ -252,53 +210,68 @@ const Leaderboard = () => {
         <div className="bg-yellow-500/20 border-b border-yellow-500/30 px-4 py-2 safe-area-pt flex-shrink-0">
           <div className="flex items-center gap-2 text-yellow-400">
             <WifiOff className="h-4 w-4" />
-            <span className="text-xs font-medium uppercase tracking-wider">
-              Offline Mode - Showing cached data
-            </span>
+            <span className="text-xs font-medium uppercase tracking-wider">Offline Mode</span>
           </div>
         </div>
       )}
 
-      {/* Header - Inside scroll area */}
-      <motion.header 
-        className="px-4 pb-4 header-safe flex-shrink-0"
+      {/* Header */}
+      <motion.header
+        className="px-4 pb-2 header-safe flex-shrink-0"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <h1 className="text-xl font-bold uppercase tracking-[0.2em] text-gradient-cyan animate-glow-pulse">
-          Leaderboard
-        </h1>
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mt-1">
-          {activeTabConfig.subtitle} • {leaderboard.length} Participants
-        </p>
-      </motion.header>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold uppercase tracking-[0.2em] text-gradient-cyan animate-glow-pulse">
+              Leaderboard
+            </h1>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mt-0.5">
+              {scopeLabel} {activeScope !== 'friends' && `• ${activeTabConfig.subtitle}`}
+            </p>
+          </div>
 
-      {/* Scope Tabs: Global / Friends / Local */}
-      <div className="px-4 pb-3 flex-shrink-0">
-        <div className="flex rounded-xl bg-secondary/40 backdrop-blur-sm p-1 gap-1 border border-border/40">
-          {[
-            { key: 'global' as ScopeType, label: 'Global', icon: Globe },
-            { key: 'friends' as ScopeType, label: 'Friends', icon: Users },
-            { key: 'local' as ScopeType, label: 'Local', icon: MapPin },
-          ].map((scope) => {
-            const Icon = scope.icon;
-            return (
-              <button
-                key={scope.key}
-                onClick={() => setActiveScope(scope.key)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 ${
-                  activeScope === scope.key
-                    ? 'bg-gradient-to-r from-primary to-cyan-500 text-white shadow-[0_0_15px_rgba(0,200,255,0.2)]'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-                }`}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {scope.label}
-              </button>
-            );
-          })}
+          {/* Right: Invite badge + Scope pills */}
+          <div className="flex items-center gap-1.5">
+            {/* Pending invitations bell */}
+            <button
+              onClick={() => setShowInvitations(true)}
+              className="relative p-2 rounded-xl hover:bg-secondary/50 transition-colors"
+            >
+              <Bell className="h-5 w-5 text-muted-foreground" />
+              {pendingCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 rounded-full bg-primary text-[9px] font-black text-primary-foreground flex items-center justify-center">
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+
+            {/* Scope pill buttons */}
+            {[
+              { key: 'friends' as ScopeType, icon: Users, label: 'Friends' },
+              { key: 'global' as ScopeType, icon: Globe, label: 'Global' },
+              { key: 'local' as ScopeType, icon: MapPin, label: 'Local' },
+            ].map(scope => {
+              const Icon = scope.icon;
+              const isActive = activeScope === scope.key;
+              return (
+                <button
+                  key={scope.key}
+                  onClick={() => setActiveScope(scope.key)}
+                  className={`p-2 rounded-xl transition-all ${
+                    isActive
+                      ? 'bg-gradient-to-r from-primary to-cyan-500 text-white shadow-[0_0_12px_rgba(0,200,255,0.2)]'
+                      : 'text-muted-foreground hover:bg-secondary/50'
+                  }`}
+                  title={scope.label}
+                >
+                  <Icon className="h-4 w-4" />
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      </motion.header>
 
       <RubberBandScroll className="flex-1 overflow-y-auto">
         <PullToRefresh onRefresh={handleRefresh} className="h-full">
@@ -311,262 +284,202 @@ const Leaderboard = () => {
           {/* Global Tab */}
           {activeScope === 'global' && (
           <>
-          {/* Time Tab Switcher - only for Global */}
-          <div className="px-4 pb-4 app-tour-leaderboard-tabs">
-            <div className="flex rounded-lg bg-secondary p-1 gap-1">
-              {TAB_CONFIG.map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => handleTabChange(tab.key)}
-                  className={`flex-1 py-2 px-3 text-sm font-medium uppercase tracking-wider rounded-md transition-all ${activeTab === tab.key
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Loading overlay for tab switches */}
-          {loading && leaderboard.length > 0 && (
-            <div className="flex justify-center py-4">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!loading && leaderboard.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 px-4">
-              <Footprints className="h-16 w-16 text-primary/50 mb-4" />
-              <p className="text-lg font-semibold text-foreground text-center">
-                Be the First!
-              </p>
-              <p className="text-muted-foreground text-center mt-2">
-                No one has logged steps {activeTab === 'today' ? 'today' : activeTab === 'week' ? 'this week' : 'this month'} yet.<br />Start walking to top the leaderboard!
-              </p>
-              <Button
-                variant="outline"
-                onClick={() => navigate('/')}
-                className="mt-6"
-              >
-                View Dashboard
-              </Button>
-            </div>
-          )}
-
-          {/* Top 3 Podium */}
-          {!loading && top3.length >= 3 && (
-            <motion.div
-              className="flex items-end justify-center gap-3 px-4 py-6 app-tour-leaderboard-podium"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-            >
-              {/* 2nd Place */}
-              <motion.div
-                className="flex flex-col items-center"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, type: "spring" }}
-              >
-                <div className="relative">
-                  <AvatarDisplay entry={top3[1]} size="lg" style={getRankStyle(top3[1].rank)} />
-                  <Medal className="absolute -bottom-1 -right-1 h-5 w-5 text-gray-300 drop-shadow-lg" />
-                </div>
-                <div className="flex items-center gap-1 mt-2">
-                  <span className="text-sm font-semibold text-foreground truncate max-w-[70px]">{top3[1].name}</span>
-                  <StreakBadge streak={top3[1].streak} />
-                </div>
-                {top3[1].username && <span className="text-[10px] text-muted-foreground truncate max-w-[70px] -mt-0.5 mb-0.5">{top3[1].username}</span>}
-                <span className="text-xs font-medium text-primary">{top3[1].steps.toLocaleString()}</span>
-                <motion.div
-                  className="mt-2 h-16 w-20 rounded-t-lg bg-gray-400/20 border-t border-x border-gray-400/30 shadow-depth"
-                  initial={{ scaleY: 0 }}
-                  animate={{ scaleY: 1 }}
-                  transition={{ delay: 0.5, type: "spring" }}
-                  style={{ transformOrigin: "bottom" }}
-                />
-              </motion.div>
-
-              {/* 1st Place */}
-              <motion.div
-                className="flex flex-col items-center"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4, type: "spring" }}
-              >
-                <div className="relative">
-                  <motion.div
-                    animate={{ y: [-2, 2, -2] }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                    className="z-10"
+            {/* Time Tab Switcher */}
+            <div className="px-4 pb-4 app-tour-leaderboard-tabs">
+              <div className="flex rounded-lg bg-secondary p-1 gap-1">
+                {TAB_CONFIG.map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => handleTabChange(tab.key)}
+                    className={`flex-1 py-2 px-3 text-sm font-medium uppercase tracking-wider rounded-md transition-all ${activeTab === tab.key
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                      }`}
                   >
-                    <Crown className="absolute -top-7 left-1/2 -translate-x-1/2 h-7 w-7 text-yellow-400 drop-shadow-lg" />
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Loading */}
+            {loading && leaderboard.length > 0 && (
+              <div className="flex justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            )}
+
+            {/* Empty */}
+            {!loading && leaderboard.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-20 px-4">
+                <Footprints className="h-16 w-16 text-primary/50 mb-4" />
+                <p className="text-lg font-semibold text-foreground text-center">Be the First!</p>
+                <p className="text-muted-foreground text-center mt-2">
+                  No one has logged steps {activeTab === 'today' ? 'today' : activeTab === 'week' ? 'this week' : 'this month'} yet.
+                </p>
+                <Button variant="outline" onClick={() => navigate('/')} className="mt-6">View Dashboard</Button>
+              </div>
+            )}
+
+            {/* Top 3 Podium */}
+            {!loading && top3.length >= 3 && (
+              <motion.div className="flex items-end justify-center gap-3 px-4 py-6 app-tour-leaderboard-podium"
+                initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}>
+                {/* 2nd */}
+                <motion.div className="flex flex-col items-center cursor-pointer" onClick={() => handleTapUser(top3[1])}
+                  initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, type: "spring" }}>
+                  <div className="relative">
+                    <AvatarDisplay entry={top3[1]} size="lg" style={getRankStyle(top3[1].rank)} />
+                    <Medal className="absolute -bottom-1 -right-1 h-5 w-5 text-gray-300 drop-shadow-lg" />
+                  </div>
+                  <div className="flex items-center gap-1 mt-2">
+                    <span className="text-sm font-semibold text-foreground truncate max-w-[70px]">{top3[1].name}</span>
+                    <StreakBadge streak={top3[1].streak} />
+                  </div>
+                  <span className="text-xs font-medium text-primary">{top3[1].steps.toLocaleString()}</span>
+                  <motion.div className="mt-2 h-16 w-20 rounded-t-lg bg-gray-400/20 border-t border-x border-gray-400/30 shadow-depth"
+                    initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: 0.5, type: "spring" }} style={{ transformOrigin: "bottom" }} />
+                </motion.div>
+
+                {/* 1st */}
+                <motion.div className="flex flex-col items-center cursor-pointer" onClick={() => handleTapUser(top3[0])}
+                  initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, type: "spring" }}>
+                  <div className="relative">
+                    <motion.div animate={{ y: [-2, 2, -2] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} className="z-10">
+                      <Crown className="absolute -top-7 left-1/2 -translate-x-1/2 h-7 w-7 text-yellow-400 drop-shadow-lg" />
+                    </motion.div>
+                    <AvatarDisplay entry={top3[0]} size="xl" style={getRankStyle(top3[0].rank)} />
+                  </div>
+                  <div className="flex items-center gap-1 mt-2">
+                    <span className="text-sm font-bold text-foreground truncate max-w-[80px]">{top3[0].name}</span>
+                    <StreakBadge streak={top3[0].streak} />
+                  </div>
+                  <span className="text-xs font-bold text-yellow-400">{top3[0].steps.toLocaleString()}</span>
+                  <motion.div className="mt-2 h-24 w-24 rounded-t-lg bg-yellow-500/20 border-t border-x border-yellow-500/30 shadow-glow-sm relative overflow-hidden"
+                    initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: 0.6, type: "spring" }} style={{ transformOrigin: "bottom" }}>
+                    <div className="absolute inset-0 bg-gradient-to-t from-yellow-500/10 to-transparent" />
                   </motion.div>
-                  <AvatarDisplay entry={top3[0]} size="xl" style={getRankStyle(top3[0].rank)} />
-                </div>
-                <div className="flex items-center gap-1 mt-2">
-                  <span className="text-sm font-bold text-foreground truncate max-w-[80px]">{top3[0].name}</span>
-                  <StreakBadge streak={top3[0].streak} />
-                </div>
-                {top3[0].username && <span className="text-xs text-muted-foreground truncate max-w-[80px] -mt-0.5 mb-1">{top3[0].username}</span>}
-                <span className="text-xs font-bold text-yellow-400">{top3[0].steps.toLocaleString()}</span>
-                <motion.div
-                  className="mt-2 h-24 w-24 rounded-t-lg bg-yellow-500/20 border-t border-x border-yellow-500/30 shadow-glow-sm relative overflow-hidden"
-                  initial={{ scaleY: 0 }}
-                  animate={{ scaleY: 1 }}
-                  transition={{ delay: 0.6, type: "spring" }}
-                  style={{ transformOrigin: "bottom" }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-t from-yellow-500/10 to-transparent" />
+                </motion.div>
+
+                {/* 3rd */}
+                <motion.div className="flex flex-col items-center cursor-pointer" onClick={() => handleTapUser(top3[2])}
+                  initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, type: "spring" }}>
+                  <div className="relative">
+                    <AvatarDisplay entry={top3[2]} size="lg" style={getRankStyle(top3[2].rank)} />
+                    <Medal className="absolute -bottom-1 -right-1 h-5 w-5 text-amber-500 drop-shadow-lg" />
+                  </div>
+                  <div className="flex items-center gap-1 mt-2">
+                    <span className="text-sm font-semibold text-foreground truncate max-w-[70px]">{top3[2].name}</span>
+                    <StreakBadge streak={top3[2].streak} />
+                  </div>
+                  <span className="text-xs font-medium text-primary">{top3[2].steps.toLocaleString()}</span>
+                  <motion.div className="mt-2 h-12 w-20 rounded-t-lg bg-amber-600/20 border-t border-x border-amber-600/30 shadow-depth"
+                    initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: 0.45, type: "spring" }} style={{ transformOrigin: "bottom" }} />
                 </motion.div>
               </motion.div>
+            )}
 
-              {/* 3rd Place */}
-              <motion.div
-                className="flex flex-col items-center"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35, type: "spring" }}
-              >
-                <div className="relative">
-                  <AvatarDisplay entry={top3[2]} size="lg" style={getRankStyle(top3[2].rank)} />
-                  <Medal className="absolute -bottom-1 -right-1 h-5 w-5 text-amber-500 drop-shadow-lg" />
-                </div>
-                <div className="flex items-center gap-1 mt-2">
-                  <span className="text-sm font-semibold text-foreground truncate max-w-[70px]">{top3[2].name}</span>
-                  <StreakBadge streak={top3[2].streak} />
-                </div>
-                {top3[2].username && <span className="text-[10px] text-muted-foreground truncate max-w-[70px] -mt-0.5 mb-0.5">{top3[2].username}</span>}
-                <span className="text-xs font-medium text-primary">{top3[2].steps.toLocaleString()}</span>
-                <motion.div
-                  className="mt-2 h-12 w-20 rounded-t-lg bg-amber-600/20 border-t border-x border-amber-600/30 shadow-depth"
-                  initial={{ scaleY: 0 }}
-                  animate={{ scaleY: 1 }}
-                  transition={{ delay: 0.45, type: "spring" }}
-                  style={{ transformOrigin: "bottom" }}
-                />
-              </motion.div>
-            </motion.div>
-          )}
-
-          {/* Simplified Cards for 1-2 users */}
-          {!loading && leaderboard.length > 0 && leaderboard.length < 3 && (
-            <motion.div
-              className="px-4 py-6 space-y-3"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-            >
-              {leaderboard.map((entry, index) => {
-                const style = getRankStyle(index + 1);
-                return (
-                  <div
-                    key={entry.userId}
-                    className={`p-4 rounded-xl ${style.bg} border ${style.border} ${entry.isCurrentUser ? 'ring-2 ring-primary' : ''}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <AvatarDisplay entry={entry} size="md" style={style} />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            {index === 0 && <Crown className="h-5 w-5 text-yellow-400" />}
-                            {index === 1 && <Medal className="h-5 w-5 text-gray-300" />}
-                            <span className={`font-bold ${style.text}`}>#{entry.rank}</span>
+            {/* 1-2 users */}
+            {!loading && leaderboard.length > 0 && leaderboard.length < 3 && (
+              <motion.div className="px-4 py-6 space-y-3" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}>
+                {leaderboard.map((entry, index) => {
+                  const style = getRankStyle(index + 1);
+                  return (
+                    <div key={entry.userId} onClick={() => handleTapUser(entry)}
+                      className={`p-4 rounded-xl cursor-pointer ${style.bg} border ${style.border} ${entry.isCurrentUser ? 'ring-2 ring-primary' : ''}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <AvatarDisplay entry={entry} size="md" style={style} />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              {index === 0 && <Crown className="h-5 w-5 text-yellow-400" />}
+                              <span className={`font-bold ${style.text}`}>#{entry.rank}</span>
+                            </div>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className="text-foreground font-semibold">{entry.name}</span>
+                              <StreakBadge streak={entry.streak} />
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-foreground font-semibold">{entry.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-primary">{entry.steps.toLocaleString()}</p>
+                          <span className="text-xs text-muted-foreground">steps</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </motion.div>
+            )}
+
+            {/* Full List */}
+            {!loading && (
+              <div className="px-4 space-y-2 pb-4">
+                {rest.map((entry, index) => {
+                  const style = getRankStyle(entry.rank);
+                  return (
+                    <motion.div key={entry.userId} onClick={() => handleTapUser(entry)}
+                      className={`flex items-center justify-between rounded-lg px-4 py-3 cursor-pointer ${entry.isCurrentUser
+                        ? 'bg-primary/10 border border-primary/30'
+                        : style.bg + ' border ' + style.border}`}
+                      initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + index * 0.05 }}>
+                      <div className="flex items-center gap-4">
+                        <span className={`w-8 text-lg font-bold ${entry.isCurrentUser ? 'text-primary' : style.text}`}>#{entry.rank}</span>
+                        <AvatarDisplay entry={entry} size="sm" style={style} />
+                        <div className="flex flex-col justify-center">
+                          <div className="flex items-center gap-1">
+                            <span className={`text-sm font-semibold leading-tight ${entry.isCurrentUser ? 'text-primary' : 'text-foreground'}`}>{entry.name}</span>
                             <StreakBadge streak={entry.streak} />
                           </div>
-                          {entry.username && <p className="text-xs text-muted-foreground leading-none">{entry.username}</p>}
+                          {entry.username && <p className="text-[10px] text-muted-foreground leading-none">{entry.username}</p>}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-primary">{entry.steps.toLocaleString()}</p>
-                        <span className="text-xs text-muted-foreground">steps</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </motion.div>
-          )}
-
-          {/* Full List */}
-          {!loading && (
-            <div className="px-4 space-y-2 pb-4">
-              {rest.map((entry, index) => {
-                const style = getRankStyle(entry.rank);
-                return (
-                  <motion.div
-                    key={entry.userId}
-                    className={`flex items-center justify-between rounded-lg px-4 py-3 ${entry.isCurrentUser
-                      ? 'bg-primary/10 border border-primary/30'
-                      : style.bg + ' border ' + style.border
-                      }`}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4 + index * 0.05 }}
-                  >
-                    <div className="flex items-center gap-4">
-                      <span className={`w-8 text-lg font-bold ${entry.isCurrentUser ? 'text-primary' : style.text}`}>
-                        #{entry.rank}
-                      </span>
-                      <AvatarDisplay entry={entry} size="sm" style={style} />
-                      <div className="flex flex-col justify-center">
-                        <div className="flex items-center gap-1">
-                          <span className={`text-sm font-semibold leading-tight ${entry.isCurrentUser ? 'text-primary' : 'text-foreground'}`}>
-                            {entry.name}
-                          </span>
-                          <StreakBadge streak={entry.streak} />
-                        </div>
-                        {entry.username && <p className="text-[10px] text-muted-foreground leading-none">{entry.username}</p>}
-                      </div>
-                    </div>
-                    <span className="text-sm font-bold text-primary">
-                      {entry.steps.toLocaleString()}
-                    </span>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
+                      <span className="text-sm font-bold text-primary">{entry.steps.toLocaleString()}</span>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
           </>
           )}
         </PullToRefresh>
       </RubberBandScroll>
 
-      {/* Pinned User Rank - Fixed above bottom nav */}
-      {currentUser && currentUser.rank > 3 && (
-        <motion.div
-          className="fixed left-4 right-4 z-fixed fixed-above-nav mb-2"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-        >
+      {/* Pinned User Rank */}
+      {activeScope === 'global' && currentUser && currentUser.rank > 3 && (
+        <motion.div className="fixed left-4 right-4 z-fixed fixed-above-nav mb-2"
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}>
           <div className="flex items-center justify-between rounded-lg bg-primary/20 border border-primary/40 px-4 py-3 glass-strong">
             <div className="flex items-center gap-4">
-              <span className="text-lg font-bold text-primary">
-                #{currentUser.rank}
-              </span>
+              <span className="text-lg font-bold text-primary">#{currentUser.rank}</span>
               <AvatarDisplay entry={currentUser} size="sm" style={getRankStyle(currentUser.rank)} />
               <div className="flex flex-col">
                 <span className="text-sm font-bold text-primary leading-tight">{currentUser.name}</span>
-                {currentUser.username ? (
-                  <p className="text-[10px] leading-none text-primary/70">{currentUser.username}</p>
-                ) : (
-                  <p className="text-[10px] uppercase tracking-wider text-primary/70">Your Rank</p>
-                )}
+                <p className="text-[10px] uppercase tracking-wider text-primary/70">Your Rank</p>
               </div>
             </div>
-            <span className="text-lg font-bold text-primary">
-              {currentUser.steps.toLocaleString()}
-            </span>
+            <span className="text-lg font-bold text-primary">{currentUser.steps.toLocaleString()}</span>
           </div>
         </motion.div>
       )}
+
+      {/* Pending Invitations Sheet */}
+      <PendingInvitationsSheet
+        isOpen={showInvitations}
+        onClose={() => setShowInvitations(false)}
+        onAccepted={() => {
+          setPendingCount(prev => Math.max(0, prev - 1));
+          // Refresh friends if on friends tab
+          if (activeScope === 'friends') setActiveScope('friends');
+        }}
+      />
+
+      {/* Invite User Modal (from leaderboard tap) */}
+      <InviteToGroupModal
+        isOpen={showInviteUser}
+        onClose={() => { setShowInviteUser(false); setInviteTarget(null); }}
+        targetUser={inviteTarget}
+        targetGroup={null}
+        userGroups={userGroups}
+      />
 
       <BottomNav />
     </div>

@@ -11,6 +11,7 @@ import { PushNotificationInitializer } from "@/components/PushNotificationInitia
 import { PageTransition } from "@/components/PageTransition";
 import { AppTour } from "@/components/AppTour";
 import { AppTourProvider, useAppTour } from "@/contexts/AppTourContext";
+import { useDeepLink } from "@/hooks/useDeepLink";
 import Index from "./pages/Index";
 import Onboarding from "./pages/Onboarding";
 import ActiveSession from "./pages/ActiveSession";
@@ -139,6 +140,7 @@ const AnimatedRoutes = () => {
 
 const AppChrome = () => {
   const { isTourOpen, onTourComplete, getDashboardTabSetter } = useAppTour();
+  useDeepLink();
 
   return (
     <div className="w-full h-[100dvh] overflow-hidden">
