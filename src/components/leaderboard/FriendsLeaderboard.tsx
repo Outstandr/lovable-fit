@@ -305,7 +305,7 @@ export const FriendsLeaderboard = () => {
   };
 
   const handleShareCode = async (code: string, groupName: string) => {
-    const joinUrl = `https://outstandr.github.io/lionelx-legal/join.html?code=${code}`;
+    const joinUrl = `https://lionel-x.com/join?code=${code}&group=${encodeURIComponent(groupName)}`;
     const text = `Join my step challenge "${groupName}" on Hotstepper! 🏃‍♂️\n\nTap to join: ${joinUrl}`;
     try {
       await Share.share({ title: `Join "${groupName}" on Hotstepper!`, text, url: joinUrl, dialogTitle: 'Share Group Invite' });
