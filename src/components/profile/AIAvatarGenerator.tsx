@@ -96,25 +96,22 @@ export const AIAvatarGenerator = ({ onAvatarGenerated, className }: AIAvatarGene
 
       const aiBase64 = await unmirrorForAI(rawBase64);
 
-      const stylePrompt = `Look at this photo carefully. This is a real person. Transform this EXACT person into a highly detailed 3D Pixar-style character avatar.
+      const stylePrompt = `Transform the provided reference photo into a highly detailed 3D animated character avatar.
+CRITICAL - IDENTITY MATCHING:
 
-CRITICAL - PRESERVE IDENTITY:
-- SAME GENDER as the person in the photo
-- SAME skin tone and complexion
-- SAME facial hair (beard, stubble, mustache) if present
-- SAME hair style, texture, length, and color
-- SAME face shape, nose, eyes, eyebrows
-- SAME accessories (glasses, chain, earrings) if visible
+Strictly mirror the facial features, gender, and age of the person in the photo.
+Facial Hair: Copy the exact facial hair status. If the person is clean-shaven, the avatar MUST have completely smooth, hairless skin on the face and neck. Do not add any shadows, stubble, or hair that is not present in the original photo.
+Features: Match the exact skin tone, face shape, nose width, eye shape, and eyebrow thickness.
+Hair: Replicate the exact hairstyle, texture, length, and color.
+Accessories: Only include glasses, earrings, or necklaces if they are clearly visible in the reference photo. Do not add new accessories.
+STYLE & COMPOSITION:
 
-STYLE RULES:
-- Normal front-facing HEADSHOT only — head and shoulders, no posing, no hand gestures
-- Natural relaxed expression, slight confident smile
-- Wearing a simple crew-neck t-shirt or casual top
-- Solid flat teal-turquoise background (#0D9488)
-- 3D Pixar/Disney animation quality, big expressive eyes, smooth skin, bright soft studio lighting
-- The avatar must be IMMEDIATELY recognizable as the same person
-
-Generate ONLY the image, no text.`;
+Medium: 3D Pixar/Disney modern animation movie quality. Big expressive eyes, smooth stylized skin, bright soft studio lighting.
+Framing: Perfect front-facing headshot (head and shoulders only). No hands, no poses.
+Expression: Natural, relaxed, friendly with a slight, confident smile.
+Clothing: Wearing a simple, clean crew-neck t-shirt.
+Background: Solid, flat teal-turquoise background (Hex: #0D9488).
+Output ONLY the final image.`;
 
       const generateRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${API_KEY}`, {
         method: 'POST',

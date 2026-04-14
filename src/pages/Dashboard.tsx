@@ -460,7 +460,7 @@ const Dashboard = () => {
             {/* Button content */}
             <div className="relative z-10 flex items-center justify-center">
               <Play className="mr-2 h-5 w-5" />
-              Start Active Session
+              Track Your Route
             </div>
           </Button>
         </motion.div>
