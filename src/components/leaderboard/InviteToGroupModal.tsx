@@ -117,7 +117,7 @@ export const InviteToGroupModal = ({ isOpen, onClose, targetGroup, targetUser, u
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 flex items-end justify-center"
+        className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -125,10 +125,10 @@ export const InviteToGroupModal = ({ isOpen, onClose, targetGroup, targetUser, u
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleClose} />
 
         <motion.div
-          className="relative w-full max-w-lg bg-card border-t border-border/60 rounded-t-3xl p-6 pb-10 max-h-[75vh] flex flex-col"
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '100%' }}
+          className="relative w-full max-w-lg bg-card border border-border/60 rounded-2xl p-6 max-h-[80vh] flex flex-col shadow-2xl"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
         >
           <div className="flex justify-center mb-4">
