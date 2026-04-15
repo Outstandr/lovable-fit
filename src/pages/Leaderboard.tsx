@@ -329,96 +329,94 @@ const Leaderboard = () => {
               </div>
             )}
 
-            {/* Top 3 Podium — only for qualified users (10k+ steps) */}
-            {!loading && top3.length >= 3 && (
-              <motion.div className="flex items-end justify-center gap-3 px-4 py-6 app-tour-leaderboard-podium"
-                initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}>
-                {/* 2nd */}
-                <motion.div className="flex flex-col items-center cursor-pointer" onClick={() => handleTapUser(top3[1])}
-                  initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, type: "spring" }}>
-                  <div className="relative">
-                    <AvatarDisplay entry={top3[1]} size="lg" style={getRankStyle(top3[1].rank)} />
-                    <Medal className="absolute -bottom-1 -right-1 h-5 w-5 text-gray-300 drop-shadow-lg" />
-                  </div>
-                  <div className="flex items-center gap-1 mt-2">
-                    <span className="text-sm font-semibold text-foreground truncate max-w-[70px]">{top3[1].name}</span>
-                    <StreakBadge streak={top3[1].streak} />
-                  </div>
-                  <span className="text-xs font-medium text-primary">{top3[1].steps.toLocaleString()}</span>
-                  <motion.div className="mt-2 h-16 w-20 rounded-t-lg bg-gray-400/20 border-t border-x border-gray-400/30 shadow-depth"
-                    initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: 0.5, type: "spring" }} style={{ transformOrigin: "bottom" }} />
-                </motion.div>
+            {/* Top 3 Podium — always visible, empty spots if no qualified users */}
+            {!loading && leaderboard.length > 0 && (() => {
+              const p1 = top3[0] || null;
+              const p2 = top3[1] || null;
+              const p3 = top3[2] || null;
 
-                {/* 1st */}
-                <motion.div className="flex flex-col items-center cursor-pointer" onClick={() => handleTapUser(top3[0])}
-                  initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, type: "spring" }}>
-                  <div className="relative">
-                    <motion.div animate={{ y: [-2, 2, -2] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} className="z-10">
-                      <Crown className="absolute -top-7 left-1/2 -translate-x-1/2 h-7 w-7 text-yellow-400 drop-shadow-lg" />
+              const EmptyPodiumSpot = ({ size, label }: { size: "lg" | "xl"; label: string }) => (
+                <div className="flex flex-col items-center">
+                  <div className={`relative ${size === 'xl' ? 'h-20 w-20' : 'h-16 w-16'} rounded-full bg-secondary/30 border-2 border-dashed border-border/40 flex items-center justify-center`}>
+                    <Footprints className="h-6 w-6 text-muted-foreground/30" />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground/40 mt-2 font-medium">{label}</span>
+                  <span className="text-[9px] text-muted-foreground/30">10k to qualify</span>
+                </div>
+              );
+
+              return (
+                <motion.div className="flex items-end justify-center gap-3 px-4 py-6 app-tour-leaderboard-podium"
+                  initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}>
+                  {/* 2nd */}
+                  <motion.div className="flex flex-col items-center cursor-pointer"
+                    onClick={() => p2 && handleTapUser(p2)}
+                    initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, type: "spring" }}>
+                    {p2 ? (
+                      <>
+                        <div className="relative">
+                          <AvatarDisplay entry={p2} size="lg" style={getRankStyle(p2.rank)} />
+                          <Medal className="absolute -bottom-1 -right-1 h-5 w-5 text-gray-300 drop-shadow-lg" />
+                        </div>
+                        <div className="flex items-center gap-1 mt-2">
+                          <span className="text-sm font-semibold text-foreground truncate max-w-[70px]">{p2.name}</span>
+                          <StreakBadge streak={p2.streak} />
+                        </div>
+                        <span className="text-xs font-medium text-primary">{p2.steps.toLocaleString()}</span>
+                      </>
+                    ) : <EmptyPodiumSpot size="lg" label="2nd" />}
+                    <motion.div className={`mt-2 h-16 w-20 rounded-t-lg border-t border-x shadow-depth ${p2 ? 'bg-gray-400/20 border-gray-400/30' : 'bg-secondary/10 border-border/20'}`}
+                      initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: 0.5, type: "spring" }} style={{ transformOrigin: "bottom" }} />
+                  </motion.div>
+
+                  {/* 1st */}
+                  <motion.div className="flex flex-col items-center cursor-pointer"
+                    onClick={() => p1 && handleTapUser(p1)}
+                    initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, type: "spring" }}>
+                    {p1 ? (
+                      <>
+                        <div className="relative">
+                          <motion.div animate={{ y: [-2, 2, -2] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} className="z-10">
+                            <Crown className="absolute -top-7 left-1/2 -translate-x-1/2 h-7 w-7 text-yellow-400 drop-shadow-lg" />
+                          </motion.div>
+                          <AvatarDisplay entry={p1} size="xl" style={getRankStyle(p1.rank)} />
+                        </div>
+                        <div className="flex items-center gap-1 mt-2">
+                          <span className="text-sm font-bold text-foreground truncate max-w-[80px]">{p1.name}</span>
+                          <StreakBadge streak={p1.streak} />
+                        </div>
+                        <span className="text-xs font-bold text-yellow-400">{p1.steps.toLocaleString()}</span>
+                      </>
+                    ) : <EmptyPodiumSpot size="xl" label="1st" />}
+                    <motion.div className={`mt-2 h-24 w-24 rounded-t-lg border-t border-x relative overflow-hidden ${p1 ? 'bg-yellow-500/20 border-yellow-500/30 shadow-glow-sm' : 'bg-secondary/10 border-border/20'}`}
+                      initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: 0.6, type: "spring" }} style={{ transformOrigin: "bottom" }}>
+                      {p1 && <div className="absolute inset-0 bg-gradient-to-t from-yellow-500/10 to-transparent" />}
                     </motion.div>
-                    <AvatarDisplay entry={top3[0]} size="xl" style={getRankStyle(top3[0].rank)} />
-                  </div>
-                  <div className="flex items-center gap-1 mt-2">
-                    <span className="text-sm font-bold text-foreground truncate max-w-[80px]">{top3[0].name}</span>
-                    <StreakBadge streak={top3[0].streak} />
-                  </div>
-                  <span className="text-xs font-bold text-yellow-400">{top3[0].steps.toLocaleString()}</span>
-                  <motion.div className="mt-2 h-24 w-24 rounded-t-lg bg-yellow-500/20 border-t border-x border-yellow-500/30 shadow-glow-sm relative overflow-hidden"
-                    initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: 0.6, type: "spring" }} style={{ transformOrigin: "bottom" }}>
-                    <div className="absolute inset-0 bg-gradient-to-t from-yellow-500/10 to-transparent" />
+                  </motion.div>
+
+                  {/* 3rd */}
+                  <motion.div className="flex flex-col items-center cursor-pointer"
+                    onClick={() => p3 && handleTapUser(p3)}
+                    initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, type: "spring" }}>
+                    {p3 ? (
+                      <>
+                        <div className="relative">
+                          <AvatarDisplay entry={p3} size="lg" style={getRankStyle(p3.rank)} />
+                          <Medal className="absolute -bottom-1 -right-1 h-5 w-5 text-amber-500 drop-shadow-lg" />
+                        </div>
+                        <div className="flex items-center gap-1 mt-2">
+                          <span className="text-sm font-semibold text-foreground truncate max-w-[70px]">{p3.name}</span>
+                          <StreakBadge streak={p3.streak} />
+                        </div>
+                        <span className="text-xs font-medium text-primary">{p3.steps.toLocaleString()}</span>
+                      </>
+                    ) : <EmptyPodiumSpot size="lg" label="3rd" />}
+                    <motion.div className={`mt-2 h-12 w-20 rounded-t-lg border-t border-x shadow-depth ${p3 ? 'bg-amber-600/20 border-amber-600/30' : 'bg-secondary/10 border-border/20'}`}
+                      initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: 0.45, type: "spring" }} style={{ transformOrigin: "bottom" }} />
                   </motion.div>
                 </motion.div>
-
-                {/* 3rd */}
-                <motion.div className="flex flex-col items-center cursor-pointer" onClick={() => handleTapUser(top3[2])}
-                  initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, type: "spring" }}>
-                  <div className="relative">
-                    <AvatarDisplay entry={top3[2]} size="lg" style={getRankStyle(top3[2].rank)} />
-                    <Medal className="absolute -bottom-1 -right-1 h-5 w-5 text-amber-500 drop-shadow-lg" />
-                  </div>
-                  <div className="flex items-center gap-1 mt-2">
-                    <span className="text-sm font-semibold text-foreground truncate max-w-[70px]">{top3[2].name}</span>
-                    <StreakBadge streak={top3[2].streak} />
-                  </div>
-                  <span className="text-xs font-medium text-primary">{top3[2].steps.toLocaleString()}</span>
-                  <motion.div className="mt-2 h-12 w-20 rounded-t-lg bg-amber-600/20 border-t border-x border-amber-600/30 shadow-depth"
-                    initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: 0.45, type: "spring" }} style={{ transformOrigin: "bottom" }} />
-                </motion.div>
-              </motion.div>
-            )}
-
-            {/* 1-2 users */}
-            {!loading && leaderboard.length > 0 && leaderboard.length < 3 && (
-              <motion.div className="px-4 py-6 space-y-3" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}>
-                {leaderboard.map((entry, index) => {
-                  const style = getRankStyle(index + 1);
-                  return (
-                    <div key={entry.userId} onClick={() => handleTapUser(entry)}
-                      className={`p-4 rounded-xl cursor-pointer ${style.bg} border ${style.border} ${entry.isCurrentUser ? 'ring-2 ring-primary' : ''}`}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <AvatarDisplay entry={entry} size="md" style={style} />
-                          <div>
-                            <div className="flex items-center gap-2">
-                              {index === 0 && <Crown className="h-5 w-5 text-yellow-400" />}
-                              <span className={`font-bold ${style.text}`}>#{entry.rank}</span>
-                            </div>
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <span className="text-foreground font-semibold">{entry.name}</span>
-                              <StreakBadge streak={entry.streak} />
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-primary">{entry.steps.toLocaleString()}</p>
-                          <span className="text-xs text-muted-foreground">steps</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </motion.div>
-            )}
+              );
+            })()}
 
             {/* Qualified List (4th+) */}
             {!loading && rest.length > 0 && (
