@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Crown, Medal, Loader2, WifiOff, Footprints, Flame, Globe, Users, MapPin, Bell, UserPlus, Lock, TrendingUp } from "lucide-react";
+import { Crown, Medal, Loader2, WifiOff, Footprints, Flame, Globe, Users, MapPin, Bell, UserPlus } from "lucide-react";
 import { SkeletonCard, SkeletonCircle, SkeletonText } from "@/components/ui/SkeletonCard";
 import { BottomNav } from "@/components/BottomNav";
 import { PullToRefresh } from "@/components/PullToRefresh";
@@ -29,6 +29,7 @@ interface LeaderboardEntry {
   userId: string;
   isCurrentUser: boolean;
   streak: number;
+  qualified: boolean;
 }
 
 const AvatarDisplay = ({ entry, size = "md", style }: { entry: LeaderboardEntry, size?: "sm" | "md" | "lg" | "xl", style?: any }) => {
@@ -77,8 +78,6 @@ const Leaderboard = () => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [currentUserSteps, setCurrentUserSteps] = useState(0);
-  const QUALIFY_THRESHOLD = 10000;
 
   // Invitation state
   const [showInvitations, setShowInvitations] = useState(false);
@@ -98,25 +97,6 @@ const Leaderboard = () => {
     };
     fetchCount();
     const interval = setInterval(fetchCount, 30000);
-    return () => clearInterval(interval);
-  }, [user]);
-
-  // Fetch current user's step count for qualify progress
-  useEffect(() => {
-    if (!user) return;
-    const fetchUserSteps = async () => {
-      try {
-        const { data } = await supabase
-          .from('daily_steps')
-          .select('steps')
-          .eq('user_id', user.id)
-          .eq('date', new Date().toISOString().split('T')[0])
-          .single();
-        setCurrentUserSteps(data?.steps || 0);
-      } catch {}
-    };
-    fetchUserSteps();
-    const interval = setInterval(fetchUserSteps, 15000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -158,16 +138,18 @@ const Leaderboard = () => {
 
       let entries: LeaderboardEntry[] = (data || []).map((row: any) => {
         const avatarAsset = AVATARS.find(a => a.id === row.avatar_id);
+        const steps = tab === 'today' ? (row.steps || 0) : (row.total_steps || 0);
         return {
           rank: Number(row.rank),
           name: row.display_name || 'Unknown',
           username: row.username ? `@${row.username}` : null,
-          steps: tab === 'today' ? (row.steps || 0) : (row.total_steps || 0),
+          steps,
           avatarInitials: row.avatar_initials || 'NA',
           avatarUrl: row.avatar_url || (avatarAsset ? avatarAsset.url : null),
           userId: row.user_id,
           isCurrentUser: row.user_id === user?.id,
-          streak: row.current_streak || 0
+          streak: row.current_streak || 0,
+          qualified: row.qualified !== undefined ? row.qualified : steps >= 10000,
         };
       });
 
@@ -175,7 +157,13 @@ const Leaderboard = () => {
       entries.forEach(e => { if (!uniqueMap.has(e.userId)) uniqueMap.set(e.userId, e); });
       entries = Array.from(uniqueMap.values());
       entries = entries.filter(e => !hiddenUserIds.has(e.userId));
-      entries = entries.map((e, i) => ({ ...e, rank: i + 1 }));
+      // Re-rank: qualified first, then unqualified
+      const qualifiedEntries = entries.filter(e => e.qualified);
+      const unqualifiedEntries = entries.filter(e => !e.qualified);
+      entries = [
+        ...qualifiedEntries.map((e, i) => ({ ...e, rank: i + 1 })),
+        ...unqualifiedEntries.map(e => ({ ...e, rank: 0 })),
+      ];
 
       setLeaderboard(entries);
       setLastUpdate(new Date());
@@ -218,8 +206,10 @@ const Leaderboard = () => {
   };
 
   const currentUser = leaderboard.find(e => e.isCurrentUser);
-  const top3 = leaderboard.slice(0, 3);
-  const rest = leaderboard.slice(3);
+  const qualifiedUsers = leaderboard.filter(e => e.qualified);
+  const unqualifiedUsers = leaderboard.filter(e => !e.qualified);
+  const top3 = qualifiedUsers.slice(0, 3);
+  const rest = qualifiedUsers.slice(3);
   const activeTabConfig = TAB_CONFIG.find(t => t.key === activeTab)!;
 
   const scopeLabel = activeScope === 'friends' ? 'Friends' : activeScope === 'global' ? 'Global' : 'Local';
@@ -328,57 +318,18 @@ const Leaderboard = () => {
               <div className="flex justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
             )}
 
-            {/* Empty — Qualify Card */}
+            {/* Empty */}
             {!loading && leaderboard.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-12 px-6">
-                <motion.div
-                  className="w-full max-w-sm"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ type: 'spring', damping: 20 }}
-                >
-                  <div className="tactical-card p-6 text-center border-primary/20">
-                    <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                      <Lock className="h-8 w-8 text-primary" />
-                    </div>
-                    <h3 className="text-lg font-bold text-foreground mb-1">Leaderboard Locked</h3>
-                    <p className="text-sm text-muted-foreground mb-5">
-                      Hit <span className="text-primary font-bold">10,000 steps</span> {activeTab === 'today' ? 'today' : activeTab === 'week' ? 'this week' : 'this month'} to unlock rankings and compete
-                    </p>
-                    
-                    {/* Progress bar */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground font-medium">{currentUserSteps.toLocaleString()} steps</span>
-                        <span className="text-primary font-bold">{QUALIFY_THRESHOLD.toLocaleString()}</span>
-                      </div>
-                      <div className="h-3 rounded-full bg-secondary overflow-hidden">
-                        <motion.div
-                          className="h-full rounded-full bg-gradient-to-r from-primary to-cyan-400"
-                          initial={{ width: 0 }}
-                          animate={{ width: `${Math.min((currentUserSteps / QUALIFY_THRESHOLD) * 100, 100)}%` }}
-                          transition={{ duration: 1, ease: 'easeOut' }}
-                        />
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">
-                        {currentUserSteps >= QUALIFY_THRESHOLD 
-                          ? '✅ You qualify! Pull to refresh.'
-                          : `${(QUALIFY_THRESHOLD - currentUserSteps).toLocaleString()} steps to go`}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-center gap-2 mt-6">
-                    <TrendingUp className="h-4 w-4 text-primary/60" />
-                    <p className="text-xs text-muted-foreground">
-                      Keep walking — you'll appear once you qualify
-                    </p>
-                  </div>
-                </motion.div>
+              <div className="flex flex-col items-center justify-center py-20 px-4">
+                <Footprints className="h-16 w-16 text-primary/50 mb-4" />
+                <p className="text-lg font-semibold text-foreground text-center">No steps logged yet</p>
+                <p className="text-muted-foreground text-center mt-2">
+                  Start walking {activeTab === 'today' ? 'today' : activeTab === 'week' ? 'this week' : 'this month'} to appear on the board!
+                </p>
               </div>
             )}
 
-            {/* Top 3 Podium */}
+            {/* Top 3 Podium — only for qualified users (10k+ steps) */}
             {!loading && top3.length >= 3 && (
               <motion.div className="flex items-end justify-center gap-3 px-4 py-6 app-tour-leaderboard-podium"
                 initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}>
@@ -469,9 +420,9 @@ const Leaderboard = () => {
               </motion.div>
             )}
 
-            {/* Full List */}
-            {!loading && (
-              <div className="px-4 space-y-2 pb-4">
+            {/* Qualified List (4th+) */}
+            {!loading && rest.length > 0 && (
+              <div className="px-4 space-y-2 pb-2">
                 {rest.map((entry, index) => {
                   const style = getRankStyle(entry.rank);
                   return (
@@ -495,6 +446,32 @@ const Leaderboard = () => {
                     </motion.div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Unqualified Users (< 10k steps) — greyed out */}
+            {!loading && unqualifiedUsers.length > 0 && (
+              <div className="px-4 space-y-1.5 pb-4">
+                {qualifiedUsers.length > 0 && (
+                  <p className="text-[10px] text-muted-foreground/50 uppercase tracking-widest font-medium pt-2 pb-1 px-1">Below 10,000 steps</p>
+                )}
+                {unqualifiedUsers.map((entry, index) => (
+                  <motion.div key={entry.userId} onClick={() => handleTapUser(entry)}
+                    className={`flex items-center justify-between rounded-lg px-4 py-3 cursor-pointer opacity-40 bg-secondary/20 border border-border/20`}
+                    initial={{ opacity: 0, x: -20 }} animate={{ opacity: 0.4, x: 0 }} transition={{ delay: 0.4 + index * 0.03 }}>
+                    <div className="flex items-center gap-4">
+                      <span className="w-8 text-sm font-medium text-muted-foreground/50">—</span>
+                      <AvatarDisplay entry={entry} size="sm" style={{ bg: 'bg-secondary', border: 'border-border/30', text: 'text-muted-foreground' }} />
+                      <div className="flex flex-col justify-center">
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm font-semibold leading-tight text-muted-foreground">{entry.name}</span>
+                        </div>
+                        {entry.username && <p className="text-[10px] text-muted-foreground/50 leading-none">{entry.username}</p>}
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold text-muted-foreground/50">{entry.steps.toLocaleString()}</span>
+                  </motion.div>
+                ))}
               </div>
             )}
           </>

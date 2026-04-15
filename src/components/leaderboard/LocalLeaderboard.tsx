@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, Medal, Loader2, Footprints, MapPin, Lock, TrendingUp } from 'lucide-react';
+import { Crown, Medal, Loader2, Footprints, MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { AVATARS } from '@/components/profile/AvatarSelector';
@@ -16,6 +16,7 @@ interface LeaderboardEntry {
   userId: string;
   isCurrentUser: boolean;
   streak: number;
+  qualified: boolean;
 }
 
 const AvatarDisplay = ({ entry, size = "md", style }: { entry: LeaderboardEntry, size?: "sm" | "md" | "lg" | "xl", style?: any }) => {
@@ -53,8 +54,6 @@ export const LocalLeaderboard = () => {
   const [country, setCountry] = useState<string | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUserSteps, setCurrentUserSteps] = useState(0);
-  const QUALIFY_THRESHOLD = 10000;
 
   // Fetch user's country from profile; if not set, auto-detect and save
   useEffect(() => {
@@ -92,16 +91,18 @@ export const LocalLeaderboard = () => {
 
       const entries: LeaderboardEntry[] = (data || []).map((row: any) => {
         const avatarAsset = AVATARS.find(a => a.id === row.avatar_id);
+        const steps = row.steps || 0;
         return {
           rank: Number(row.rank),
           name: row.display_name || 'Unknown',
           username: row.username ? `@${row.username}` : null,
-          steps: row.steps || 0,
+          steps,
           avatarInitials: row.avatar_initials || 'NA',
           avatarUrl: row.avatar_url || (avatarAsset ? avatarAsset.url : null),
           userId: row.user_id,
           isCurrentUser: row.user_id === user?.id,
           streak: row.current_streak || 0,
+          qualified: row.qualified !== undefined ? row.qualified : steps >= 10000,
         };
       });
       setLeaderboard(entries);
@@ -114,23 +115,11 @@ export const LocalLeaderboard = () => {
 
   useEffect(() => { if (country) fetchLeaderboard(); }, [country, fetchLeaderboard]);
 
-  // Fetch current user steps for qualify progress
-  useEffect(() => {
-    if (!user) return;
-    const fetchSteps = async () => {
-      try {
-        const { data } = await supabase.from('daily_steps').select('steps').eq('user_id', user.id).eq('date', new Date().toISOString().split('T')[0]).single();
-        setCurrentUserSteps(data?.steps || 0);
-      } catch {}
-    };
-    fetchSteps();
-    const iv = setInterval(fetchSteps, 15000);
-    return () => clearInterval(iv);
-  }, [user]);
-
   const countryInfo = country ? getCountryByCode(country) : null;
-  const top3 = leaderboard.slice(0, 3);
-  const rest = leaderboard.slice(3);
+  const qualifiedUsers = leaderboard.filter(e => e.qualified);
+  const unqualifiedUsers = leaderboard.filter(e => !e.qualified);
+  const top3 = qualifiedUsers.slice(0, 3);
+  const rest = qualifiedUsers.slice(3);
   const currentUser = leaderboard.find(e => e.isCurrentUser);
 
   if (!country) {
@@ -166,35 +155,9 @@ export const LocalLeaderboard = () => {
       </motion.div>
 
       {leaderboard.length === 0 ? (
-        <div className="flex flex-col items-center py-8 text-center">
-          <div className="w-full max-w-sm">
-            <div className="tactical-card p-5 text-center border-primary/20">
-              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                <Lock className="h-7 w-7 text-primary" />
-              </div>
-              <h3 className="text-base font-bold text-foreground mb-1">Leaderboard Locked</h3>
-              <p className="text-xs text-muted-foreground mb-4">
-                Hit <span className="text-primary font-bold">10,000 steps</span> today to compete in {countryInfo?.name}
-              </p>
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-[10px]">
-                  <span className="text-muted-foreground">{currentUserSteps.toLocaleString()} steps</span>
-                  <span className="text-primary font-bold">{QUALIFY_THRESHOLD.toLocaleString()}</span>
-                </div>
-                <div className="h-2.5 rounded-full bg-secondary overflow-hidden">
-                  <motion.div
-                    className="h-full rounded-full bg-gradient-to-r from-primary to-cyan-400"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min((currentUserSteps / QUALIFY_THRESHOLD) * 100, 100)}%` }}
-                    transition={{ duration: 1, ease: 'easeOut' }}
-                  />
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  {currentUserSteps >= QUALIFY_THRESHOLD ? '✅ You qualify! Pull to refresh.' : `${(QUALIFY_THRESHOLD - currentUserSteps).toLocaleString()} steps to go`}
-                </p>
-              </div>
-            </div>
-          </div>
+        <div className="flex flex-col items-center py-12 text-center">
+          <Footprints className="h-12 w-12 text-primary/40 mb-3" />
+          <p className="text-muted-foreground">No one in {countryInfo?.name} has logged steps today yet!</p>
         </div>
       ) : (
         <>
@@ -244,7 +207,7 @@ export const LocalLeaderboard = () => {
             </motion.div>
           )}
 
-          {/* Full list */}
+          {/* Full list — qualified users (4th+) */}
           <div className="space-y-2 mt-3">
             {rest.map((entry, i) => {
               const style = getRankStyle(entry.rank);
@@ -273,8 +236,36 @@ export const LocalLeaderboard = () => {
             })}
           </div>
 
+          {/* Unqualified users (< 10k) — greyed out */}
+          {unqualifiedUsers.length > 0 && (
+            <div className="space-y-1.5 mt-3">
+              {qualifiedUsers.length > 0 && (
+                <p className="text-[10px] text-muted-foreground/50 uppercase tracking-widest font-medium px-1">Below 10,000 steps</p>
+              )}
+              {unqualifiedUsers.map((entry, i) => (
+                <motion.div
+                  key={entry.userId}
+                  className={`flex items-center justify-between rounded-xl px-4 py-3 opacity-40 bg-secondary/20 border border-border/20`}
+                  initial={{ opacity: 0, x: -15 }}
+                  animate={{ opacity: 0.4, x: 0 }}
+                  transition={{ delay: i * 0.03 }}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 text-sm font-medium text-muted-foreground/50">—</span>
+                    <AvatarDisplay entry={entry} size="sm" style={{ bg: 'bg-secondary', border: 'border-border/30', text: 'text-muted-foreground' }} />
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-muted-foreground">{entry.name}</span>
+                      {entry.username && <p className="text-[10px] text-muted-foreground/50">{entry.username}</p>}
+                    </div>
+                  </div>
+                  <span className="text-sm font-bold text-muted-foreground/50">{entry.steps.toLocaleString()}</span>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
           {/* Pinned current user if ranked lower */}
-          {currentUser && currentUser.rank > 3 && (
+          {currentUser && currentUser.qualified && currentUser.rank > 3 && (
             <motion.div
               className="mt-4 p-3 rounded-xl bg-gradient-to-r from-primary/20 to-primary/5 border border-primary/30 shadow-[0_0_20px_rgba(0,200,255,0.1)]"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }}
