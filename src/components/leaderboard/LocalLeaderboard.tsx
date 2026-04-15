@@ -245,9 +245,9 @@ export const LocalLeaderboard = () => {
               {unqualifiedUsers.map((entry, i) => (
                 <motion.div
                   key={entry.userId}
-                  className={`flex items-center justify-between rounded-xl px-4 py-3 opacity-40 bg-secondary/20 border border-border/20`}
+                  className={`flex items-center justify-between rounded-xl px-4 py-3 bg-secondary/30 border border-border/30`}
                   initial={{ opacity: 0, x: -15 }}
-                  animate={{ opacity: 0.4, x: 0 }}
+                  animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.03 }}
                 >
                   <div className="flex items-center gap-3">

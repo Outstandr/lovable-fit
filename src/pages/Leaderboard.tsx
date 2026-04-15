@@ -455,8 +455,8 @@ const Leaderboard = () => {
                 )}
                 {unqualifiedUsers.map((entry, index) => (
                   <motion.div key={entry.userId} onClick={() => handleTapUser(entry)}
-                    className={`flex items-center justify-between rounded-lg px-4 py-3 cursor-pointer opacity-40 bg-secondary/20 border border-border/20`}
-                    initial={{ opacity: 0, x: -20 }} animate={{ opacity: 0.4, x: 0 }} transition={{ delay: 0.4 + index * 0.03 }}>
+                    className={`flex items-center justify-between rounded-lg px-4 py-3 cursor-pointer bg-secondary/30 border border-border/30`}
+                    initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + index * 0.03 }}>
                     <div className="flex items-center gap-4">
                       <span className="w-8 text-sm font-medium text-muted-foreground/50">—</span>
                       <AvatarDisplay entry={entry} size="sm" style={{ bg: 'bg-secondary', border: 'border-border/30', text: 'text-muted-foreground' }} />

@@ -630,7 +630,7 @@ export const FriendsLeaderboard = () => {
                   {groupMembers.map((entry, i) => {
                     const style = entry.qualified ? getRankStyle(i + 1) : { bg: 'bg-secondary/20', border: 'border-border/30', text: 'text-muted-foreground', glow: '' };
                     return (
-                      <div key={entry.userId} className={`p-4 rounded-xl ${style.bg} border ${style.border} ${entry.isCurrentUser ? 'ring-2 ring-primary' : ''} ${!entry.qualified ? 'opacity-50' : ''}`}>
+                      <div key={entry.userId} className={`p-4 rounded-xl ${style.bg} border ${style.border} ${entry.isCurrentUser ? 'ring-2 ring-primary' : ''}`}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
                             <AvatarDisplay entry={entry} size="md" style={style} />
@@ -668,8 +668,8 @@ export const FriendsLeaderboard = () => {
                     const style = isQualified ? getRankStyle(entry.rank) : { bg: 'bg-secondary/10', border: 'border-border/20', text: 'text-muted-foreground', glow: '' };
                     return (
                       <motion.div key={entry.userId}
-                        className={`flex items-center justify-between rounded-xl px-4 py-3 backdrop-blur-sm ${entry.isCurrentUser ? 'bg-gradient-to-r from-primary/15 to-primary/5 border border-primary/25' : style.bg + ' border ' + style.border} ${style.glow} ${!isQualified ? 'opacity-50' : ''}`}
-                        initial={{ opacity: 0, x: -15 }} animate={{ opacity: isQualified ? 1 : 0.5, x: 0 }} transition={{ delay: i * 0.03 }}>
+                        className={`flex items-center justify-between rounded-xl px-4 py-3 backdrop-blur-sm ${entry.isCurrentUser ? 'bg-gradient-to-r from-primary/15 to-primary/5 border border-primary/25' : style.bg + ' border ' + style.border} ${style.glow}`}
+                        initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
                         <div className="flex items-center gap-3">
                           {isQualified ? (
                             <span className={`w-7 text-base font-black ${entry.isCurrentUser ? 'text-primary' : style.text}`}>#{entry.rank}</span>
