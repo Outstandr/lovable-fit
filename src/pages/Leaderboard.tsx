@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Crown, Medal, Loader2, WifiOff, Footprints, Flame, Globe, Users, MapPin, Bell, UserPlus } from "lucide-react";
+import { Crown, Medal, Loader2, WifiOff, Footprints, Flame, Globe, Users, MapPin, Bell, UserPlus, Lock, TrendingUp } from "lucide-react";
 import { SkeletonCard, SkeletonCircle, SkeletonText } from "@/components/ui/SkeletonCard";
 import { BottomNav } from "@/components/BottomNav";
 import { PullToRefresh } from "@/components/PullToRefresh";
@@ -77,6 +77,8 @@ const Leaderboard = () => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [currentUserSteps, setCurrentUserSteps] = useState(0);
+  const QUALIFY_THRESHOLD = 10000;
 
   // Invitation state
   const [showInvitations, setShowInvitations] = useState(false);
@@ -96,6 +98,25 @@ const Leaderboard = () => {
     };
     fetchCount();
     const interval = setInterval(fetchCount, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Fetch current user's step count for qualify progress
+  useEffect(() => {
+    if (!user) return;
+    const fetchUserSteps = async () => {
+      try {
+        const { data } = await supabase
+          .from('daily_steps')
+          .select('steps')
+          .eq('user_id', user.id)
+          .eq('date', new Date().toISOString().split('T')[0])
+          .single();
+        setCurrentUserSteps(data?.steps || 0);
+      } catch {}
+    };
+    fetchUserSteps();
+    const interval = setInterval(fetchUserSteps, 15000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -307,15 +328,53 @@ const Leaderboard = () => {
               <div className="flex justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
             )}
 
-            {/* Empty */}
+            {/* Empty — Qualify Card */}
             {!loading && leaderboard.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-20 px-4">
-                <Footprints className="h-16 w-16 text-primary/50 mb-4" />
-                <p className="text-lg font-semibold text-foreground text-center">Be the First!</p>
-                <p className="text-muted-foreground text-center mt-2">
-                  No one has logged steps {activeTab === 'today' ? 'today' : activeTab === 'week' ? 'this week' : 'this month'} yet.
-                </p>
-                <Button variant="outline" onClick={() => navigate('/')} className="mt-6">View Dashboard</Button>
+              <div className="flex flex-col items-center justify-center py-12 px-6">
+                <motion.div
+                  className="w-full max-w-sm"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: 'spring', damping: 20 }}
+                >
+                  <div className="tactical-card p-6 text-center border-primary/20">
+                    <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                      <Lock className="h-8 w-8 text-primary" />
+                    </div>
+                    <h3 className="text-lg font-bold text-foreground mb-1">Leaderboard Locked</h3>
+                    <p className="text-sm text-muted-foreground mb-5">
+                      Hit <span className="text-primary font-bold">10,000 steps</span> {activeTab === 'today' ? 'today' : activeTab === 'week' ? 'this week' : 'this month'} to unlock rankings and compete
+                    </p>
+                    
+                    {/* Progress bar */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground font-medium">{currentUserSteps.toLocaleString()} steps</span>
+                        <span className="text-primary font-bold">{QUALIFY_THRESHOLD.toLocaleString()}</span>
+                      </div>
+                      <div className="h-3 rounded-full bg-secondary overflow-hidden">
+                        <motion.div
+                          className="h-full rounded-full bg-gradient-to-r from-primary to-cyan-400"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min((currentUserSteps / QUALIFY_THRESHOLD) * 100, 100)}%` }}
+                          transition={{ duration: 1, ease: 'easeOut' }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        {currentUserSteps >= QUALIFY_THRESHOLD 
+                          ? '✅ You qualify! Pull to refresh.'
+                          : `${(QUALIFY_THRESHOLD - currentUserSteps).toLocaleString()} steps to go`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-center gap-2 mt-6">
+                    <TrendingUp className="h-4 w-4 text-primary/60" />
+                    <p className="text-xs text-muted-foreground">
+                      Keep walking — you'll appear once you qualify
+                    </p>
+                  </div>
+                </motion.div>
               </div>
             )}
 

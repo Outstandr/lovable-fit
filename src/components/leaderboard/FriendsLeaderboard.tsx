@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Plus, LogIn, Share2, LogOut, Crown, Medal, Flame, Copy, Check, Loader2, Footprints, Sparkles, Pencil, UserPlus, Search } from 'lucide-react';
+import { Users, Plus, LogIn, Share2, LogOut, Crown, Medal, Flame, Copy, Check, Loader2, Footprints, Sparkles, Pencil, UserPlus, Search, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,6 +32,7 @@ interface GroupMember {
   userId: string;
   isCurrentUser: boolean;
   streak: number;
+  qualified: boolean;
 }
 
 const LAST_VIEWED_KEY = 'hotstepper_last_group';
@@ -163,6 +164,7 @@ export const FriendsLeaderboard = () => {
           userId: row.user_id,
           isCurrentUser: row.user_id === user?.id,
           streak: row.current_streak || 0,
+          qualified: row.qualified !== false && (row.steps || 0) >= 10000,
         };
       });
       setGroupMembers(entries);
@@ -626,16 +628,20 @@ export const FriendsLeaderboard = () => {
               {groupMembers.length > 0 && groupMembers.length < 3 && (
                 <div className="space-y-3 py-4">
                   {groupMembers.map((entry, i) => {
-                    const style = getRankStyle(i + 1);
+                    const style = entry.qualified ? getRankStyle(i + 1) : { bg: 'bg-secondary/20', border: 'border-border/30', text: 'text-muted-foreground', glow: '' };
                     return (
-                      <div key={entry.userId} className={`p-4 rounded-xl ${style.bg} border ${style.border} ${entry.isCurrentUser ? 'ring-2 ring-primary' : ''}`}>
+                      <div key={entry.userId} className={`p-4 rounded-xl ${style.bg} border ${style.border} ${entry.isCurrentUser ? 'ring-2 ring-primary' : ''} ${!entry.qualified ? 'opacity-50' : ''}`}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
                             <AvatarDisplay entry={entry} size="md" style={style} />
                             <div>
                               <div className="flex items-center gap-2">
-                                {i === 0 && <Crown className="h-5 w-5 text-yellow-400" />}
-                                <span className={`font-bold ${style.text}`}>#{entry.rank}</span>
+                                {entry.qualified && i === 0 && <Crown className="h-5 w-5 text-yellow-400" />}
+                                {entry.qualified ? (
+                                  <span className={`font-bold ${style.text}`}>#{entry.rank}</span>
+                                ) : (
+                                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider bg-secondary/60 px-2 py-0.5 rounded-full">Not Qualified</span>
+                                )}
                               </div>
                               <div className="flex items-center gap-1 mt-0.5">
                                 <span className="text-foreground font-semibold">{entry.name}</span>
@@ -644,7 +650,7 @@ export const FriendsLeaderboard = () => {
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-2xl font-bold text-primary">{entry.steps.toLocaleString()}</p>
+                            <p className={`text-2xl font-bold ${entry.qualified ? 'text-primary' : 'text-muted-foreground'}`}>{entry.steps.toLocaleString()}</p>
                             <span className="text-xs text-muted-foreground">steps</span>
                           </div>
                         </div>
@@ -658,23 +664,29 @@ export const FriendsLeaderboard = () => {
               {rest.length > 0 && (
                 <div className="space-y-2 mt-3">
                   {rest.map((entry, i) => {
-                    const style = getRankStyle(entry.rank);
+                    const isQualified = entry.qualified;
+                    const style = isQualified ? getRankStyle(entry.rank) : { bg: 'bg-secondary/10', border: 'border-border/20', text: 'text-muted-foreground', glow: '' };
                     return (
                       <motion.div key={entry.userId}
-                        className={`flex items-center justify-between rounded-xl px-4 py-3 backdrop-blur-sm ${entry.isCurrentUser ? 'bg-gradient-to-r from-primary/15 to-primary/5 border border-primary/25' : style.bg + ' border ' + style.border} ${style.glow}`}
-                        initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
+                        className={`flex items-center justify-between rounded-xl px-4 py-3 backdrop-blur-sm ${entry.isCurrentUser ? 'bg-gradient-to-r from-primary/15 to-primary/5 border border-primary/25' : style.bg + ' border ' + style.border} ${style.glow} ${!isQualified ? 'opacity-50' : ''}`}
+                        initial={{ opacity: 0, x: -15 }} animate={{ opacity: isQualified ? 1 : 0.5, x: 0 }} transition={{ delay: i * 0.03 }}>
                         <div className="flex items-center gap-3">
-                          <span className={`w-7 text-base font-black ${entry.isCurrentUser ? 'text-primary' : style.text}`}>#{entry.rank}</span>
+                          {isQualified ? (
+                            <span className={`w-7 text-base font-black ${entry.isCurrentUser ? 'text-primary' : style.text}`}>#{entry.rank}</span>
+                          ) : (
+                            <span className="w-7 text-[9px] font-medium text-muted-foreground/60">—</span>
+                          )}
                           <AvatarDisplay entry={entry} size="sm" style={style} />
                           <div className="flex flex-col">
                             <div className="flex items-center gap-1.5">
-                              <span className={`text-sm font-semibold ${entry.isCurrentUser ? 'text-primary' : 'text-foreground'}`}>{entry.name}</span>
+                              <span className={`text-sm font-semibold ${entry.isCurrentUser ? 'text-primary' : isQualified ? 'text-foreground' : 'text-muted-foreground'}`}>{entry.name}</span>
                               <StreakBadge streak={entry.streak} />
+                              {!isQualified && <span className="text-[8px] text-muted-foreground/60 uppercase tracking-wider">Not Qualified</span>}
                             </div>
                             {entry.username && <p className="text-[10px] text-muted-foreground">{entry.username}</p>}
                           </div>
                         </div>
-                        <span className="text-sm font-bold text-primary">{entry.steps.toLocaleString()}</span>
+                        <span className={`text-sm font-bold ${isQualified ? 'text-primary' : 'text-muted-foreground/50'}`}>{entry.steps.toLocaleString()}</span>
                       </motion.div>
                     );
                   })}

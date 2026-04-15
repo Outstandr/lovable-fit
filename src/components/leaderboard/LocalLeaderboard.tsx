@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, Medal, Flame, MapPin, Loader2, Footprints } from 'lucide-react';
+import { Crown, Medal, Loader2, Footprints, MapPin, Lock, TrendingUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { AVATARS } from '@/components/profile/AvatarSelector';
@@ -53,6 +53,8 @@ export const LocalLeaderboard = () => {
   const [country, setCountry] = useState<string | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUserSteps, setCurrentUserSteps] = useState(0);
+  const QUALIFY_THRESHOLD = 10000;
 
   // Fetch user's country from profile; if not set, auto-detect and save
   useEffect(() => {
@@ -112,6 +114,20 @@ export const LocalLeaderboard = () => {
 
   useEffect(() => { if (country) fetchLeaderboard(); }, [country, fetchLeaderboard]);
 
+  // Fetch current user steps for qualify progress
+  useEffect(() => {
+    if (!user) return;
+    const fetchSteps = async () => {
+      try {
+        const { data } = await supabase.from('daily_steps').select('steps').eq('user_id', user.id).eq('date', new Date().toISOString().split('T')[0]).single();
+        setCurrentUserSteps(data?.steps || 0);
+      } catch {}
+    };
+    fetchSteps();
+    const iv = setInterval(fetchSteps, 15000);
+    return () => clearInterval(iv);
+  }, [user]);
+
   const countryInfo = country ? getCountryByCode(country) : null;
   const top3 = leaderboard.slice(0, 3);
   const rest = leaderboard.slice(3);
@@ -150,10 +166,35 @@ export const LocalLeaderboard = () => {
       </motion.div>
 
       {leaderboard.length === 0 ? (
-        <div className="flex flex-col items-center py-12 text-center">
-          <Footprints className="h-12 w-12 text-primary/40 mb-3" />
-          <p className="text-muted-foreground">No one in {countryInfo?.name} has logged steps today yet!</p>
-          <p className="text-xs text-muted-foreground mt-1">Be the first! 🚀</p>
+        <div className="flex flex-col items-center py-8 text-center">
+          <div className="w-full max-w-sm">
+            <div className="tactical-card p-5 text-center border-primary/20">
+              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                <Lock className="h-7 w-7 text-primary" />
+              </div>
+              <h3 className="text-base font-bold text-foreground mb-1">Leaderboard Locked</h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Hit <span className="text-primary font-bold">10,000 steps</span> today to compete in {countryInfo?.name}
+              </p>
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-muted-foreground">{currentUserSteps.toLocaleString()} steps</span>
+                  <span className="text-primary font-bold">{QUALIFY_THRESHOLD.toLocaleString()}</span>
+                </div>
+                <div className="h-2.5 rounded-full bg-secondary overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full bg-gradient-to-r from-primary to-cyan-400"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min((currentUserSteps / QUALIFY_THRESHOLD) * 100, 100)}%` }}
+                    transition={{ duration: 1, ease: 'easeOut' }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {currentUserSteps >= QUALIFY_THRESHOLD ? '✅ You qualify! Pull to refresh.' : `${(QUALIFY_THRESHOLD - currentUserSteps).toLocaleString()} steps to go`}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <>
