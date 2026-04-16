@@ -319,6 +319,55 @@ export type Database = {
           },
         ]
       }
+      group_invitations: {
+        Row: {
+          created_at: string | null
+          group_id: string
+          id: string
+          invited_by: string
+          invited_user_id: string
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          group_id: string
+          id?: string
+          invited_by: string
+          invited_user_id: string
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          group_id?: string
+          id?: string
+          invited_by?: string
+          invited_user_id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_invitations_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "friend_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_invitations_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_invitations_invited_user_id_fkey"
+            columns: ["invited_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           age: number | null
@@ -592,6 +641,7 @@ export type Database = {
           avatar_url: string
           current_streak: number
           display_name: string
+          qualified: boolean
           rank: number
           steps: number
           user_id: string
@@ -606,6 +656,7 @@ export type Database = {
           avatar_url: string
           current_streak: number
           display_name: string
+          qualified: boolean
           rank: number
           steps: number
           user_id: string
@@ -620,10 +671,24 @@ export type Database = {
           avatar_url: string
           current_streak: number
           display_name: string
+          qualified: boolean
           rank: number
           total_steps: number
           user_id: string
           username: string
+        }[]
+      }
+      get_pending_invitations: {
+        Args: { target_user_id: string }
+        Returns: {
+          created_at: string
+          group_emoji: string
+          group_id: string
+          group_name: string
+          id: string
+          invited_by_avatar: string
+          invited_by_name: string
+          member_count: number
         }[]
       }
       get_today_leaderboard: {
@@ -636,6 +701,7 @@ export type Database = {
           current_streak: number
           display_name: string
           distance_km: number
+          qualified: boolean
           rank: number
           steps: number
           user_id: string
@@ -650,6 +716,7 @@ export type Database = {
           avatar_url: string
           current_streak: number
           display_name: string
+          qualified: boolean
           rank: number
           total_steps: number
           user_id: string
@@ -689,6 +756,19 @@ export type Database = {
           message: Json
           msg_id: number
           read_ct: number
+        }[]
+      }
+      search_users_for_invite: {
+        Args: { exclude_group_id: string; search_query: string }
+        Returns: {
+          already_invited: boolean
+          already_member: boolean
+          avatar_id: string
+          avatar_initials: string
+          avatar_url: string
+          display_name: string
+          user_id: string
+          username: string
         }[]
       }
     }
