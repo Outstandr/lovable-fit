@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, Medal, Loader2, Footprints, MapPin } from 'lucide-react';
+import { Crown, Medal, Loader2, Footprints, MapPin, Flame } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { AVATARS } from '@/components/profile/AvatarSelector';
